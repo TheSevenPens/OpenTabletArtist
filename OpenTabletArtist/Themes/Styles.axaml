@@ -1,6 +1,7 @@
 <Styles xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:c="using:OpenTabletArtist.Controls"
+        xmlns:oc="clr-namespace:OpenTabletArtist.Controls;assembly=OpenTabletArtist"
         xmlns:conv="using:OpenTabletArtist.Converters"
         xmlns:ac="using:Avalonia.Data.Converters"
         xmlns:svc="using:OpenTabletArtist.Services">
@@ -480,9 +481,18 @@
                             BorderThickness="{TemplateBinding BorderThickness}"
                             CornerRadius="0"
                             Padding="{TemplateBinding Padding}">
-                        <ContentPresenter Content="{Binding Content, RelativeSource={RelativeSource TemplatedParent}, Converter={x:Static conv:UpperCaseConverter.Instance}}"
-                                          HorizontalContentAlignment="Center"
-                                          VerticalContentAlignment="Center" />
+                        <!-- The text, then an optional icon (ButtonIcon.Data). The icon is collapsed while
+                             unset, so a button without one lays out exactly as it did. It takes the
+                             button's Foreground, so it follows the hover and disabled states with the text. -->
+                        <StackPanel Orientation="Horizontal" Spacing="8"
+                                    HorizontalAlignment="Center" VerticalAlignment="Center">
+                            <ContentPresenter Content="{Binding Content, RelativeSource={RelativeSource TemplatedParent}, Converter={x:Static conv:UpperCaseConverter.Instance}}"
+                                              HorizontalContentAlignment="Center"
+                                              VerticalContentAlignment="Center" />
+                            <PathIcon Width="15" Height="15" VerticalAlignment="Center"
+                                      Data="{Binding (oc:ButtonIcon.Data), RelativeSource={RelativeSource TemplatedParent}}"
+                                      IsVisible="{Binding (oc:ButtonIcon.Data), RelativeSource={RelativeSource TemplatedParent}, Converter={x:Static ac:ObjectConverters.IsNotNull}}" />
+                        </StackPanel>
                     </Border>
                 </ControlTemplate>
             </Setter>

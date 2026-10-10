@@ -1,6 +1,24 @@
 <UserControl x:Class="OpenTabletArtist.Views.SettingsFooterView"
              xmlns="https://github.com/avaloniaui"
-             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:c="using:OpenTabletArtist.Controls">
+
+    <UserControl.Styles>
+        <!-- Save says so when there is something to save: an alert icon after the text, and the tooltip and
+             accessible name say it in words, so the signal is not only a picture. The class is toggled from
+             HasUnsavedChanges on the button below. The tooltip lives here, not on the button, because a
+             value set directly on the button would beat these style setters. -->
+        <Style Selector="Button.save">
+            <Setter Property="ToolTip.Tip"
+                    Value="Save settings so they survive an OTD daemon restart (Ctrl+S)." />
+        </Style>
+        <Style Selector="Button.save.unsaved">
+            <Setter Property="c:ButtonIcon.Data" Value="{StaticResource IconAlertCircle}" />
+            <Setter Property="ToolTip.Tip"
+                    Value="You have unsaved changes. Save settings so they survive an OTD daemon restart (Ctrl+S)." />
+            <Setter Property="AutomationProperties.Name" Value="Save, unsaved changes" />
+        </Style>
+    </UserControl.Styles>
 
     <!-- The settings footer: what the session has to say on the left, what can be done about it on the
          right. Its own view rather than markup inside MainWindow so it can be built with an inert
@@ -44,9 +62,9 @@
                         IsVisible="{Binding !SettingsSession.SettingsPaused}"
                         IsEnabled="{Binding !SettingsSession.SettingsBusy}">
                 <Button Content="Save" Command="{Binding SaveSettingsCommand}"
+                        Classes="save" Classes.unsaved="{Binding SettingsSession.HasUnsavedChanges}"
                         Theme="{StaticResource AccentButton}" Padding="22,5"
-                        IsEnabled="{Binding SettingsSession.CanEditSettings}"
-                        ToolTip.Tip="Save settings so they survive an OTD daemon restart (Ctrl+S)." />
+                        IsEnabled="{Binding SettingsSession.CanEditSettings}" />
                 <Button Content="Revert to saved" Command="{Binding RevertSettingsCommand}"
                         Theme="{StaticResource GhostButton}" Padding="16,5"
                         IsEnabled="{Binding SettingsSession.CanEditSettings}"

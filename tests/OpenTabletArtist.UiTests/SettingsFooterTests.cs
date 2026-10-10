@@ -59,12 +59,25 @@ public class SettingsFooterTests
         public ICommand RevertSettingsCommand => Revert;
     }
 
-    private sealed class SessionState
+    private sealed class SessionState : System.ComponentModel.INotifyPropertyChanged
     {
+        public event System.ComponentModel.PropertyChangedEventHandler? PropertyChanged;
         public bool CanEditSettings { get; init; }
         public bool SettingsBusy { get; init; }
         public bool SettingsPaused { get; init; }
         public string SaveStatusText { get; init; } = "";
+
+        // Observable, unlike the rest: the footer must follow this live, and a test says so by flipping it.
+        private bool _hasUnsavedChanges;
+        public bool HasUnsavedChanges
+        {
+            get => _hasUnsavedChanges;
+            set
+            {
+                _hasUnsavedChanges = value;
+                PropertyChanged?.Invoke(this, new(nameof(HasUnsavedChanges)));
+            }
+        }
     }
 
     private sealed class ConnectionState
@@ -76,7 +89,8 @@ public class SettingsFooterTests
     }
 
     private static (Window Window, FooterState State, Button[] Buttons) Footer(
-        bool canEdit, bool busy = false, bool paused = false, string status = "", double width = 1100)
+        bool canEdit, bool busy = false, bool paused = false, string status = "", double width = 1100,
+        bool unsaved = false)
     {
         var state = new FooterState
         {
@@ -86,6 +100,7 @@ public class SettingsFooterTests
                 SettingsBusy = busy,
                 SettingsPaused = paused,
                 SaveStatusText = status,
+                HasUnsavedChanges = unsaved,
             },
         };
         var footer = new SettingsFooterView();
@@ -101,6 +116,98 @@ public class SettingsFooterTests
 
     private static Button Named(Button[] buttons, string content) =>
         buttons.Single(b => (b.Content as string) == content);
+
+    // ── the unsaved-changes signal on Save ───────────────────────────────────────────────────────
+
+    private static PathIcon? IconOf(Button b) => b.GetVisualDescendants().OfType<PathIcon>().SingleOrDefault();
+    private static TextBlock TextOf(Button b) => b.GetVisualDescendants().OfType<TextBlock>().Single();
+
+    private static void Settle() => Dispatcher.UIThread.RunJobs();
+
+    /// <summary>
+    /// With something to save, Save carries an alert icon after its text.
+    /// </summary>
+    /// <remarks>
+    /// The text is still "Save" (the theme upper-cases it): the content stays a string so tests and
+    /// automation keep finding the button by it, and the icon is a style, not new content.
+    /// </remarks>
+    [AvaloniaFact]
+    public void WithUnsavedChanges_SaveShowsAnAlertIconAfterItsText()
+    {
+        var (window, _, buttons) = Footer(canEdit: true, unsaved: true);
+        var save = Named(buttons, "Save");
+
+        var icon = Assert.IsType<PathIcon>(IconOf(save));
+        Assert.True(icon.IsVisible);
+        Assert.Same(Application.Current!.FindResource("IconAlertCircle"), icon.Data);
+        Assert.Equal("SAVE", TextOf(save).Text);                     // "SAVE (!)": the text, then the icon
+        Assert.True(icon.Bounds.X > TextOf(save).Bounds.X);
+        window.Close();
+    }
+
+    [AvaloniaFact]
+    public void WithNothingToSave_SaveHasNoIcon_AndTakesNoRoomForOne()
+    {
+        var (w1, _, saved) = Footer(canEdit: true, unsaved: false);
+        var (w2, _, unsaved) = Footer(canEdit: true, unsaved: true);
+        var plain = Named(saved, "Save");
+
+        Assert.False(IconOf(plain)!.IsVisible);
+        Assert.Equal("SAVE", TextOf(plain).Text);
+        Assert.True(Named(unsaved, "Save").Bounds.Width > plain.Bounds.Width);   // the icon takes room only when shown
+        w1.Close(); w2.Close();
+    }
+
+    /// <summary>
+    /// The icon follows the state while the footer is on screen, not only when it is built.
+    /// </summary>
+    [AvaloniaFact]
+    public void TheIconAppearsAndGoesAsChangesAreMadeAndSaved()
+    {
+        var (window, state, buttons) = Footer(canEdit: true, unsaved: false);
+        var save = Named(buttons, "Save");
+
+        Assert.False(IconOf(save)!.IsVisible);
+        state.SettingsSession.HasUnsavedChanges = true;
+        Settle();
+        Assert.True(IconOf(save)!.IsVisible);
+        state.SettingsSession.HasUnsavedChanges = false;
+        Settle();
+        Assert.False(IconOf(save)!.IsVisible);
+        window.Close();
+    }
+
+    /// <summary>
+    /// The signal is in words as well as a picture: the tooltip and the accessible name say it.
+    /// </summary>
+    [AvaloniaFact]
+    public void TheSignalIsAlsoInTheTooltipAndTheAccessibleName()
+    {
+        var (w1, state, buttons) = Footer(canEdit: true, unsaved: false);
+        var save = Named(buttons, "Save");
+
+        Assert.Equal("Save settings so they survive an OTD daemon restart (Ctrl+S).", ToolTip.GetTip(save));
+        Assert.True(string.IsNullOrEmpty(Avalonia.Automation.AutomationProperties.GetName(save)));
+
+        state.SettingsSession.HasUnsavedChanges = true;
+        Settle();
+        Assert.Contains("unsaved changes", (string)ToolTip.GetTip(save)!);
+        Assert.Contains("Ctrl+S", (string)ToolTip.GetTip(save)!);
+        Assert.Equal("Save, unsaved changes", Avalonia.Automation.AutomationProperties.GetName(save));
+
+        state.SettingsSession.HasUnsavedChanges = false;      // and it goes back
+        Settle();
+        Assert.Equal("Save settings so they survive an OTD daemon restart (Ctrl+S).", ToolTip.GetTip(save));
+        w1.Close();
+    }
+
+    [AvaloniaFact]
+    public void OnlySaveCarriesTheSignal()
+    {
+        var (window, _, buttons) = Footer(canEdit: true, unsaved: true);
+        Assert.Empty(Named(buttons, "Revert to saved").GetVisualDescendants().OfType<PathIcon>());
+        window.Close();
+    }
 
     /// <summary>Ranked, and in the order the app uses everywhere else: affirmative first (#502).</summary>
     /// <remarks>
