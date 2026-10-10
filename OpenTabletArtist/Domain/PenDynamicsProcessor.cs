@@ -68,6 +68,17 @@ public sealed class PenDynamicsProcessor
     public bool IsDrawing(double normalized) =>
         normalized > 0 && PressureCurve.Apply(normalized, Settings.Curve) > 0;
 
+    /// <summary>The pressure a drawing app would get for one raw sample: curve and smoothing while the sample
+    /// is <see cref="IsDrawing"/>; otherwise 0, with the smoothing reset so the next press starts crisp. This
+    /// is the rule the daemon's filter applies, in one place, so the pen page's preview and the Scribble
+    /// canvas draw what the filter would deliver and agree with it about what a stroke is.</summary>
+    public double ProcessSample(double normalized)
+    {
+        if (IsDrawing(normalized)) return ProcessPressure(normalized);
+        Reset();
+        return 0;
+    }
+
     /// <summary>Map a normalized input pressure [0,1] through curve + smoothing (honoring
     /// <see cref="PenDynamicsSettings.SmoothAfterCurve"/>). Returns a normalized output [0,1].</summary>
     public double ProcessPressure(double normalized)

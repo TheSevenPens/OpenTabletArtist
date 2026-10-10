@@ -32,6 +32,13 @@ public partial class TestViewModel : ObservableObject, IDisposable
     private readonly DaemonPenInputSource _driver;
     private readonly IDeviceData _deviceData;
 
+    // What the canvas draws is the pressure after the curve and smoothing, as on the Pen page's "processed"
+    // canvas (and as the daemon's filter would deliver it). The settings are the profile's, and only while
+    // its Pen Dynamics filter is enabled: with it off, apps get the raw pressure, so this stays the default
+    // (a straight line, no smoothing) and the canvas draws raw, as before.
+    private readonly PenDynamicsProcessor _pressure = new();
+    private PenDynamicsSettings _dynamics = PenDynamicsSettings.Default;
+
     /// <param name="daemonVersion">The connected daemon's version, for the driver line of a saved recording.</param>
     /// <param name="showRecordingReview">Opens the save window when a recording is stopped.</param>
     /// <param name="showRecordingProblem">Says why Record could not start, in a message of its own.</param>
@@ -117,6 +124,7 @@ public partial class TestViewModel : ObservableObject, IDisposable
         var read = PressureCurveProfile.ReadProfile(detected?.Profile);
         DynamicsActive = read is { Enabled: true };
         var d = DynamicsActive ? read!.Value.Dynamics : PenDynamicsSettings.Default;
+        _dynamics = d;
         CurveActive = DynamicsActive && d.CurveShapesPressure;
         PressureSmoothingActive = DynamicsActive && d.HasPressureSmoothing;
         PositionSmoothingActive = DynamicsActive && d.HasPositionSmoothing;
@@ -189,8 +197,10 @@ public partial class TestViewModel : ObservableObject, IDisposable
     public string AzAltText => Pair(AzimuthText, AltitudeText);
     private static string Pair(string x, string y) => x == "—" && y == "—" ? "—" : $"{x}, {y}";
 
-    /// <summary>Driver-mode samples; the view forwards these to the canvas.</summary>
-    public event Action<PenSample>? DriverSample;
+    /// <summary>Driver-mode samples; the view forwards these to the canvas. The sample carries the pressure as the
+    /// tablet reported it (the readouts show that); the second argument is the pressure to draw, after the
+    /// curve and smoothing, and 0 when the sample is not a stroke (see <see cref="PenDynamicsProcessor.ProcessSample"/>).</summary>
+    public event Action<PenSample, double>? DriverSample;
     /// <summary>Raised by the Clear command; the view clears the canvas.</summary>
     public event Action? ClearRequested;
 
@@ -295,10 +305,19 @@ public partial class TestViewModel : ObservableObject, IDisposable
         _lastReportTicks = 0;
     }
 
-    private void OnDriverSample(PenSample s)
+    internal void OnDriverSample(PenSample s)
     {
         if (CountersEnabled) NoteHandled(s, Stopwatch.GetTimestamp());
-        DriverSample?.Invoke(s);
+        // Every sample goes through the processor, on or off the canvas, so the smoothing follows the pen
+        // continuously rather than starting cold whenever it re-enters the canvas.
+        DriverSample?.Invoke(s, ProcessPressure(s));
+    }
+
+    /// <summary>The pressure to draw for one sample. Stateful (smoothing), so call it once per sample, in order.</summary>
+    internal double ProcessPressure(PenSample s)
+    {
+        _pressure.Settings = _dynamics;
+        return _pressure.ProcessSample(Math.Clamp(s.Pressure, 0, 1));
     }
 
     // --- Pipeline counters ---

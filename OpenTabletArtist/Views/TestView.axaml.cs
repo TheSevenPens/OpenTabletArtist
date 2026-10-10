@@ -38,7 +38,7 @@ public partial class TestView : UserControl
 
     // Driver stream: update readouts; in an Absolute mode, map the raw tablet position to the canvas
     // and paint under the pen. In a non-mappable (Relative) mode the canvas is disabled (note shown).
-    private void OnDriverSample(PenSample s)
+    private void OnDriverSample(PenSample s, double pressure)
     {
         if (_vm is null) return;
         _vm.UpdateReadout(s);
@@ -57,7 +57,9 @@ public partial class TestView : UserControl
             return;
         }
 
-        var inked = PaintCanvas.AddSample(s with { X = nx, Y = ny, IsDown = s.Pressure > 0 });
+        // The canvas draws the processed pressure, like the Pen page's processed canvas; the readouts above
+        // keep showing what the tablet reported. Pressure 0 is not a stroke, so no ink.
+        var inked = PaintCanvas.AddSample(s with { X = nx, Y = ny, Pressure = pressure, IsDown = pressure > 0 });
         _vm.NoteOutcome(inked ? TestViewModel.SampleOutcome.Drawn : TestViewModel.SampleOutcome.Hover);
         _vm.UpdateCanvasPosition(nx * PaintCanvas.Bounds.Width, ny * PaintCanvas.Bounds.Height);
     }
