@@ -192,6 +192,7 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
     partial void OnIsAbsoluteOutputModeChanged(bool value)
     {
         OnPropertyChanged(nameof(IsAbsoluteMode)); // keep the Absolute/Relative toggle in sync
+        OnPropertyChanged(nameof(SelectedMovement));
         OnPropertyChanged(nameof(CanCalibrate));   // calibration needs an Absolute mode (#127)
         OnPropertyChanged(nameof(CanRunCalibration));
         OnPropertyChanged(nameof(ShowConnectToCalibrateHint));
@@ -643,6 +644,48 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
     /// selection is now command-driven and the checked state is display-only.</summary>
     public bool IsAbsoluteMode => IsAbsoluteOutputMode;
 
+    /// <summary>One entry in a rich dropdown on the pen page: a short title plus the line that explains it.
+    /// <see cref="Key"/> is the argument the matching Select… command takes.</summary>
+    public sealed record ChoiceOption(string Key, string Title, string Description);
+
+    public ChoiceOption[] MovementOptions { get; } =
+    [
+        new("absolute", "Normal (Absolute)", "The pen maps 1:1 to the screen — good for artists."),
+        new("relative", "Mouse-like (Relative)", "The pen moves the cursor like a mouse — often used with games."),
+    ];
+
+    public ChoiceOption[] PressModeOptions { get; } =
+    [
+        new("pen", "Presses normally", "Works like an artist would expect, with pressure sensitivity and tilt"),
+        new("mouse", "Presses like a mouse", "No pressure sensitivity or tilt"),
+    ];
+
+    /// <summary>The Movement dropdown's selection. Derived from the profile, and the setter only forwards a
+    /// real pick to <see cref="SelectMovementCommand"/> — which no-ops when the mode is already there, so
+    /// the ComboBox echoing the getter back on a reload cannot start an apply↔reload loop.</summary>
+    public ChoiceOption SelectedMovement
+    {
+        get => MovementOptions[IsAbsoluteMode ? 0 : 1];
+        set
+        {
+            if (value == null) return;
+            SelectMovementCommand.Execute(value.Key);
+            OnPropertyChanged(); // snap back to the profile's mode if the change did not apply
+        }
+    }
+
+    /// <summary>The Pressing dropdown's selection — same shape as <see cref="SelectedMovement"/>.</summary>
+    public ChoiceOption SelectedPressMode
+    {
+        get => PressModeOptions[DisableWindowsInk ? 1 : 0];
+        set
+        {
+            if (value == null) return;
+            SelectPressModeCommand.Execute(value.Key);
+            OnPropertyChanged();
+        }
+    }
+
     /// <summary>User picked a Movement card (Absolute / Relative). Fires only on a real click — unlike a
     /// TwoWay IsChecked binding, which the RadioButton group re-triggers on every reload.</summary>
     [RelayCommand]
@@ -694,6 +737,7 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
 
     partial void OnDisableWindowsInkChanged(bool value)
     {
+        OnPropertyChanged(nameof(SelectedPressMode));
         if (_skipOutputModeChange || !OperatingSystem.IsWindows()) return;
         _ = SetOutputMode(ModePath(IsAbsoluteOutputMode, value));
     }

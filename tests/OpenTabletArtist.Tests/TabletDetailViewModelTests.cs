@@ -343,6 +343,27 @@ public class TabletDetailViewModelTests
         Assert.Equal(1, applies);                          // still just the one
     }
 
+    // The Movement dropdown reads the profile's mode and forwards only a real pick to the command, so the
+    // ComboBox echoing its own selection back (as it does on every reload) cannot re-apply.
+    [Fact]
+    public void SelectedMovement_ReflectsMode_AndOnlyAppliesOnARealPick()
+    {
+        var settings = AbsoluteSettingsWith("T");
+        int applies = 0;
+        var vm = new TabletDetailViewModel(
+            settings.Profiles.First(), settings,
+            applyAction: _ => { applies++; return Task.FromResult(SettingsApplyOutcome.Live); });
+
+        Assert.Equal("absolute", vm.SelectedMovement.Key);
+
+        vm.SelectedMovement = vm.MovementOptions[0];       // echo of the current value — no-op
+        Assert.Equal(0, applies);
+
+        vm.SelectedMovement = vm.MovementOptions[1];       // a real pick: Relative
+        Assert.Equal(1, applies);
+        Assert.Equal("relative", vm.SelectedMovement.Key);
+    }
+
     // ── #140 output-mode generalisation — Windows regression gate (the #510 review's 0.3 acceptance) ──
     //
     // Detection now keys on the "Absolute"/"Relative" token in the mode path so OTD's NATIVE modes are

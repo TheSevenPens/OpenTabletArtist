@@ -7,6 +7,24 @@
              xmlns:otac="using:OpenTabletArtist.Converters"
              xmlns:views="using:OpenTabletArtist.Views">
 
+    <UserControl.Resources>
+        <!-- Title over a muted explanation: the item look for the movement and pressing dropdowns. The
+             MaxWidth bounds the wrapping description (an open popup may otherwise auto-grow to one
+             long line); the labels are body-size text, matching ToggleSetting. -->
+        <DataTemplate x:Key="ChoiceOptionTemplate">
+            <StackPanel Spacing="2" MaxWidth="300" Margin="0,3">
+                <TextBlock Text="{Binding Title}" TextWrapping="Wrap" />
+                <TextBlock Text="{Binding Description}" TextWrapping="Wrap"
+                           Foreground="{DynamicResource TextMutedBrush}" />
+            </StackPanel>
+        </DataTemplate>
+        <!-- What the CLOSED box shows: the option's name alone. The explanation is for choosing, so it
+             appears only in the open list (ChoiceOptionTemplate). -->
+        <DataTemplate x:Key="ChoiceOptionNameTemplate">
+            <TextBlock Text="{Binding Title}" TextWrapping="Wrap" />
+        </DataTemplate>
+    </UserControl.Resources>
+
     <!-- The switcher/detection statusDot + statusSquare styles moved into TabletSwitcherBar (#580). -->
 
     <!-- A single tablet's PEN settings (#pen-split), DataContext is a TabletDetailViewModel (shared with the
@@ -119,36 +137,16 @@
                 <StackPanel Width="320" VerticalAlignment="Top">
                     <TextBlock Text="movement" Classes="Display section" />
 
-                    <!-- IsChecked is OneWay (display only); the mode change is driven by the Command on click.
-                         A TwoWay IsChecked here made the two grouped radios fight into an apply↔reload loop.
-
-                         The option labels are plain body text. They used to carry CardTitle — TypeTitleSize,
-                         a step above everything around them — which made a radio's label the largest text on
-                         the page after the headings, larger than the settings it was describing. Every other
-                         checkbox and radio label in the app (ToggleSetting) is body size, with a MUTED
-                         description under it; these match that now. -->
-                    <StackPanel Margin="0,12,0,0" Spacing="10">
-                        <RadioButton GroupName="Movement"
-                                     IsChecked="{Binding IsAbsoluteMode, Mode=OneWay}"
-                                     Command="{Binding SelectMovementCommand}" CommandParameter="absolute">
-                            <StackPanel Spacing="2">
-                                <TextBlock Text="Normal (Absolute)" />
-                                <TextBlock Text="The pen maps 1:1 to the screen — good for artists."
-                                           TextWrapping="Wrap"
-                                           Foreground="{DynamicResource TextMutedBrush}" />
-                            </StackPanel>
-                        </RadioButton>
-                        <RadioButton GroupName="Movement"
-                                     IsChecked="{Binding IsAbsoluteMode, Converter={StaticResource InvBool}, Mode=OneWay}"
-                                     Command="{Binding SelectMovementCommand}" CommandParameter="relative">
-                            <StackPanel Spacing="2">
-                                <TextBlock Text="Mouse-like (Relative)" />
-                                <TextBlock Text="The pen moves the cursor like a mouse — often used with games."
-                                           TextWrapping="Wrap"
-                                           Foreground="{DynamicResource TextMutedBrush}" />
-                            </StackPanel>
-                        </RadioButton>
-                    </StackPanel>
+                    <!-- A dropdown, not radios: each option carries a MUTED explanation under its title in the
+                         open list; the closed box shows just the name.
+                         SelectedMovement derives from the profile and its setter forwards a real pick to
+                         SelectMovementCommand (a no-op when the mode is already there). The item template
+                         is shared with the pressing dropdown below. -->
+                    <ComboBox Margin="0,12,0,0" HorizontalAlignment="Stretch"
+                              ItemsSource="{Binding MovementOptions}"
+                              SelectedItem="{Binding SelectedMovement, Mode=TwoWay}"
+                              ItemTemplate="{StaticResource ChoiceOptionTemplate}"
+                              SelectionBoxItemTemplate="{StaticResource ChoiceOptionNameTemplate}" />
 
                     <!-- Only when the current mode isn't Windows Ink: pressure/tilt won't work; offer a fix. -->
                     <TextBlock Text="Output mode needs to use Windows Ink for pressure and tilt to work"
@@ -163,27 +161,11 @@
 
                     <StackPanel IsVisible="{Binding CanDisableWindowsInk}">
                         <TextBlock Text="pressing" Classes="Display section" />
-                        <StackPanel Margin="0,12,0,0" Spacing="10">
-                            <RadioButton GroupName="PressMode"
-                                         IsChecked="{Binding DisableWindowsInk, Converter={StaticResource InvBool}, Mode=OneWay}"
-                                         Command="{Binding SelectPressModeCommand}" CommandParameter="pen">
-                                <StackPanel Spacing="2">
-                                    <TextBlock Text="Presses normally" TextWrapping="Wrap" />
-                                    <TextBlock Text="Works like an artist would expect, with pressure sensitivity and tilt"
-                                               TextWrapping="Wrap"
-                                               Foreground="{DynamicResource TextMutedBrush}" />
-                                </StackPanel>
-                            </RadioButton>
-                            <RadioButton GroupName="PressMode"
-                                         IsChecked="{Binding DisableWindowsInk, Mode=OneWay}"
-                                         Command="{Binding SelectPressModeCommand}" CommandParameter="mouse">
-                                <StackPanel Spacing="2">
-                                    <TextBlock Text="Presses like a mouse" TextWrapping="Wrap" />
-                                    <TextBlock Text="No pressure sensitivity or tilt" TextWrapping="Wrap"
-                                               Foreground="{DynamicResource TextMutedBrush}" />
-                                </StackPanel>
-                            </RadioButton>
-                        </StackPanel>
+                        <ComboBox Margin="0,12,0,0" HorizontalAlignment="Stretch"
+                                  ItemsSource="{Binding PressModeOptions}"
+                                  SelectedItem="{Binding SelectedPressMode, Mode=TwoWay}"
+                                  ItemTemplate="{StaticResource ChoiceOptionTemplate}"
+                                  SelectionBoxItemTemplate="{StaticResource ChoiceOptionNameTemplate}" />
                     </StackPanel>
 
                     <!-- Position smoothing (EMA), moved here from the Pressure tab: it steadies the pen's
