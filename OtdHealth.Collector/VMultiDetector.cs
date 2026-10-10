@@ -27,8 +27,9 @@ public class VMultiDetector
     /// <summary>The hardware IDs a VMulti device node enumerates under. The package OTA installs
     /// (<c>devcon install vmulti.inf "pentablet\hid"</c>; its INF lists only this model) creates a node
     /// with <c>pentablet\hid</c>, so that is what a working install carries. <c>djpnewton\vmulti</c> is
-    /// the upstream package's ID and is where the driverless leftovers after an uninstall show up. The
-    /// probe used to look only for the latter, so a healthy install read as "not installed".</summary>
+    /// the upstream package's ID. It never appears in the v1.0 package, but driverless leftover nodes
+    /// (Code 28) were observed under it after an uninstall (#110), so it stays. The probe used to look
+    /// only for the latter, so a healthy install read as "not installed".</summary>
     private static readonly string[] VMultiHardwareIds = [@"pentablet\hid", @"djpnewton\vmulti"];
 
     /// <summary>The VMulti hardware ID among a device's hardware IDs, or null if it carries none. Exact,
