@@ -8,12 +8,24 @@ public class VMultiDetector
     public static bool ReadInstalled()
     {
         if (!OperatingSystem.IsWindows()) throw new ProbeUnavailableException("VMulti requires Windows.", true);
-        return ClassifySetupApi(FindDevicesByHardwareId(VMultiHardwareId)).Installed;
+        return ClassifySetupApi(FindVMultiDevices()).Installed;
     }
 
     private const int VMultiVendorId = 0x00FF;
     private const int VMultiProductId = 0xBACC;
-    private const string VMultiHardwareId = @"djpnewton\vmulti";
+
+    /// <summary>The hardware IDs a VMulti device node enumerates under. The package OTA installs
+    /// (<c>devcon install vmulti.inf "pentablet\hid"</c>; its INF lists only this model) creates a node
+    /// with <c>pentablet\hid</c>, so that is what a working install carries. <c>djpnewton\vmulti</c> is
+    /// the upstream package's ID and is where the driverless leftovers after an uninstall show up. The
+    /// probe used to look only for the latter, so a healthy install read as "not installed".</summary>
+    private static readonly string[] VMultiHardwareIds = [@"pentablet\hid", @"djpnewton\vmulti"];
+
+    /// <summary>The VMulti hardware ID among a device's hardware IDs, or null if it carries none. Exact,
+    /// case-insensitive match: the HID child nodes (<c>HID\hid&amp;Col01</c>, ...) are not VMulti nodes.</summary>
+    public static string? MatchHardwareId(IEnumerable<string> hardwareIds) =>
+        hardwareIds.Select(id => VMultiHardwareIds.FirstOrDefault(v => v.Equals(id, StringComparison.OrdinalIgnoreCase)))
+            .FirstOrDefault(v => v != null);
 
     /// <summary>
     /// Detect vmulti via HID enumeration (only sees enabled, running devices).
@@ -51,7 +63,7 @@ public class VMultiDetector
     {
         try
         {
-            return ClassifySetupApi(FindDevicesByHardwareId(VMultiHardwareId));
+            return ClassifySetupApi(FindVMultiDevices());
         }
         catch (Exception ex)
         {
@@ -84,7 +96,7 @@ public class VMultiDetector
             $"Not installed ({orphaned.Count} leftover device node{(orphaned.Count == 1 ? "" : "s")}, no driver)");
     }
 
-    private static List<DeviceInfo> FindDevicesByHardwareId(string targetHardwareId)
+    private static List<DeviceInfo> FindVMultiDevices()
     {
         var results = new List<DeviceInfo>();
         var guid = Guid.Empty;
@@ -106,23 +118,19 @@ public class VMultiDetector
                 string? hardwareIds = GetDeviceRegistryProperty(devInfoSet, ref devInfoData, SPDRP_HARDWAREID);
                 if (hardwareIds == null) continue;
 
-                // Hardware IDs are multi-sz (null-separated), check each
-                foreach (var id in hardwareIds.Split('\0', StringSplitOptions.RemoveEmptyEntries))
+                // Hardware IDs are multi-sz (null-separated); a node counts if any is a known VMulti ID.
+                if (MatchHardwareId(hardwareIds.Split('\0', StringSplitOptions.RemoveEmptyEntries)) is { } id)
                 {
-                    if (id.Equals(targetHardwareId, StringComparison.OrdinalIgnoreCase))
-                    {
-                        string? description = GetDeviceRegistryProperty(devInfoSet, ref devInfoData, SPDRP_DEVICEDESC);
+                    string? description = GetDeviceRegistryProperty(devInfoSet, ref devInfoData, SPDRP_DEVICEDESC);
 
-                        var (enabled, problem) = GetDevNodeState(devInfoSet, ref devInfoData);
+                    var (enabled, problem) = GetDevNodeState(devInfoSet, ref devInfoData);
 
-                        results.Add(new DeviceInfo(
-                            id,
-                            description ?? "Unknown",
-                            enabled,
-                            problem
-                        ));
-                        break;
-                    }
+                    results.Add(new DeviceInfo(
+                        id,
+                        description ?? "Unknown",
+                        enabled,
+                        problem
+                    ));
                 }
             }
             if (Marshal.GetLastWin32Error() != 259) // ERROR_NO_MORE_ITEMS
