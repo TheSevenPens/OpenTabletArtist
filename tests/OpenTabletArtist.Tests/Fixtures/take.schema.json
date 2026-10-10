@@ -75,7 +75,8 @@
         "driver": { "type": "string" },
         "api": { "type": "string" },
         "fullScalePressure": { "type": "integer", "minimum": 1 },
-        "conventions": { "type": "string" }
+        "conventions": { "type": "string" },
+        "pen": { "type": "string", "minLength": 1, "description": "Which pen was used, as the person who made the recording typed it. Optional in any version, and absent when nobody said: a pen is never an empty string. Unlike a recording's name it is part of the evidence, so it cannot be added to a recording afterwards." }
       }
     },
     "device": {
@@ -125,6 +126,7 @@
         "id": { "type": "string", "minLength": 1 },
         "gesture": { "type": "string" },
         "intent": { "type": "string" },
+        "name": { "type": "string", "minLength": 1, "description": "What the person who made the recording calls it. A label and not evidence: unlike everything else in the file it may be added to a recording, or changed, after it was recorded, and doing so does not make the recording edited. Absent means nobody named it, and the catalogue then derives a name from the file name." },
         "recordedAt": { "type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}" },
         "endedBy": { "type": "string" },
         "editedAfterRecording": { "type": "string", "description": "A recording that was changed after it was recorded says so here. Rare, and a reason to treat the recording as less than original evidence." }
@@ -326,7 +328,21 @@
           "required": ["space", "units"],
           "properties": {
             "space": { "const": "desktop" },
-            "units": { "type": "string", "minLength": 1 }
+            "units": { "type": "string", "minLength": 1 },
+            "widthMm": { "type": "number", "exclusiveMinimum": 0, "description": "The whole active area of the tablet, horizontally. Means what it means in tablet space." },
+            "heightMm": { "type": "number", "exclusiveMinimum": 0 },
+            "mappedWidthMm": { "type": "number", "exclusiveMinimum": 0, "description": "The part of the active area the driver mapped to the desktop." },
+            "mappedHeightMm": { "type": "number", "exclusiveMinimum": 0 },
+            "mmPerPixelX": { "type": "number", "exclusiveMinimum": 0, "description": "Millimetres on the tablet for one unit of x. Per axis, because a mapping can stretch the tablet onto a desktop of another shape." },
+            "mmPerPixelY": { "type": "number", "exclusiveMinimum": 0 }
+          },
+          "dependentRequired": {
+            "widthMm": ["heightMm"],
+            "heightMm": ["widthMm"],
+            "mappedWidthMm": ["mappedHeightMm", "widthMm"],
+            "mappedHeightMm": ["mappedWidthMm"],
+            "mmPerPixelX": ["mmPerPixelY", "widthMm"],
+            "mmPerPixelY": ["mmPerPixelX"]
           },
           "additionalProperties": false
         },
