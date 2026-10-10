@@ -63,6 +63,8 @@ public partial class StrokeRecordingViewModel : ObservableObject
     private readonly Action<string> _reveal;
     private readonly Func<string, string?>? _rememberedFirmware;
     private readonly Action<string, string?>? _rememberFirmware;
+    private readonly Func<string, string?>? _rememberedPen;
+    private readonly Action<string, string?>? _rememberPen;
 
     private StrokeRecordingSession? _session;
     private StrokeReportAdmission? _admission;
@@ -77,6 +79,9 @@ public partial class StrokeRecordingViewModel : ObservableObject
     /// <param name="rememberedFirmware">The firmware last saved for a tablet, by its name, or null if none. Without it (and
     /// without <paramref name="rememberFirmware"/>) nothing is remembered between recordings beyond what is typed.</param>
     /// <param name="rememberFirmware">Stores the firmware for a tablet after a recording of it is saved; null clears it.</param>
+    /// <param name="rememberedPen">The pen last saved with a tablet, by its name, or null if none: like the firmware, so it
+    /// is never another tablet's.</param>
+    /// <param name="rememberPen">Stores the pen for a tablet after a recording of it is saved; null clears it.</param>
     public StrokeRecordingViewModel(
         Func<StrokeRecordingContext?> context,
         Action<Action<JObject, PenSample>?> setTap,
@@ -87,10 +92,14 @@ public partial class StrokeRecordingViewModel : ObservableObject
         Action<string>? reveal = null,
         Func<string>? accountName = null,
         Func<string, string?>? rememberedFirmware = null,
-        Action<string, string?>? rememberFirmware = null)
+        Action<string, string?>? rememberFirmware = null,
+        Func<string, string?>? rememberedPen = null,
+        Action<string, string?>? rememberPen = null)
     {
         _rememberedFirmware = rememberedFirmware;
         _rememberFirmware = rememberFirmware;
+        _rememberedPen = rememberedPen;
+        _rememberPen = rememberPen;
         _username = (accountName ?? AccountName)().Trim();
         _context = context;
         _setTap = setTap;
@@ -151,6 +160,27 @@ public partial class StrokeRecordingViewModel : ObservableObject
     [ObservableProperty] private string _username;
     [ObservableProperty] private string _notes = "";
 
+    // What the person calls this recording, optional. Unlike the firmware and the notes it is not kept between
+    // recordings: a name belongs to one take, and the next one would otherwise open with this one's.
+    [ObservableProperty] private string _name = "";
+
+    // Which pen it was made with, typed by the person (the driver says nothing about the pen). Remembered per tablet,
+    // as the firmware is, because it is usually the pen that came with that tablet. Optional: an empty box is simply
+    // absent from the file, so unlike the firmware it has no "not recorded" nag.
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(PenNote), nameof(HasPenNote))]
+    private string _pen = "";
+
+    /// <summary>
+    /// Said under the Your name box, where the question of what a recording gives away about you is asked. The name
+    /// starts as the account name on this computer, which for many people is their real name or a work login, and
+    /// everything typed on this form goes into the file. This does not say the file is public, because OpenTabletArtist
+    /// keeps it on this computer: it says what happens if the person contributes it to the Stroke Corpus.
+    /// </summary>
+    public string PublicationNotice =>
+        "Your name, the recording's name, the firmware, the pen and your notes are all saved in the recording. "
+        + "If you contribute it to the Stroke Corpus, it is published with all of them, under CC BY 4.0.";
+
     /// <summary>The signed-in account's name. Anything that goes wrong reading it leaves the field empty to type in.</summary>
     private static string AccountName()
     {
@@ -185,6 +215,19 @@ public partial class StrokeRecordingViewModel : ObservableObject
     }
 
     public bool HasFirmwareNote => FirmwareNote.Length > 0;
+
+    // The pen the dialog opened with because it was remembered for this tablet, so the note can say where it came from
+    // for as long as it is still what is in the box.
+    private string _penFromMemory = "";
+
+    /// <summary>Under the Pen box: where a remembered pen came from, since a different pen is easy to forget to change.
+    /// Empty for a pen typed just now, and for no pen at all (it is optional).</summary>
+    public string PenNote =>
+        Pen.Trim() is { Length: > 0 } typed && typed == _penFromMemory
+            ? "Remembered from your last recording of this tablet. Change it if you are using a different pen."
+            : "";
+
+    public bool HasPenNote => PenNote.Length > 0;
 
     partial void OnKeepAirborneChanged(bool value) => Summarize();
 
@@ -228,6 +271,7 @@ public partial class StrokeRecordingViewModel : ObservableObject
         _recordedOn = context;
         Tablet = context.Tablet;
         LoadRememberedFirmware(context.Tablet);
+        LoadRememberedPen(context.Tablet);
         _session = new StrokeRecordingSession(context.FullScalePressure);
         _admission = new StrokeReportAdmission(context, _session);
         _startedAt = _now();
@@ -298,6 +342,7 @@ public partial class StrokeRecordingViewModel : ObservableObject
         _admission = null;
         _recordedOn = null;
         Tablet = "";
+        Name = "";   // one take's name, not the next one's
         LedgerText = "";
         StatusText = "";
         ErrorText = "";
@@ -326,9 +371,11 @@ public partial class StrokeRecordingViewModel : ObservableObject
             RecordedAt: _startedAt,
             Device: new TakeDevice(
                 on.Tablet, on.Driver, Firmware.Trim(), "OpenTabletDriver DeviceReport", on.FullScalePressure,
-                StrokeRecordingSession.Conventions),
+                StrokeRecordingSession.Conventions,
+                Pen: Pen.Trim().Length > 0 ? Pen.Trim() : null),
             Space: on.Space,
-            Channels: _session.Channels);
+            Channels: _session.Channels,
+            Name: Name.Trim().Length > 0 ? Name.Trim() : null);
 
         try
         {
@@ -336,6 +383,7 @@ public partial class StrokeRecordingViewModel : ObservableObject
                 take, description, _folder(), StrokeTakeWriter.Suggest(Gesture, on.Tablet, _startedAt));
 
             RememberFirmwareFor(on.Tablet);
+            RememberPenFor(on.Tablet);
 
             Discard();
             SavedPath = path;
@@ -371,6 +419,32 @@ public partial class StrokeRecordingViewModel : ObservableObject
 
         var typed = Firmware.Trim();
         try { _rememberFirmware(tablet, typed.Length == 0 ? null : typed); }
+        catch (Exception) { /* the recording is saved; failing to remember is not worth losing the dialog over */ }
+    }
+
+    /// <summary>Opens the dialog with the pen this tablet was last saved with, or empty, so it is never another tablet's.
+    /// With no memory configured the box is left as it was.</summary>
+    private void LoadRememberedPen(string tablet)
+    {
+        if (_rememberedPen is null) return;
+
+        string? remembered = null;
+        try { remembered = _rememberedPen(tablet); }
+        catch (Exception) { /* a settings file that cannot be read leaves the box empty to type in */ }
+
+        _penFromMemory = remembered?.Trim() ?? "";
+        Pen = _penFromMemory;
+        OnPropertyChanged(nameof(PenNote));
+        OnPropertyChanged(nameof(HasPenNote));
+    }
+
+    /// <summary>Remembers the pen the recording was saved with, or forgets it if the box was cleared. Never stops a save.</summary>
+    private void RememberPenFor(string tablet)
+    {
+        if (_rememberPen is null) return;
+
+        var typed = Pen.Trim();
+        try { _rememberPen(tablet, typed.Length == 0 ? null : typed); }
         catch (Exception) { /* the recording is saved; failing to remember is not worth losing the dialog over */ }
     }
 

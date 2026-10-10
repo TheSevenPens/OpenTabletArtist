@@ -31,6 +31,13 @@
                 <CheckBox Content="Keep every airborne reading" IsChecked="{Binding KeepAirborne}"
                           ToolTip.Tip="Also save everything the pen reported with the tip up, unfiltered. Off: only the hovering within a quarter second of each stroke is saved." />
 
+                <!-- What to call this recording. Optional, and left out of the file when empty. -->
+                <StackPanel Spacing="4">
+                    <TextBlock Text="Name" Classes="SectionLabel" />
+                    <TextBox x:Name="NameBox" Text="{Binding Name}" PlaceholderText="What to call this recording (optional)"
+                             ToolTip.Tip="A name for this recording. It is saved in the file, and the corpus catalogue shows it. Leave it empty to give none." />
+                </StackPanel>
+
                 <!-- Which tablet this is a recording of, as the file will name it. Fixed when Record was pressed. -->
                 <StackPanel Spacing="4">
                     <TextBlock Text="Tablet" Classes="SectionLabel" />
@@ -49,9 +56,23 @@
                 </StackPanel>
 
                 <StackPanel Spacing="4">
+                    <TextBlock Text="Pen" Classes="SectionLabel" />
+                    <TextBox x:Name="PenBox" Text="{Binding Pen}" PlaceholderText="Which pen you drew with (optional)"
+                             ToolTip.Tip="The pen is not something the driver can tell us, so it is typed. Saved in the file as the pen; left out when empty." />
+                    <!-- Says where a remembered pen came from: it is easy to forget to change when the pen has. -->
+                    <TextBlock Text="{Binding PenNote}" IsVisible="{Binding HasPenNote}" TextWrapping="Wrap"
+                               FontSize="{DynamicResource TypeCaptionSize}"
+                               Foreground="{DynamicResource TextSecondaryBrush}" />
+                </StackPanel>
+
+                <StackPanel Spacing="4">
                     <TextBlock Text="Your name" Classes="SectionLabel" />
                     <TextBox Text="{Binding Username}" PlaceholderText="How you want to be credited"
                              ToolTip.Tip="Starts as your account name on this computer. Change it to whatever you want the recording to say." />
+                    <!-- What is typed on this form goes into the file, and a contributed file is published with it. -->
+                    <TextBlock x:Name="PublicationNotice" Text="{Binding PublicationNotice}" TextWrapping="Wrap"
+                               FontSize="{DynamicResource TypeCaptionSize}"
+                               Foreground="{DynamicResource TextSecondaryBrush}" />
                 </StackPanel>
 
                 <StackPanel Spacing="4">

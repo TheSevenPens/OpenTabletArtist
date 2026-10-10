@@ -302,5 +302,46 @@ public class StrokeRecordingDialogTests : IDisposable
         }
         finally { File.Delete(_folder); }
     }
-}
 
+    [AvaloniaFact]
+    public void TheDialogHasOptionalNameAndPenBoxesThatStartEmptyAndFeedTheRecording()
+    {
+        using var errors = BindingErrors.Capture();
+        var o = Record(agreeToDiscard: true, out var vm);
+        Dispatcher.UIThread.RunJobs();
+
+        var name = o.Dialog.FindControl<TextBox>("NameBox")!;
+        var pen = o.Dialog.FindControl<TextBox>("PenBox")!;
+        Assert.Equal("", name.Text ?? "");
+        Assert.Equal("", pen.Text ?? "");
+        Assert.False(name.IsReadOnly);
+        Assert.False(pen.IsReadOnly);
+
+        name.Text = "Quick signature";
+        pen.Text = "Pro Pen 2";
+        Dispatcher.UIThread.RunJobs();
+
+        Assert.Equal("Quick signature", vm.Name);   // two-way: what is typed is what is saved
+        Assert.Equal("Pro Pen 2", vm.Pen);
+        errors.AssertNone("the name and pen fields");
+    }
+
+    // The question "what does this give away about me" is asked at the Your name box, so the answer is under it.
+    [AvaloniaFact]
+    public void TheNoticeAboutWhatIsPublishedIsOnTheFormUnderYourName()
+    {
+        using var errors = BindingErrors.Capture();
+        var o = Record(agreeToDiscard: true, out var vm);
+        Dispatcher.UIThread.RunJobs();
+
+        var notice = o.Dialog.FindControl<TextBlock>("PublicationNotice")!;
+        Assert.True(notice.IsEffectivelyVisible);
+        Assert.Equal(vm.PublicationNotice, notice.Text);
+        Assert.Contains("CC BY 4.0", notice.Text);
+
+        // Directly below the Your name box, in the same group: the two share a parent panel.
+        var yourName = o.Dialog.GetVisualDescendants().OfType<TextBox>().First(t => t.PlaceholderText == "How you want to be credited");
+        Assert.Same(yourName.GetVisualParent(), notice.GetVisualParent());
+        errors.AssertNone("the publication notice");
+    }
+}

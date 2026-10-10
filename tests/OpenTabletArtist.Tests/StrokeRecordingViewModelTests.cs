@@ -49,7 +49,9 @@ public class StrokeRecordingViewModelTests : IDisposable
         Action<string>? reveal = null,
         string account = "account-name",
         Dictionary<string, string>? memory = null,
-        bool memoryFails = false)
+        bool memoryFails = false,
+        Dictionary<string, string>? penMemory = null,
+        bool penMemoryFails = false)
     {
         var rig = new Rig();
         rig.Vm = new StrokeRecordingViewModel(
@@ -77,6 +79,14 @@ public class StrokeRecordingViewModelTests : IDisposable
             {
                 if (memoryFails) throw new IOException("settings unwritable");
                 if (firmware is null) memory.Remove(tablet); else memory[tablet] = firmware;
+            },
+            rememberedPen: penMemory is null ? null : tablet => penMemoryFails
+                ? throw new IOException("settings unreadable")
+                : penMemory.TryGetValue(tablet, out var pen) ? pen : null,
+            rememberPen: penMemory is null ? null : (tablet, pen) =>
+            {
+                if (penMemoryFails) throw new IOException("settings unwritable");
+                if (pen is null) penMemory.Remove(tablet); else penMemory[tablet] = pen;
             });
         return rig;
     }
@@ -819,5 +829,210 @@ public class StrokeRecordingViewModelTests : IDisposable
         rig.Vm.RevealFolderCommand.Execute(null);
 
         Assert.Equal(_folder, revealed);
+    }
+
+    // ---- the name of a recording ----
+
+    private static string[] Keys(JsonNode node) => [.. node.AsObject().Select(kv => kv.Key)];
+
+    private static void RecordAndStop(Rig rig)
+    {
+        rig.Vm.StartCommand.Execute(null);
+        Draw(rig);
+        rig.Vm.StopCommand.Execute(null);
+    }
+
+    [Fact]
+    public void ANameTypedInTheDialogIsSavedStraightAfterTheId()
+    {
+        var rig = NewRig();
+        RecordAndStop(rig);
+        rig.Vm.Name = "  Quick signature ";
+
+        rig.Vm.SaveCommand.Execute(null);
+
+        var file = Saved(rig.Vm);
+        var keys = Keys(file);
+        Assert.Equal("name", keys[Array.IndexOf(keys, "id") + 1]);
+        Assert.Equal("Quick signature", file["name"]!.GetValue<string>());
+    }
+
+    [Fact]
+    public void NoNameTypedMeansNoLine()
+    {
+        var rig = NewRig();
+        RecordAndStop(rig);
+        rig.Vm.Name = "   ";
+
+        rig.Vm.SaveCommand.Execute(null);
+
+        Assert.DoesNotContain("name", Keys(Saved(rig.Vm)));
+    }
+
+    // A name belongs to one take: neither a saved one nor a discarded one opens the next recording.
+    [Fact]
+    public void TheNameIsNotKeptForTheNextRecording()
+    {
+        var rig = NewRig();
+        RecordAndStop(rig);
+        rig.Vm.Name = "first";
+        rig.Vm.SaveCommand.Execute(null);
+        rig.CloseDialog();
+
+        rig.Vm.StartCommand.Execute(null);
+        Assert.Equal("", rig.Vm.Name);
+        Draw(rig);
+        rig.Vm.StopCommand.Execute(null);
+        rig.Vm.Name = "second, never saved";
+        rig.Vm.DiscardCommand.Execute(null);
+
+        rig.Vm.StartCommand.Execute(null);
+        Assert.Equal("", rig.Vm.Name);
+    }
+
+    // ---- the pen, remembered per tablet ----
+
+    [Fact]
+    public void WithNoPenMemoryTheBoxIsEmptyAndSaysNothing_ThePenIsOptional()
+    {
+        var rig = NewRig();
+        rig.Vm.StartCommand.Execute(null);
+
+        Assert.Equal("", rig.Vm.Pen);
+        Assert.False(rig.Vm.HasPenNote);   // unlike the firmware there is no "not recorded" nag
+        Assert.Equal("", rig.Vm.PenNote);
+    }
+
+    [Fact]
+    public void StartingOpensWithThePenLastSavedForThisTabletAndSaysWhereItCameFrom()
+    {
+        var rig = NewRig(penMemory: new Dictionary<string, string> { ["Wacom PTK-470"] = "Pro Pen 2" });
+
+        rig.Vm.StartCommand.Execute(null);
+
+        Assert.Equal("Pro Pen 2", rig.Vm.Pen);
+        Assert.Contains("Remembered from your last recording of this tablet", rig.Vm.PenNote);
+        Assert.True(rig.Vm.HasPenNote);
+    }
+
+    [Fact]
+    public void ChangingARememberedPenTakesTheNoteAway()
+    {
+        var rig = NewRig(penMemory: new Dictionary<string, string> { ["Wacom PTK-470"] = "Pro Pen 2" });
+        rig.Vm.StartCommand.Execute(null);
+
+        rig.Vm.Pen = "Grip Pen";
+
+        Assert.False(rig.Vm.HasPenNote);
+    }
+
+    [Fact]
+    public void ATabletNeverRecordedBeforeOpensWithNoPenEvenIfAnotherHasMemory()
+    {
+        var rig = NewRig(penMemory: new Dictionary<string, string> { ["Wacom PTK-670"] = "Grip Pen" });
+
+        rig.Vm.Pen = "left over in the box";
+        rig.Vm.StartCommand.Execute(null);
+
+        Assert.Equal("", rig.Vm.Pen);   // not another tablet's pen, and not a stale typed one
+    }
+
+    [Fact]
+    public void SavingRemembersThePenForThatTabletAndWritesItAfterTheTablet()
+    {
+        var penMemory = new Dictionary<string, string>();
+        var rig = NewRig(penMemory: penMemory);
+        RecordAndStop(rig);
+        rig.Vm.Pen = "  Pro Pen 2 ";
+
+        rig.Vm.SaveCommand.Execute(null);
+
+        Assert.Equal("Pro Pen 2", penMemory["Wacom PTK-470"]);
+        var device = Saved(rig.Vm)["device"]!;
+        Assert.Equal("Pro Pen 2", device["pen"]!.GetValue<string>());
+        var keys = Keys(device);
+        Assert.Equal("pen", keys[Array.IndexOf(keys, "tablet") + 1]);
+        rig.CloseDialog();
+
+        rig.Vm.StartCommand.Execute(null);
+        Assert.Equal("Pro Pen 2", rig.Vm.Pen);   // and the next recording opens with it
+    }
+
+    [Fact]
+    public void ClearingThePenAndSavingForgetsItAndLeavesTheLineOut_NeverAnEmptyOne()
+    {
+        var penMemory = new Dictionary<string, string> { ["Wacom PTK-470"] = "Pro Pen 2" };
+        var rig = NewRig(penMemory: penMemory);
+        RecordAndStop(rig);
+        rig.Vm.Pen = "";
+
+        rig.Vm.SaveCommand.Execute(null);
+
+        Assert.Empty(penMemory);
+        Assert.DoesNotContain("pen", Keys(Saved(rig.Vm)["device"]!));
+    }
+
+    [Fact]
+    public void DiscardingOrAFailedSaveRemembersNoPen()
+    {
+        var penMemory = new Dictionary<string, string>();
+        var rig = NewRig(penMemory: penMemory);
+        RecordAndStop(rig);
+        rig.Vm.Pen = "typed but never saved";
+        rig.Vm.DiscardCommand.Execute(null);
+        Assert.Empty(penMemory);
+
+        File.WriteAllText(_folder, "a file where the folder should be");
+        try
+        {
+            RecordAndStop(rig);
+            rig.Vm.Pen = "also never saved";
+            rig.Vm.SaveCommand.Execute(null);
+
+            Assert.True(rig.Vm.HasError);
+            Assert.Empty(penMemory);
+        }
+        finally { File.Delete(_folder); }
+    }
+
+    [Fact]
+    public void PenSettingsThatCannotBeReadOrWrittenNeverStopRecordingOrSaving()
+    {
+        var rig = NewRig(penMemory: new Dictionary<string, string>(), penMemoryFails: true);
+
+        rig.Vm.StartCommand.Execute(null);   // reading fails: the box is simply empty
+        Assert.True(rig.Vm.IsRecording);
+        Assert.Equal("", rig.Vm.Pen);
+
+        Draw(rig);
+        rig.Vm.StopCommand.Execute(null);
+        rig.Vm.Pen = "Pro Pen 2";
+        rig.Vm.SaveCommand.Execute(null);   // writing fails: the recording is saved all the same
+
+        Assert.True(rig.Vm.HasSaved);
+        Assert.Equal("Pro Pen 2", Saved(rig.Vm)["device"]!["pen"]!.GetValue<string>());
+    }
+
+    [Fact]
+    public void ThePenIsKeptUnderTheTabletsOwnSettingsKey_DistinctFromTheFirmwares()
+    {
+        Assert.Equal("recording.pen.Wacom PTK-670", OpenTabletArtist.ViewModels.TestViewModel.PenSettingKey("Wacom PTK-670"));
+        Assert.NotEqual(
+            OpenTabletArtist.ViewModels.TestViewModel.FirmwareSettingKey("Wacom PTK-670"),
+            OpenTabletArtist.ViewModels.TestViewModel.PenSettingKey("Wacom PTK-670"));
+    }
+
+    // ---- what the dialog says about what is published ----
+
+    [Fact]
+    public void ThePublicationNoticeNamesEverythingTypedAndTheLicence()
+    {
+        var notice = NewRig().Vm.PublicationNotice;
+
+        foreach (var field in new[] { "Your name", "the recording's name", "the firmware", "the pen", "your notes" })
+            Assert.Contains(field, notice);
+        Assert.Contains("Stroke Corpus", notice);
+        Assert.Contains("CC BY 4.0", notice);
+        Assert.Contains("If you contribute", notice);   // conditional: the file stays on this computer until then
     }
 }

@@ -509,4 +509,76 @@ public class StrokeTakeWriterTests
             "freeform-wacom-ptk-470-20261007-120000",
             StrokeTakeWriter.Suggest("freeform", " Wacom  PTK-470 ", new DateTimeOffset(2026, 10, 7, 12, 0, 0, TimeSpan.Zero)));
     }
+
+    // ---- the name and the pen, written when someone gave them ----
+
+    private static string[] TopLevelKeys(JsonNode file) => [.. file.AsObject().Select(p => p.Key)];
+    private static string[] DeviceKeys(JsonNode file) => [.. file["device"]!.AsObject().Select(p => p.Key)];
+
+    // Straight after "id", and only there: the corpus checks a changed recording line by line and passes it only
+    // when the name, pen and driver lines are the only differences, so a name written elsewhere would later read as
+    // an edit to the recording when it is added or changed.
+    [Fact]
+    public void ANameIsWrittenStraightAfterTheIdAndNowhereElse()
+    {
+        var file = Parse(StrokeTakeWriter.ToJson(TwoStrokes(), Described with { Name = "  Quick signature  " }));
+
+        var keys = TopLevelKeys(file);
+        Assert.Equal("name", keys[Array.IndexOf(keys, "id") + 1]);
+        Assert.Equal("Quick signature", file["name"]!.GetValue<string>());      // trimmed
+        Assert.Equal(1, keys.Count(k => k == "name"));
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("   ")]
+    public void NoNameIsNoLine_NeverAnEmptyOne(string? name)
+    {
+        var file = Parse(StrokeTakeWriter.ToJson(TwoStrokes(), Described with { Name = name }));
+
+        Assert.DoesNotContain("name", TopLevelKeys(file));
+    }
+
+    // Right after the tablet, as in the corpus's own example of the format.
+    [Fact]
+    public void ThePenIsWrittenInTheDeviceBlockRightAfterTheTablet()
+    {
+        var withPen = Described with { Device = Described.Device with { Pen = "  Pro Pen 2 " } };
+        var file = Parse(StrokeTakeWriter.ToJson(TwoStrokes(), withPen));
+
+        var keys = DeviceKeys(file);
+        Assert.Equal("pen", keys[Array.IndexOf(keys, "tablet") + 1]);
+        Assert.Equal("Pro Pen 2", file["device"]!["pen"]!.GetValue<string>());   // trimmed
+        Assert.Null(file["pen"]);                                               // in the device block, not the top level
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("   ")]
+    public void NoPenIsNoLine_NeverAnEmptyOne(string? pen)
+    {
+        var file = Parse(StrokeTakeWriter.ToJson(TwoStrokes(), Described with { Device = Described.Device with { Pen = pen } }));
+
+        Assert.DoesNotContain("pen", DeviceKeys(file));
+    }
+
+    [Fact]
+    public void WithNeitherThereIsNothingNewInTheFile_SoOldRecordingsAreUnchanged()
+    {
+        var plain = TopLevelKeys(Parse(StrokeTakeWriter.ToJson(TwoStrokes(), Described)));
+        Assert.DoesNotContain("name", plain);
+        Assert.DoesNotContain("pen", DeviceKeys(Parse(StrokeTakeWriter.ToJson(TwoStrokes(), Described))));
+    }
+
+    [Fact]
+    public void ARecordingWithBothIsAcceptedByTheCorpusSchema()
+    {
+        AssertValid(StrokeTakeWriter.ToJson(TwoStrokes(keepAirborne: true), Described with
+        {
+            Name = "Quick signature",
+            Device = Described.Device with { Pen = "Pro Pen 2" },
+        }));
+    }
 }

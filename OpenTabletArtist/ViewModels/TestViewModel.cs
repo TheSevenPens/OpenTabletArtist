@@ -63,6 +63,12 @@ public partial class TestViewModel : ObservableObject, IDisposable
             {
                 if (firmware is null) AppSettings.Remove(FirmwareSettingKey(tablet));
                 else AppSettings.Set(FirmwareSettingKey(tablet), firmware);
+            },
+            rememberedPen: tablet => AppSettings.Get(PenSettingKey(tablet)),
+            rememberPen: (tablet, pen) =>
+            {
+                if (pen is null) AppSettings.Remove(PenSettingKey(tablet));
+                else AppSettings.Set(PenSettingKey(tablet), pen);
             });
         _deviceData.DataLoaded += OnDataLoaded;
         _deviceData.PropertyChanged += OnDeviceDataPropertyChanged;
@@ -141,6 +147,9 @@ public partial class TestViewModel : ObservableObject, IDisposable
     /// <summary>Where the firmware last saved with a recording is kept, one entry per tablet: firmware belongs to a
     /// tablet, and a different tablet must never open with another one's.</summary>
     internal static string FirmwareSettingKey(string tablet) => $"recording.firmware.{tablet}";
+
+    /// <summary>The pen last saved with a recording, one entry per tablet, like the firmware.</summary>
+    internal static string PenSettingKey(string tablet) => $"recording.pen.{tablet}";
 
     /// <summary>Record mode: keep every pen report and save them as a Stroke Corpus recording. It is fed from the
     /// daemon's receive thread, not from <see cref="UpdateReadout"/>; see <see cref="StrokeRecordingViewModel"/>.</summary>

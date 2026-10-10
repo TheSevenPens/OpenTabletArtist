@@ -12,13 +12,16 @@ namespace OpenTabletArtist.Domain;
 public sealed record TabletSpace(double MaxX, double MaxY, double WidthMm, double HeightMm);
 
 /// <summary>What made the recording, named by the person who was there plus what the driver can tell us.</summary>
+/// <param name="Pen">Which pen it was made with, as the person typed it. Null (and so absent from the file) when
+/// nobody said: the corpus's schema refuses an empty one, so "not said" is never written as "".</param>
 public sealed record TakeDevice(
     string Tablet,
     string Driver,
     string Firmware,
     string Api,
     int FullScalePressure,
-    string Conventions);
+    string Conventions,
+    string? Pen = null);
 
 /// <summary>Which channels this recording measured. A channel that was not measured is left out, never written as zero.</summary>
 public readonly record struct TakeChannels(bool Height, bool Tilt, bool Twist)
@@ -40,7 +43,8 @@ public sealed record TakeDescription(
     TakeDevice Device,
     TabletSpace Space,
     TakeChannels Channels,
-    SessionCounts? Counted = null);
+    SessionCounts? Counted = null,
+    string? Name = null);
 
 /// <summary>
 /// Writes a <see cref="SegmentedTake"/> as a <c>stroke-field-guide/take</c> recording, format version 8, with
@@ -208,6 +212,11 @@ public static class StrokeTakeWriter
             json.WriteString("format", Format);
             json.WriteNumber("formatVersion", Version);
             json.WriteString("id", d.Id);
+            // What the person calls it: a label they typed, optional, and absent when they gave none (the schema
+            // refuses an empty one). Straight after "id" on purpose: the corpus compares a changed recording line
+            // by line and passes it only when the name, pen and driver lines are the only differences, so a name
+            // written elsewhere would read as an edit to the recording when it is later added or changed.
+            if (d.Name?.Trim() is { Length: > 0 } name) json.WriteString("name", name);
             json.WriteString("gesture", d.Gesture);
             json.WriteString("intent", d.Intent);
             json.WriteString("username", d.Username);
@@ -234,6 +243,9 @@ public static class StrokeTakeWriter
 
             json.WriteStartObject("device");
             json.WriteString("tablet", d.Device.Tablet);
+            // Right after the tablet, as in the corpus's own example of the format. Typed by the person; absent
+            // when empty, never "".
+            if (d.Device.Pen?.Trim() is { Length: > 0 } pen) json.WriteString("pen", pen);
             json.WriteString("driver", d.Device.Driver);
             json.WriteString("firmware", d.Device.Firmware);
             json.WriteString("api", d.Device.Api);
