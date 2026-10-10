@@ -218,6 +218,10 @@ public class VMultiInstaller
             await process.WaitForExitAsync(ct);
             ProgressChanged?.Invoke(100);
 
+            // The temp folder (and this log with it) is deleted below, so keep a copy in the app log.
+            KeepLog($"VMulti install (devcon exit code {process.ExitCode})", ReadLog(logPath),
+                failed: process.ExitCode is not (0 or 1));
+
             // devcon: 0 = installed, 1 = installed but a reboot is needed; treat both as success and
             // recommend a restart (VMulti's virtual HID device only enumerates after one). Anything
             // else is a failure — the card re-detects the real state afterward.
@@ -300,20 +304,10 @@ public class VMultiInstaller
             // `@pause` leaves a cmd window open waiting for a keypress (and blocks our completion).
             // We also remove the leftover driverless `djpnewton\vmulti` nodes that `devcon remove
             // pentablet\hid` leaves behind (Device Manager Code 28, #110), so detection comes back clean.
+            // Every step's output and exit code are teed to a log (as InstallAsync does), read back below.
+            string logPath = Path.Combine(driverDir, RemovalLogName);
             string script = Path.Combine(driverDir, "otd_remove_vmulti.bat");
-            await File.WriteAllTextAsync(script, string.Join("\r\n", new[]
-            {
-                "@echo off",
-                // Absolute %~dp0 paths — an elevated ShellExecute launch may start us in System32 and
-                // ignore WorkingDirectory, so a bare "vmulti.inf" wouldn't be found (see InstallAsync).
-                "\"%~dp0DIFxCmd.exe\" /u \"%~dp0vmulti.inf\"",
-                "\"%~dp0devcon.exe\" remove \"pentablet\\hid\"",
-                "\"%~dp0devcon.exe\" remove \"djpnewton\\vmulti\"",
-                // Always succeed: devcon returns non-zero when a node was already gone, which isn't a
-                // failure for us. The card re-detects the real state after this returns.
-                "exit /b 0",
-                "",
-            }), ct);
+            await File.WriteAllTextAsync(script, string.Join("\r\n", BuildRemovalScript()), ct);
 
             // Step 3: Run the removal once, elevated, with a hidden window (single UAC prompt, no
             // lingering console). UAC is unavoidable for driver removal.
@@ -336,6 +330,19 @@ public class VMultiInstaller
 
             await process.WaitForExitAsync(ct);
             ProgressChanged?.Invoke(100);
+
+            // The temp folder (and this log with it) is deleted below, so keep a copy in the app log.
+            string log = ReadLog(logPath);
+            var summary = SummarizeRemovalLog(log);
+            KeepLog("VMulti removal", log, failed: summary.HasProblems);
+            if (summary.HasProblems)
+            {
+                StatusChanged?.Invoke("VMulti removal finished with warnings.");
+                return new InstallResult(true,
+                    "VMulti removal ran, but a step reported a problem — check the VMulti status. "
+                    + "A restart is recommended to finish cleaning it up." + summary.Details,
+                    RebootRecommended: true);
+            }
 
             StatusChanged?.Invoke("VMulti driver removed.");
             return new InstallResult(true,
@@ -391,6 +398,87 @@ public class VMultiInstaller
         {
             return "";
         }
+    }
+
+    internal const string RemovalLogName = "otd_remove.log";
+
+    /// <summary>The removal script, one line per entry. The commands are the package's own
+    /// <c>remove_hiddriver.bat</c> (DIFxCmd /u, then devcon remove <c>pentablet\hid</c>) plus one for the
+    /// <c>djpnewton\vmulti</c> leftovers (#110). Each step's output and exit code go to the log, under a
+    /// <c>=== label ===</c> header. The script always exits 0: devcon and DIFxCmd report non-zero when
+    /// there was nothing left to remove, which is not a failure here — the card re-detects the real state
+    /// afterwards, and <see cref="SummarizeRemovalLog"/> decides from what the tools printed.</summary>
+    internal static string[] BuildRemovalScript()
+    {
+        // Absolute %~dp0 paths — an elevated ShellExecute launch may start us in System32 and ignore
+        // WorkingDirectory, so a bare "vmulti.inf" wouldn't be found (see InstallAsync).
+        (string Label, string Command)[] steps =
+        [
+            (@"DIFxCmd /u vmulti.inf", "\"%~dp0DIFxCmd.exe\" /u \"%~dp0vmulti.inf\""),
+            (@"devcon remove pentablet\hid", "\"%~dp0devcon.exe\" remove \"pentablet\\hid\""),
+            (@"devcon remove djpnewton\vmulti", "\"%~dp0devcon.exe\" remove \"djpnewton\\vmulti\""),
+        ];
+
+        var lines = new List<string> { "@echo off", $"set \"LOG=%~dp0{RemovalLogName}\"", "type nul > \"%LOG%\"" };
+        foreach (var (label, command) in steps)
+        {
+            lines.Add($"echo === {label} === >> \"%LOG%\"");
+            lines.Add($"{command} >> \"%LOG%\" 2>&1");
+            lines.Add("echo exit=%errorlevel% >> \"%LOG%\"");
+        }
+        lines.Add("exit /b 0");
+        lines.Add("");
+        return lines.ToArray();
+    }
+
+    internal sealed record RemovalLogSummary(bool HasProblems, string Details);
+
+    /// <summary>Decides from the tools' own output whether a removal step really failed. Exit codes cannot
+    /// say: "nothing to remove" is non-zero too. A step has a problem when it prints an <c>ERROR…</c> line
+    /// (DIFxCmd: <c>ERROR: failed with error code 0x…</c>) or a line containing "failed" (devcon:
+    /// <c>Remove failed</c>, <c>Deleting the specified driver package from the machine failed</c>). Benign
+    /// output such as devcon's <c>No matching devices found.</c> is not a problem. Details are the
+    /// offending lines, each prefixed with its step, ready to append to a dialog message.</summary>
+    internal static RemovalLogSummary SummarizeRemovalLog(string? log)
+    {
+        if (string.IsNullOrWhiteSpace(log)) return new(false, "");
+
+        const int maxLines = 6, maxLineLength = 200;
+        var problems = new List<string>();
+        string step = "";
+        foreach (var raw in log.Split('\n'))
+        {
+            var line = raw.Trim();
+            if (line.Length == 0) continue;
+            if (line.StartsWith("===") && line.EndsWith("===")) { step = line.Trim('=', ' '); continue; }
+            if (!line.StartsWith("ERROR", StringComparison.OrdinalIgnoreCase)
+                && !line.Contains("failed", StringComparison.OrdinalIgnoreCase)) continue;
+            if (problems.Count < maxLines)
+                problems.Add((step.Length > 0 ? step + ": " : "")
+                    + (line.Length > maxLineLength ? line[..maxLineLength] + "…" : line));
+        }
+        return problems.Count == 0
+            ? new(false, "")
+            : new(true, "\n\nDetails:\n" + string.Join("\n", problems));
+    }
+
+    /// <summary>Copies a tool log into the app log, because the temp folder it lives in is deleted as soon
+    /// as the operation returns and the app log is what a user is asked for when they report a problem.
+    /// Warning when the operation failed, Info otherwise; nothing when there is no output.</summary>
+    internal static void KeepLog(string what, string log, bool failed)
+    {
+        if (string.IsNullOrWhiteSpace(log)) return;
+        var message = $"{what} output:\n{log}";
+        if (failed) AppLog.Warn(message);
+        else AppLog.Info(message);
+    }
+
+    /// <summary>The whole log, or "" if it is absent or unreadable. Unlike <see cref="ReadInstallerLog"/> it
+    /// is not shortened or decorated: it goes to the app log, and the summary picks what to show.</summary>
+    private static string ReadLog(string logPath)
+    {
+        try { return File.Exists(logPath) ? File.ReadAllText(logPath).Trim() : ""; }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { return ""; }
     }
 
     private static string? FindFile(string dir, string fileName)
