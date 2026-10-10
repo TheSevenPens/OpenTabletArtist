@@ -34,8 +34,9 @@ public partial class AboutViewModel : ObservableObject
     /// <summary>GitHub releases page (downloads + release notes).</summary>
     public string ReleasesUrl => $"{RepoUrl}/releases";
 
-    /// <summary>The user manual, rendered on GitHub.</summary>
-    public string UserManualUrl => $"{RepoUrl}/blob/master/docs/user/USERMANUAL.md";
+    /// <summary>The user documentation: the site published from <c>docs/user/</c>. Builds before this pointed at
+    /// <c>docs/user/USERMANUAL.md</c> on GitHub, which is kept as a compatibility stub that leads here.</summary>
+    public string UserManualUrl => "https://thesevenpens.github.io/OpenTabletArtist/";
 
     /// <summary>The manual's "Getting help" page — where to ask, and what to include when you do. Replaces
     /// the Help card that used to sit on Home (#568): the guidance outgrew a paragraph, and a page can say
