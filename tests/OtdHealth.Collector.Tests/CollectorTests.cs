@@ -55,7 +55,7 @@ public class CollectorTests
     [Fact]
     public async Task NativeProbeThatIgnoresCancellationIsBoundedAndCannotChangeReportLater()
     {
-        var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var release = new TaskCompletionSource<VMultiObservation>(TaskCreationOptions.RunContinuationsAsynchronously);
         var watch = Stopwatch.StartNew();
         var report = await HealthCollector.CollectAsync(new()
         {
@@ -66,7 +66,7 @@ public class CollectorTests
         Assert.False(report.IsComplete);
         Assert.Null(report.Snapshot.VMultiInstalled);
         Assert.Equal("Timeout", Assert.Single(report.Probes).Failure!.Code);
-        release.SetResult(false);
+        release.SetResult(VMultiDetectionTests.Observation(installed: false));
         await Task.Yield();
         Assert.Null(report.Snapshot.VMultiInstalled);
     }

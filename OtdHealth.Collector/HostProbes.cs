@@ -7,7 +7,7 @@ public static class HostProbes
 {
     public static HealthPlatform Platform => OperatingSystem.IsWindows() ? HealthPlatform.Windows
         : OperatingSystem.IsLinux() ? HealthPlatform.Linux : OperatingSystem.IsMacOS() ? HealthPlatform.MacOS : HealthPlatform.Unspecified;
-    public static bool VMulti() => VMultiDetector.ReadInstalled();
+    public static VMultiObservation VMulti() => VMultiDetector.Observe();
     public static bool IsElevated()
     {
         if (!OperatingSystem.IsWindows()) throw new ProbeUnavailableException("Windows process elevation only.", true);

@@ -23,7 +23,7 @@ public sealed class HealthSources
     public Func<CancellationToken, Task<ConflictObservation>> Conflicts { get; init; } = Missing<ConflictObservation>;
     public Func<CancellationToken, Task<bool>> MacOSAccess { get; init; } = Missing<bool>;
     public Func<CancellationToken, Task<IReadOnlyList<DisplayBounds>>> Displays { get; init; } = _ => Task.FromResult(HostProbes.Displays());
-    public Func<CancellationToken, Task<bool>> VMulti { get; init; } = _ => Task.FromResult(HostProbes.VMulti());
+    public Func<CancellationToken, Task<VMultiObservation>> VMulti { get; init; } = _ => Task.FromResult(HostProbes.VMulti());
     public Func<CancellationToken, Task<bool>> ProcessElevation { get; init; } = _ => Task.FromResult(HostProbes.IsElevated());
     public Func<CancellationToken, Task<bool>> LinuxUdev { get; init; } = _ => Task.FromResult(HostProbes.LinuxUdev());
     public Func<CancellationToken, Task<LinuxModulesObservation>> LinuxModules { get; init; } = _ => Task.FromResult(HostProbes.LinuxModules());

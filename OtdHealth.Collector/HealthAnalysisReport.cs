@@ -14,7 +14,12 @@ public enum ProbeOutcome { Completed, NotApplicable, Unavailable, Unsupported, F
 
 public sealed record ProbeFailure(string Code, string Message, string? ExceptionType = null);
 public sealed record ProbeResult(ProbeId Id, bool Requested, bool Applicable, ProbeOutcome Outcome,
-    ProbeFailure? Failure = null);
+    ProbeFailure? Failure = null)
+{
+    /// <summary>What the probe saw, for people reading a report. Optional, so saved reports without it still
+    /// load, and never an input to findings or <see cref="HealthAnalysisReport.IsComplete"/>.</summary>
+    public ProbeDetails? Details { get; init; }
+}
 
 /// <summary>Completeness describes requested coverage, never the absence of findings.
 /// Findings are evaluated from the snapshot, including when reading a saved report.</summary>
