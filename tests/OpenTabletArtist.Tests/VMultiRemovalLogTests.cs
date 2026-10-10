@@ -111,6 +111,39 @@ public class VMultiRemovalLogTests
     public void NoLog_IsNotAProblem(string? log)
         => Assert.False(VMultiInstaller.SummarizeRemovalLog(log).HasProblems);
 
+    // ── keeping the log ─────────────────────────────────────────────────────────────────────────
+
+    // Captures the lines KeepLog writes, by a marker unique to the test: the log event is process-wide and
+    // other tests write to it concurrently.
+    private static string[] Kept(string marker, string log, bool failed)
+    {
+        var lines = new System.Collections.Concurrent.ConcurrentQueue<string>();
+        void Capture(string line) { if (line.Contains(marker)) lines.Enqueue(line); }
+        AppLog.LineWritten += Capture;
+        try { VMultiInstaller.KeepLog(marker, log, failed); }
+        finally { AppLog.LineWritten -= Capture; }
+        return lines.ToArray();
+    }
+
+    [Fact]
+    public void ASuccessfulRunsLog_IsKeptAtInfo_WithItsOutput()
+    {
+        var line = Assert.Single(Kept("keeplog-ok-1f3a", "SUCCESS: installed.", failed: false));
+        Assert.Contains("[INFO]", line);
+        Assert.Contains("keeplog-ok-1f3a output:", line);
+        Assert.Contains("SUCCESS: installed.", line);
+    }
+
+    [Fact]
+    public void AFailedRunsLog_IsKeptAtWarning()
+        => Assert.Contains("[WARNING]", Assert.Single(Kept("keeplog-bad-9c21", "Remove failed", failed: true)));
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("  \n ")]
+    public void NoOutput_WritesNothing(string log)
+        => Assert.Empty(Kept("keeplog-empty-77d0", log, failed: true));
+
     [Fact]
     public void ManyProblems_AreCapped_AndLongLinesAreShortened()
     {

@@ -218,6 +218,10 @@ public class VMultiInstaller
             await process.WaitForExitAsync(ct);
             ProgressChanged?.Invoke(100);
 
+            // The temp folder (and this log with it) is deleted below, so keep a copy in the app log.
+            KeepLog($"VMulti install (devcon exit code {process.ExitCode})", ReadLog(logPath),
+                failed: process.ExitCode is not (0 or 1));
+
             // devcon: 0 = installed, 1 = installed but a reboot is needed; treat both as success and
             // recommend a restart (VMulti's virtual HID device only enumerates after one). Anything
             // else is a failure — the card re-detects the real state afterward.
@@ -329,11 +333,10 @@ public class VMultiInstaller
 
             // The temp folder (and this log with it) is deleted below, so keep a copy in the app log.
             string log = ReadLog(logPath);
-            if (log.Length > 0) AppLog.Info("VMulti removal output:\n" + log);
             var summary = SummarizeRemovalLog(log);
+            KeepLog("VMulti removal", log, failed: summary.HasProblems);
             if (summary.HasProblems)
             {
-                AppLog.Warn("VMulti removal: a step reported a problem." + summary.Details);
                 StatusChanged?.Invoke("VMulti removal finished with warnings.");
                 return new InstallResult(true,
                     "VMulti removal ran, but a step reported a problem — check the VMulti status. "
@@ -457,6 +460,17 @@ public class VMultiInstaller
         return problems.Count == 0
             ? new(false, "")
             : new(true, "\n\nDetails:\n" + string.Join("\n", problems));
+    }
+
+    /// <summary>Copies a tool log into the app log, because the temp folder it lives in is deleted as soon
+    /// as the operation returns and the app log is what a user is asked for when they report a problem.
+    /// Warning when the operation failed, Info otherwise; nothing when there is no output.</summary>
+    internal static void KeepLog(string what, string log, bool failed)
+    {
+        if (string.IsNullOrWhiteSpace(log)) return;
+        var message = $"{what} output:\n{log}";
+        if (failed) AppLog.Warn(message);
+        else AppLog.Info(message);
     }
 
     /// <summary>The whole log, or "" if it is absent or unreadable. Unlike <see cref="ReadInstallerLog"/> it
