@@ -2,6 +2,10 @@ namespace OtdHealth.Collector.Tests;
 
 public class VMultiDetectionTests
 {
+    /// <summary>A minimal observation for tests that only need the verdict.</summary>
+    internal static VMultiObservation Observation(bool installed) =>
+        new(installed, new VMultiDetails("test", null, [], [], 0, 0, null, null, []));
+
     // The hardware ID the package OTA installs gives its node (devcon install vmulti.inf "pentablet\hid";
     // the INF lists only that model). Read off a real, working install: ROOT\HIDCLASS\0000, service vmulti,
     // problem code 0. The probe used to look only for djpnewton\vmulti, so this read as "not installed".

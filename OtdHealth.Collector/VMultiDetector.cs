@@ -1,14 +1,23 @@
 using System.Runtime.InteropServices;
 using HidSharp;
+using Microsoft.Win32;
 
 namespace OtdHealth.Collector;
 
 public class VMultiDetector
 {
-    public static bool ReadInstalled()
+    /// <summary>The health probe: the install verdict plus what it was based on, from one enumeration so
+    /// the two cannot disagree. Optional property reads never fail the probe; a missing value stays null.</summary>
+    public static VMultiObservation Observe()
     {
         if (!OperatingSystem.IsWindows()) throw new ProbeUnavailableException("VMulti requires Windows.", true);
-        return ClassifySetupApi(FindVMultiDevices()).Installed;
+
+        var present = ReadNodes(DIGCF_ALLCLASSES | DIGCF_PRESENT, present: true);
+        var presentIds = present.Select(n => n.InstanceId).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var stale = ReadNodes(DIGCF_ALLCLASSES, present: false)
+            .Count(n => MatchHardwareId(n.HardwareIds) != null && !presentIds.Contains(n.InstanceId));
+
+        return VMultiInspector.Build(present, stale, ReadStagedPackage(), ObserveHid());
     }
 
     private const int VMultiVendorId = 0x00FF;
@@ -32,6 +41,18 @@ public class VMultiDetector
     /// </summary>
     public HidDetectionResult DetectHid()
     {
+        var h = ObserveHid();
+        if (h.Error != null) return new HidDetectionResult(false, false, $"Error: {h.Error}");
+        if (!h.Visible) return new HidDetectionResult(false, false, "Not visible to HID");
+        return h.ControlChannel
+            ? new HidDetectionResult(true, true, $"Active ({h.DeviceCount} devices)")
+            : new HidDetectionResult(true, false, "Visible but no control channel");
+    }
+
+    /// <summary>The HID view of the virtual pen. A failure is recorded in <c>Error</c>, never thrown: it is
+    /// supporting evidence and must not take the install verdict down with it.</summary>
+    public static VMultiHidObservation ObserveHid()
+    {
         try
         {
             var devices = DeviceList.Local.GetHidDevices(
@@ -39,20 +60,15 @@ public class VMultiDetector
                 productID: VMultiProductId
             ).ToArray();
 
-            if (devices.Length == 0)
-                return new HidDetectionResult(false, false, "Not visible to HID");
+            if (devices.Length == 0) return new VMultiHidObservation(false, false, 0, null);
 
             bool hasControlChannel = devices.Any(d =>
                 d.GetMaxOutputReportLength() == 65 && d.GetMaxInputReportLength() == 65);
-
-            if (hasControlChannel)
-                return new HidDetectionResult(true, true, $"Active ({devices.Length} devices)");
-
-            return new HidDetectionResult(true, false, "Visible but no control channel");
+            return new VMultiHidObservation(true, hasControlChannel, devices.Length, null);
         }
         catch (Exception ex)
         {
-            return new HidDetectionResult(false, false, $"Error: {ex.Message}");
+            return new VMultiHidObservation(false, false, 0, ex.Message);
         }
     }
 
@@ -142,6 +158,96 @@ public class VMultiDetector
         }
 
         return results;
+    }
+
+    /// <summary>Every device that is a VMulti node or merely looks like one (by hardware ID, name or
+    /// service), with the properties a reader needs to tell which. <paramref name="present"/> marks the rows
+    /// as coming from the present-devices pass.</summary>
+    private static List<VMultiNode> ReadNodes(uint flags, bool present)
+    {
+        var results = new List<VMultiNode>();
+        var guid = Guid.Empty;
+
+        var devInfoSet = SetupDiGetClassDevs(ref guid, null, nint.Zero, flags);
+        if (devInfoSet == INVALID_HANDLE) throw new System.ComponentModel.Win32Exception(Marshal.GetLastWin32Error());
+
+        try
+        {
+            var devInfoData = new SP_DEVINFO_DATA();
+            devInfoData.cbSize = (uint)Marshal.SizeOf(devInfoData);
+
+            for (uint i = 0; SetupDiEnumDeviceInfo(devInfoSet, i, ref devInfoData); i++)
+            {
+                string? hardwareIds = TryGetProperty(devInfoSet, ref devInfoData, SPDRP_HARDWAREID);
+                string[] ids = hardwareIds?.Split('\0', StringSplitOptions.RemoveEmptyEntries) ?? [];
+                string? description = TryGetProperty(devInfoSet, ref devInfoData, SPDRP_DEVICEDESC);
+                string? service = TryGetProperty(devInfoSet, ref devInfoData, SPDRP_SERVICE);
+                if (MatchHardwareId(ids) == null && !VMultiInspector.Mentions(ids, description, service)) continue;
+
+                var (enabled, problem) = GetDevNodeState(devInfoSet, ref devInfoData);
+                var driver = ReadDriverKey(TryGetProperty(devInfoSet, ref devInfoData, SPDRP_DRIVER));
+                results.Add(new VMultiNode(InstanceId(devInfoSet, ref devInfoData), ids, description, service,
+                    present, enabled, problem, driver.Inf, driver.Version, driver.Provider));
+            }
+            if (Marshal.GetLastWin32Error() != 259) // ERROR_NO_MORE_ITEMS
+                throw new System.ComponentModel.Win32Exception(Marshal.GetLastWin32Error());
+        }
+        finally
+        {
+            SetupDiDestroyDeviceInfoList(devInfoSet);
+        }
+
+        return results;
+    }
+
+    private static string? TryGetProperty(nint devInfoSet, ref SP_DEVINFO_DATA devInfoData, uint property)
+    {
+        try { return GetDeviceRegistryProperty(devInfoSet, ref devInfoData, property); }
+        catch (System.ComponentModel.Win32Exception) { return null; } // an optional read, never fatal
+    }
+
+    private static string InstanceId(nint devInfoSet, ref SP_DEVINFO_DATA devInfoData)
+    {
+        var sb = new System.Text.StringBuilder(512);
+        return SetupDiGetDeviceInstanceId(devInfoSet, ref devInfoData, sb, sb.Capacity, out _) ? sb.ToString() : "";
+    }
+
+    /// <summary>The installed driver's INF, version and provider, from the node's class key. The device's
+    /// <c>Driver</c> value names that key (e.g. <c>{745a17a0-...}\0229</c>).</summary>
+    private static (string? Inf, string? Version, string? Provider) ReadDriverKey(string? driverValue)
+    {
+        if (string.IsNullOrEmpty(driverValue) || !OperatingSystem.IsWindows()) return default;
+        try
+        {
+            using var key = Registry.LocalMachine.OpenSubKey(@"SYSTEM\CurrentControlSet\Control\Class\" + driverValue);
+            return (key?.GetValue("InfPath") as string, key?.GetValue("DriverVersion") as string,
+                key?.GetValue("ProviderName") as string);
+        }
+        catch (Exception ex) when (ex is System.Security.SecurityException or UnauthorizedAccessException or IOException)
+        { return default; }
+    }
+
+    /// <summary>The VMulti package in the driver store, whether or not any device uses it. Read from the
+    /// registry (no <c>pnputil</c>): a package key is named for its INF, its default value is the published
+    /// name (<c>oemNN.inf</c>) and it records the original name and provider.</summary>
+    private static VMultiDriverPackage? ReadStagedPackage()
+    {
+        if (!OperatingSystem.IsWindows()) return null;
+        try
+        {
+            using var root = Registry.LocalMachine.OpenSubKey(@"SYSTEM\DriverDatabase\DriverPackages");
+            if (root == null) return null;
+            foreach (var name in root.GetSubKeyNames())
+            {
+                if (!name.StartsWith("vmulti.inf_", StringComparison.OrdinalIgnoreCase)) continue;
+                using var key = root.OpenSubKey(name);
+                return new VMultiDriverPackage(key?.GetValue("") as string ?? name,
+                    key?.GetValue("InfName") as string ?? "vmulti.inf", key?.GetValue("Provider") as string ?? "");
+            }
+            return null;
+        }
+        catch (Exception ex) when (ex is System.Security.SecurityException or UnauthorizedAccessException or IOException)
+        { return null; }
     }
 
     // Also search for disabled devices by using DIGCF without DIGCF_PRESENT
@@ -251,6 +357,8 @@ public class VMultiDetector
     private const uint DIGCF_ALLCLASSES = 0x04;
     private const uint SPDRP_HARDWAREID = 0x01;
     private const uint SPDRP_DEVICEDESC = 0x00;
+    private const uint SPDRP_SERVICE = 0x04;
+    private const uint SPDRP_DRIVER = 0x09;
 
     [StructLayout(LayoutKind.Sequential)]
     private struct SP_DEVINFO_DATA
@@ -274,6 +382,11 @@ public class VMultiDetector
         nint deviceInfoSet, ref SP_DEVINFO_DATA deviceInfoData,
         uint property, out uint propertyRegDataType,
         byte[]? propertyBuffer, uint propertyBufferSize, out uint requiredSize);
+
+    [DllImport("setupapi.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+    private static extern bool SetupDiGetDeviceInstanceId(
+        nint deviceInfoSet, ref SP_DEVINFO_DATA deviceInfoData,
+        System.Text.StringBuilder deviceInstanceId, int deviceInstanceIdSize, out int requiredSize);
 
     [DllImport("setupapi.dll", SetLastError = true)]
     private static extern bool SetupDiDestroyDeviceInfoList(nint deviceInfoSet);

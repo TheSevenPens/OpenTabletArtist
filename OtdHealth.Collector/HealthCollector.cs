@@ -47,7 +47,8 @@ public static class HealthCollector
                 catch (OperationCanceledException) when (!deadline.IsCancellationRequested)
                 { throw new TimeoutException("The probe exceeded its time limit."); }
                 deadline.Token.ThrowIfCancellationRequested();
-                results.Add(new(id, true, true, ProbeOutcome.Completed));
+                // What the probe saw rides along with its outcome; it never feeds findings or completeness.
+                results.Add(new(id, true, true, ProbeOutcome.Completed) { Details = (value as IHasProbeDetails)?.Details });
                 return value;
             }
             catch (ProbeUnavailableException ex)
@@ -102,8 +103,7 @@ public static class HealthCollector
             FileProbes.ConfigurationOverrides(await source.ConfigurationDirectory(ct).ConfigureAwait(false)), !profilesKnown || hasDetected);
         var ink = await Run(ProbeId.WindowsInk, async ct =>
             FileProbes.WindowsInk(await source.PluginDirectory(ct).ConfigureAwait(false), policy.ExpectedOtdVersion), source.Platform == HealthPlatform.Windows);
-        // Box scalar observations so failed reads remain unknown instead of becoming false.
-        var vmulti = await Run<bool?>(ProbeId.VMulti, async ct => await source.VMulti(ct).ConfigureAwait(false), source.Platform == HealthPlatform.Windows);
+        var vmulti = await Run(ProbeId.VMulti, async ct => await source.VMulti(ct).ConfigureAwait(false), source.Platform == HealthPlatform.Windows);
         var conflicts = await Run(ProbeId.DriverConflicts, source.Conflicts);
         var elevated = await Run(ProbeId.ProcessElevation, source.ProcessElevation, source.Platform == HealthPlatform.Windows);
         bool linuxApplicable = source.Platform == HealthPlatform.Linux && !hasDetected;
@@ -127,7 +127,7 @@ public static class HealthCollector
             DaemonCannotOpenTablet = mac,
             WinInkInstalled = ink?.Installed,
             WinInkVersionMismatch = ink?.VersionMismatch == true,
-            VMultiInstalled = vmulti,
+            VMultiInstalled = vmulti?.Installed,
             HasDriverConflict = conflicts?.HasConflict == true,
             BlockingDriverConflict = conflicts?.Blocking == true,
             RunningElevated = elevated,
