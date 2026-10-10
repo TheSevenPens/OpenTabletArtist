@@ -170,4 +170,36 @@ public class PenDynamicsProcessorTests
         Assert.Equal(position > 0, s.HasPositionSmoothing);
         Assert.False(s.IsNoOp);
     }
+
+    // ── ProcessSample: what a drawing app would get for one raw sample ─────────────────────────────
+
+    [Fact]
+    public void ProcessSample_WhileDrawing_IsTheCurveAndSmoothing()
+    {
+        var s = PenDynamicsSettings.Default with { Curve = PressureCurveSettings.Default with { Softness = -0.6 } };
+        var a = Proc(s); var b = Proc(s);
+        Assert.Equal(b.ProcessPressure(0.5), a.ProcessSample(0.5), 9);
+        Assert.NotEqual(0.5, a.ProcessSample(0.5), 3);                  // and the curve really changed it
+    }
+
+    [Fact]
+    public void ProcessSample_NotDrawing_IsZero_AndTheNextPressStartsCrisp()
+    {
+        var curve = PressureCurveSettings.Default with { InputMinimum = 0.06 };
+        var p = Proc(PenDynamicsSettings.Default with { Curve = curve, PressureSmoothing = 0.5 });
+        for (var i = 0; i < 60; i++) p.ProcessSample(0.6);                // a stroke, smoothing now primed at ~0.6
+
+        Assert.Equal(0.0, p.ProcessSample(0.0013));                       // hovering with pressure under the dead zone
+        // The press after it must not lerp in from where the last stroke ended.
+        var fresh = Proc(PenDynamicsSettings.Default with { Curve = curve, PressureSmoothing = 0.5 });
+        Assert.Equal(fresh.ProcessSample(0.2), p.ProcessSample(0.2), 9);
+    }
+
+    [Fact]
+    public void ProcessSample_WithDefaultSettings_IsThePressureItself()
+    {
+        var p = Proc(PenDynamicsSettings.Default);
+        Assert.Equal(0.37, p.ProcessSample(0.37), 9);
+        Assert.Equal(0.0, p.ProcessSample(0.0));
+    }
 }

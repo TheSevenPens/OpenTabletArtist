@@ -355,4 +355,115 @@ public class TestViewModelTests
 
         Assert.Equal("no reports yet", vm.CountersText);
     }
+
+    // ── what the Scribble canvas draws: the processed pressure, like the Pen page's processed canvas ──
+
+    private static PenSample Pen(double pressure) =>
+        new(X: 0.5, Y: 0.5, RawX: 100, RawY: 100, Pressure: pressure, TiltX: 0, TiltY: 0, Twist: 0, IsDown: pressure > 0);
+
+    private static (TestViewModel Vm, List<(PenSample Raw, double Draw)> Got) VmWithDynamics(
+        PenDynamicsSettings dynamics, bool filterEnabled)
+    {
+        var data = DetectedWith(ProfileWithDynamics("Wacom", dynamics, filterEnabled));
+        var vm = NewVm(data);
+        data.RaiseDataLoaded();
+        var got = new List<(PenSample, double)>();
+        vm.DriverSample += (s, draw) => got.Add((s, draw));
+        return (vm, got);
+    }
+
+    private static PenDynamicsSettings Hard() =>
+        PenDynamicsSettings.Default with { Curve = PressureCurveSettings.Default with { Softness = -0.6 } };
+
+    [Fact]
+    public void WithDynamicsOn_TheCanvasGetsTheCurvedPressure_AndTheSampleKeepsTheRawOne()
+    {
+        var (vm, got) = VmWithDynamics(Hard(), filterEnabled: true);
+        using (vm)
+        {
+            vm.OnDriverSample(Pen(0.5));
+
+            var (raw, draw) = Assert.Single(got);
+            Assert.Equal(0.5, raw.Pressure);                                           // the readouts show what the tablet said
+            // Six places, not nine: the profile stores softness as a 32-bit float, so -0.6 reads back as
+            // -0.60000002 and the curve's answer moves in the eighth decimal.
+            Assert.Equal(PressureCurve.Apply(0.5, Hard().Curve), draw, 6);             // the canvas draws the curve's answer
+            Assert.NotEqual(0.5, draw, 3);
+        }
+    }
+
+    // With the filter off, apps get the raw pressure; so must the canvas, whatever settings are stored.
+    [Fact]
+    public void WithTheDynamicsFilterOff_TheCanvasDrawsTheRawPressure()
+    {
+        var (vm, got) = VmWithDynamics(Hard(), filterEnabled: false);
+        using (vm)
+        {
+            vm.OnDriverSample(Pen(0.5));
+            Assert.Equal(0.5, Assert.Single(got).Draw, 9);
+        }
+    }
+
+    [Fact]
+    public void WithNoTabletDetected_TheCanvasDrawsTheRawPressure()
+    {
+        using var vm = NewVm(new FakeDeviceData { Profiles = new List<ProfileItem>() });
+        var got = new List<double>();
+        vm.DriverSample += (_, draw) => got.Add(draw);
+
+        vm.OnDriverSample(Pen(0.42));
+
+        Assert.Equal(0.42, Assert.Single(got), 9);
+    }
+
+    // The tail the Pen page had: smoothing leaves a decaying value after a stroke, and a pen that reports
+    // pressure while hovering never lifts. Under the dead zone the canvas must get exactly 0.
+    [Fact]
+    public void HoverPressureUnderTheDeadZone_IsZero_EvenRightAfterAStroke_WithSmoothingOn()
+    {
+        var dyn = PenDynamicsSettings.Default with
+        {
+            Curve = PressureCurveSettings.Default with { InputMinimum = 0.06 },
+            PressureSmoothing = 0.5,
+        };
+        var (vm, got) = VmWithDynamics(dyn, filterEnabled: true);
+        using (vm)
+        {
+            for (var i = 0; i < 60; i++) vm.OnDriverSample(Pen(0.6));
+            got.Clear();
+
+            vm.OnDriverSample(Pen(0.0013));
+
+            Assert.Equal(0.0, Assert.Single(got).Draw);
+        }
+    }
+
+    // Smoothing must follow the pen continuously: it has no idea the sample was off the canvas.
+    [Fact]
+    public void EverySampleIsProcessed_InOrder_SoSmoothingIsContinuous()
+    {
+        var dyn = PenDynamicsSettings.Default with { PressureSmoothing = 0.5 };
+        var (vm, got) = VmWithDynamics(dyn, filterEnabled: true);
+        using (vm)
+        {
+            var reference = new PenDynamicsProcessor { Settings = dyn };
+            foreach (var p in new[] { 0.8, 0.8, 0.2, 0.9, 0.1 })
+            {
+                vm.OnDriverSample(Pen(p));
+                Assert.Equal(reference.ProcessSample(p), got[^1].Draw, 9);
+            }
+            Assert.Equal(5, got.Count);
+        }
+    }
+
+    [Fact]
+    public void ZeroPressure_DrawsNothing()
+    {
+        var (vm, got) = VmWithDynamics(PenDynamicsSettings.Default, filterEnabled: true);
+        using (vm)
+        {
+            vm.OnDriverSample(Pen(0));
+            Assert.Equal(0.0, Assert.Single(got).Draw);
+        }
+    }
 }

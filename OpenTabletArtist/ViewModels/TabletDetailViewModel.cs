@@ -1993,13 +1993,7 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
             // Same rule as the daemon's filter: a sample the curve maps to nothing (hover, the dead zone) is
             // zero pressure and resets the smoothing. Without it, smoothing's tail from the last stroke kept
             // the processed value above zero for hundreds of samples under a pen that reports hover pressure.
-            if (_liveProcessor.IsDrawing(raw))
-                LiveProcessed = _liveProcessor.ProcessPressure(raw);
-            else
-            {
-                _liveProcessor.Reset();
-                LiveProcessed = 0;
-            }
+            LiveProcessed = _liveProcessor.ProcessSample(raw);
             // Preview canvases get the raw position (RawX/RawY, mapped by the view), the RAW pressure in the
             // sample, and the SHAPED pressure alongside it.
             PreviewSample?.Invoke(s with { Pressure = raw }, LiveProcessed ?? raw);
