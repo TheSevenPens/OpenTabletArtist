@@ -120,6 +120,44 @@ public class StrokeTakeWriterTests
         }));
     }
 
+    // The optional labels a person can give a recording (StrokeCorpus #23 and #30). Record mode does not write
+    // them yet; these say the schema copy in Fixtures/ knows them, so adding them later cannot be refused.
+    [Fact]
+    public void ARecordingMayCarryANameAndAPen()
+    {
+        var file = Parse(StrokeTakeWriter.ToJson(TwoStrokes(), Described));
+        file["name"] = "Quick signature";
+        file["device"]!["pen"] = "Wacom Pro Pen 2";
+
+        var result = Evaluate(file);
+        Assert.True(result.IsValid, "The corpus schema rejected a name and a pen:\n" + Describe(result));
+    }
+
+    [Fact]
+    public void ButNeverAnEmptyOne()
+    {
+        // A name or a pen nobody gave is absent, not "": the schema says so (minLength 1). Each is checked in
+        // pairs, a real value accepted and an empty one rejected, so the rejection can only be the empty rule:
+        // a copy of the schema from before these fields existed rejects BOTH (it does not know the property
+        // at all), and a bare "rejects empty" would pass against it for the wrong reason.
+        Action<JsonNode, string>[] give =
+        [
+            (file, value) => file["name"] = value,
+            (file, value) => file["device"]!["pen"] = value,
+        ];
+        foreach (var set in give)
+        {
+            var real = Parse(StrokeTakeWriter.ToJson(TwoStrokes(), Described));
+            set(real, "Something typed");
+            var accepted = Evaluate(real);
+            Assert.True(accepted.IsValid, "A real value was refused: " + Describe(accepted));
+
+            var empty = Parse(StrokeTakeWriter.ToJson(TwoStrokes(), Described));
+            set(empty, "");
+            Assert.False(Evaluate(empty).IsValid, "An empty value was accepted.");
+        }
+    }
+
     [Fact]
     public void SoIsOneWithoutTheAirborneRecordAndWithoutTheSessionCounts()
     {

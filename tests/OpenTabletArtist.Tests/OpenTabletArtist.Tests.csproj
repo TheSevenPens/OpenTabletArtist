@@ -50,7 +50,12 @@
 
   <ItemGroup>
     <!-- A copy of StrokeCorpus's schema/take.schema.json, which StrokeTakeWriterTests validates the writer's
-         output against. Refresh it when the format changes; the corpus repository is the source of truth. -->
+         output against. Refresh it when the format changes; the corpus repository is the source of truth.
+
+         Currently identical to StrokeCorpus main at 7243bbe (TheSevenPens/StrokeCorpus#30): the file was
+         fetched at that commit and copied in unchanged. #19 (desktop size fields), #23 (a recording's name)
+         and #30 (device.pen) are all additive and optional, so what Record mode writes was valid before and
+         after. The next version of the schema that matters is the next commit that touches schema/. -->
     <None Include="Fixtures\take.schema.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
