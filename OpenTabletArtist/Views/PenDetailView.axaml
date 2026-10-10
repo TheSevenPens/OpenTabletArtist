@@ -133,7 +133,7 @@
                 </LayoutTransformControl>
 
 
-                <!-- 3 — movement, then pressing, then position smoothing. -->
+                <!-- 3 — movement (the choice, then position smoothing), then pressing. -->
                 <StackPanel Width="320" VerticalAlignment="Top">
                     <TextBlock Text="movement" Classes="Display section" />
 
@@ -159,18 +159,10 @@
                             HorizontalAlignment="Left"
                             IsVisible="{Binding CanFixOutputMode}" />
 
-                    <StackPanel IsVisible="{Binding CanDisableWindowsInk}">
-                        <TextBlock Text="pressing" Classes="Display section" />
-                        <ComboBox Margin="0,12,0,0" HorizontalAlignment="Stretch"
-                                  ItemsSource="{Binding PressModeOptions}"
-                                  SelectedItem="{Binding SelectedPressMode, Mode=TwoWay}"
-                                  ItemTemplate="{StaticResource ChoiceOptionTemplate}"
-                                  SelectionBoxItemTemplate="{StaticResource ChoiceOptionNameTemplate}" />
-                    </StackPanel>
-
                     <!-- Position smoothing (EMA), moved here from the Pressure tab: it steadies the pen's
                          on-screen position, so it belongs with movement. Capped at 0.25 (#487): heavier is
-                         too laggy to be useful. Sits last in the column, under pressing.
+                         too laggy to be useful. Sits directly under the movement choice, with the
+                         output-mode notice (when there is one) between them.
                          One top margin, not two: this used to be a single-child StackPanel carrying
                          Margin="0,28,0,0" around a slider carrying another "0,8,0,0", which opened a 36px
                          gap under the radios that nothing else in the column came close to. The wrapper
@@ -182,6 +174,17 @@
                                         ValueTextOverride="{Binding PositionSmoothingText}"
                                         Monospace="True" ValueWidth="44"
                                         ToolTip.Tip="EMA smoothing of the pen position — steadies wobbly lines, at a little lag." />
+
+                    <StackPanel IsVisible="{Binding CanDisableWindowsInk}">
+                        <!-- The heading style carries only a bottom margin; the gap above is the slider's to the
+                             movement choice, 20, so the same here. -->
+                        <TextBlock Text="pressing" Classes="Display section" Margin="0,20,0,6" />
+                        <ComboBox Margin="0,12,0,0" HorizontalAlignment="Stretch"
+                                  ItemsSource="{Binding PressModeOptions}"
+                                  SelectedItem="{Binding SelectedPressMode, Mode=TwoWay}"
+                                  ItemTemplate="{StaticResource ChoiceOptionTemplate}"
+                                  SelectionBoxItemTemplate="{StaticResource ChoiceOptionNameTemplate}" />
+                    </StackPanel>
                 </StackPanel>
 
                 <!-- 4 — the pen-input opt-outs. -->
