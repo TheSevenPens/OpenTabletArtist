@@ -59,6 +59,15 @@ public sealed class PenDynamicsProcessor
     /// so the next press starts crisp).</summary>
     public void ResetPressure() => _smoothedPressure = null;
 
+    /// <summary>Whether a raw pressure sample counts as drawing: the pen is pressing (&gt; 0) AND the curve
+    /// actually emits pressure for it. Hover (raw 0) and the Cut/Clamp dead zone (raw &gt; 0 but mapped to 0)
+    /// are both "not drawing". A caller that sees false should output zero pressure and <see cref="Reset"/>
+    /// - never feed the sample to <see cref="ProcessPressure"/> - so the smoothing's lag from a finished
+    /// stroke can't leak out as a faint tail under a pen that keeps reporting hover pressure.
+    /// The daemon's filter and the app's live preview both use this, so they agree on what a stroke is.</summary>
+    public bool IsDrawing(double normalized) =>
+        normalized > 0 && PressureCurve.Apply(normalized, Settings.Curve) > 0;
+
     /// <summary>Map a normalized input pressure [0,1] through curve + smoothing (honoring
     /// <see cref="PenDynamicsSettings.SmoothAfterCurve"/>). Returns a normalized output [0,1].</summary>
     public double ProcessPressure(double normalized)

@@ -79,18 +79,15 @@ public class DynamicsFilter : IPositionedPipelineElement<IDeviceReport>
         if (value is ITabletReport report && (Tablet?.Properties?.Specifications?.Pen?.MaxPressure ?? 0) > 0)
         {
             var max = Tablet!.Properties!.Specifications!.Pen!.MaxPressure;
-            var settings = _processor.Settings;
             double norm = report.Pressure / (double)max;
 
-            // "Drawing" means the curve actually emits pressure. Both hover (raw 0) and the Cut/Clamp
-            // dead zone (raw > 0 but mapped to 0) count as not-drawing: zero the output and reset
-            // smoothing so the first real sample starts crisp — no lag/fly-in carried over from the
-            // pre-stroke approach (Codex #106). Position is smoothed only while drawing, so a pen-out
-            // coordinate is never folded into the next stroke either.
-            bool drawing = report.Pressure > 0
-                           && Domain.PressureCurve.Apply(norm, settings.Curve) > 0;
-
-            if (!drawing)
+            // "Drawing" means the curve actually emits pressure (PenDynamicsProcessor.IsDrawing, shared
+            // with the app's live preview). Both hover (raw 0) and the Cut/Clamp dead zone (raw > 0 but
+            // mapped to 0) count as not-drawing: zero the output and reset smoothing so the first real
+            // sample starts crisp — no lag/fly-in carried over from the pre-stroke approach (Codex #106).
+            // Position is smoothed only while drawing, so a pen-out coordinate is never folded into the
+            // next stroke either.
+            if (!_processor.IsDrawing(norm))
             {
                 report.Pressure = 0;
                 _processor.Reset();

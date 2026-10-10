@@ -192,6 +192,7 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
     partial void OnIsAbsoluteOutputModeChanged(bool value)
     {
         OnPropertyChanged(nameof(IsAbsoluteMode)); // keep the Absolute/Relative toggle in sync
+        OnPropertyChanged(nameof(SelectedMovement));
         OnPropertyChanged(nameof(CanCalibrate));   // calibration needs an Absolute mode (#127)
         OnPropertyChanged(nameof(CanRunCalibration));
         OnPropertyChanged(nameof(ShowConnectToCalibrateHint));
@@ -643,6 +644,48 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
     /// selection is now command-driven and the checked state is display-only.</summary>
     public bool IsAbsoluteMode => IsAbsoluteOutputMode;
 
+    /// <summary>One entry in a rich dropdown on the pen page: a short title plus the line that explains it.
+    /// <see cref="Key"/> is the argument the matching Select… command takes.</summary>
+    public sealed record ChoiceOption(string Key, string Title, string Description);
+
+    public ChoiceOption[] MovementOptions { get; } =
+    [
+        new("absolute", "Normal (Absolute)", "The pen maps 1:1 to the screen — good for artists."),
+        new("relative", "Mouse-like (Relative)", "The pen moves the cursor like a mouse — often used with games."),
+    ];
+
+    public ChoiceOption[] PressModeOptions { get; } =
+    [
+        new("pen", "Presses normally", "Works like an artist would expect, with pressure sensitivity and tilt"),
+        new("mouse", "Presses like a mouse", "No pressure sensitivity or tilt"),
+    ];
+
+    /// <summary>The Movement dropdown's selection. Derived from the profile, and the setter only forwards a
+    /// real pick to <see cref="SelectMovementCommand"/> — which no-ops when the mode is already there, so
+    /// the ComboBox echoing the getter back on a reload cannot start an apply↔reload loop.</summary>
+    public ChoiceOption SelectedMovement
+    {
+        get => MovementOptions[IsAbsoluteMode ? 0 : 1];
+        set
+        {
+            if (value == null) return;
+            SelectMovementCommand.Execute(value.Key);
+            OnPropertyChanged(); // snap back to the profile's mode if the change did not apply
+        }
+    }
+
+    /// <summary>The Pressing dropdown's selection — same shape as <see cref="SelectedMovement"/>.</summary>
+    public ChoiceOption SelectedPressMode
+    {
+        get => PressModeOptions[DisableWindowsInk ? 1 : 0];
+        set
+        {
+            if (value == null) return;
+            SelectPressModeCommand.Execute(value.Key);
+            OnPropertyChanged();
+        }
+    }
+
     /// <summary>User picked a Movement card (Absolute / Relative). Fires only on a real click — unlike a
     /// TwoWay IsChecked binding, which the RadioButton group re-triggers on every reload.</summary>
     [RelayCommand]
@@ -694,6 +737,7 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
 
     partial void OnDisableWindowsInkChanged(bool value)
     {
+        OnPropertyChanged(nameof(SelectedPressMode));
         if (_skipOutputModeChange || !OperatingSystem.IsWindows()) return;
         _ = SetOutputMode(ModePath(IsAbsoluteOutputMode, value));
     }
@@ -1836,6 +1880,11 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
     // distinguishes "no data" from an actual 0).
     public string LiveInputText => LivePressure is { } v ? v.ToString("0.0000") : "—";
 
+    // The pressure deadzone: the x position of the curve's lower-left node (its input minimum) — pressure below
+    // this reads as the output minimum. Shown above the live readouts so the deadzone is explicit when
+    // judging why a hovering pen does or doesn't register.
+    public string DeadzoneText => Curve.InputMinimum.ToString("0.0000");
+
     // Live processed pressure for the top pressure-level bar (#559): the raw pressure run through the SAME
     // pipeline the daemon's Pen Dynamics filter uses — curve, then EMA smoothing — via a stateful
     // PenDynamicsProcessor fed each pen sample. So the processed dot reflects smoothing's lag too, not just
@@ -1854,6 +1903,7 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
     {
         OnPropertyChanged(nameof(CutBelowMinimum));
         OnPropertyChanged(nameof(Softness)); // keep the Softness slider in sync with node drags / presets
+        OnPropertyChanged(nameof(DeadzoneText));
         NotifyDynamicsStatus();
         SchedulePersist();
     }
@@ -1886,11 +1936,12 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
         return string.Equals(reportTablet, ourTablet, StringComparison.OrdinalIgnoreCase);
     }
 
-    /// <summary>Raised per pen sample for the pressure tab's preview canvas: the pen-pointer position
-    /// (0..1 within the mapped display) with the pressure already run through the curve + smoothing, so the
-    /// canvas previews the exact response you're editing (and works even when Windows Ink is off). A sample
-    /// with <c>IsDown == false</c> ends the current stroke.</summary>
-    public event Action<PenSample>? PreviewSample;
+    /// <summary>Raised per pen sample for the pressure tab's preview canvases. The sample carries the pen
+    /// position (RawX/RawY, mapped by the view) and the RAW pressure; the second argument is that pressure
+    /// after the curve + smoothing, so one canvas can show the signal as it arrives and the other the exact
+    /// response you're editing (both work even when Windows Ink is off). A sample with
+    /// <c>IsDown == false</c> ends the current stroke.</summary>
+    public event Action<PenSample, double>? PreviewSample;
 
     // Cached raw→desktop mapping (active area → mapped display), rebuilt when live input starts. Null in
     // Relative / unmapped modes. Same context the Scribble page's Driver mode uses; the view does the
@@ -1939,16 +1990,26 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
             // Run the raw sample through the same curve+smoothing pipeline (#559) so the processed dot
             // reflects smoothing's lag. Settings are refreshed each sample to track live edits.
             _liveProcessor.Settings = CurrentDynamics;
-            LiveProcessed = _liveProcessor.ProcessPressure(raw);
-            // Preview canvas gets the raw position (RawX/RawY, mapped by the view) + the SHAPED pressure.
-            PreviewSample?.Invoke(s with { Pressure = LiveProcessed ?? raw });
+            // Same rule as the daemon's filter: a sample the curve maps to nothing (hover, the dead zone) is
+            // zero pressure and resets the smoothing. Without it, smoothing's tail from the last stroke kept
+            // the processed value above zero for hundreds of samples under a pen that reports hover pressure.
+            if (_liveProcessor.IsDrawing(raw))
+                LiveProcessed = _liveProcessor.ProcessPressure(raw);
+            else
+            {
+                _liveProcessor.Reset();
+                LiveProcessed = 0;
+            }
+            // Preview canvases get the raw position (RawX/RawY, mapped by the view), the RAW pressure in the
+            // sample, and the SHAPED pressure alongside it.
+            PreviewSample?.Invoke(s with { Pressure = raw }, LiveProcessed ?? raw);
         }
         else
         {
             LivePressure = null;
             _liveProcessor.ResetPressure(); // next press starts crisp, matching the filter
             LiveProcessed = null;
-            PreviewSample?.Invoke(s); // IsDown = false → the canvas ends the stroke
+            PreviewSample?.Invoke(s, s.Pressure); // IsDown = false → the canvases end the stroke
         }
     }
 
