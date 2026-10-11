@@ -96,7 +96,9 @@ A supported tablet seen but none opened is the missing-grant signature — the s
 page's "OpenTabletDriver can't read your tablet" check makes. Use it when a rebuilt daemon stops seeing
 the tablet (a new ad-hoc cdhash loses the TCC grant, see HANDOFF.md) before touching System Settings.
 Remember the grant is recorded under the app that *launched* the daemon, not the daemon. See
-`tools/OtdMacPermissionCheck/README.md` for exit codes and what it cannot tell you (Accessibility).
+`tools/OtdMacPermissionCheck/README.md` for exit codes and what it cannot tell you (Accessibility), and
+[permissions.md](permissions.md) for the whole topic: the two grants, who gets credited, why a rebuild
+loses them, and the troubleshooting order.
 
 ### 2. Avalonia screens harness (throwaway)
 

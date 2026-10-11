@@ -42,6 +42,7 @@ the current app, start with the [user documentation](../README.md#using-the-app)
 - [macOS status and handoff](macos/HANDOFF.md)
 - [macOS implementation plan](macos/implementation-plan.md)
 - [macOS development environment](macos/dev-environment.md)
+- [macOS permissions](macos/permissions.md) — Input Monitoring and Accessibility: who is credited, why a rebuild loses them, how to tell
 - [macOS porting journey](macos/porting-journey.md)
 - [macOS reference changes](macos/reference-changes.md)
 - [Windows-specific surface catalog](macos/windows-specific-surface.md)

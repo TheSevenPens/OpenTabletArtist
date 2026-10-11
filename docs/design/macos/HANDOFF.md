@@ -57,7 +57,8 @@ Same first-launch caveat as OTD (right-click → Open). Groundwork exists (`Appl
 `scripts/bundle-macos-app.sh`, the `BundleMacApp` publish target from #520/#522/#523). Key insight: a **stable
 signing identity is what makes the Input Monitoring / Accessibility grant persist across rebuilds** — the
 catch-22 the port kept hitting (a fresh `dotnet build` daemon has a new cdhash → no TCC grant; OTD.app's signed
-daemon keeps its). Plus a **permissions UX** for the grants (OTD ships a `PermissionHelper`).
+daemon keeps its). Plus a **permissions UX** for the grants (OTD ships a `PermissionHelper`). The grants
+themselves — which ones, who is credited, how to tell — are written up in [permissions.md](permissions.md).
 
 **Phase 7 — full signing + notarization (deferred to V2).** The only part gated on external, paid decisions:
 a **Developer ID Application** cert (**Apple Developer Program** membership), `notarytool` + `stapler`, and a
