@@ -15,6 +15,7 @@ public sealed partial class DeveloperSettings : ObservableObject
 
     private const string FiltersKey = "developer.showFiltersTab";
     private const string JsonKey = "developer.showJsonTab";
+    private const string DiagnosticsKey = "developer.showDiagnosticsTab";
     private const string OnPageScreenshotKey = "developer.onPageScreenshot";
     private const string CutBelowKey = "developer.showCutBelowMinimum";
     private const string CardRoleTagsKey = "developer.showCardRoleTags";
@@ -27,6 +28,7 @@ public sealed partial class DeveloperSettings : ObservableObject
         _loading = true;
         ShowFiltersTab = AppSettings.Get(FiltersKey) == "true";
         ShowJsonTab = AppSettings.Get(JsonKey) == "true";
+        ShowDiagnosticsTab = AppSettings.Get(DiagnosticsKey) == "true";
         OnPageScreenshot = AppSettings.Get(OnPageScreenshotKey) == "true";
         ShowCutBelowMinimum = AppSettings.Get(CutBelowKey) == "true";
         ShowCardRoleTags = AppSettings.Get(CardRoleTagsKey) == "true";
@@ -39,6 +41,9 @@ public sealed partial class DeveloperSettings : ObservableObject
     [ObservableProperty] private bool _showFiltersTab;
     /// <summary>Show the JSON tab on a tablet's page. Hidden by default — users never need it.</summary>
     [ObservableProperty] private bool _showJsonTab;
+    /// <summary>Show the Diagnostics tab on the Advanced page (the live pen-report stream). Hidden by
+    /// default — it is a developer view, not something an artist needs.</summary>
+    [ObservableProperty] private bool _showDiagnosticsTab;
     /// <summary>Show a small capture button at the bottom of the nav bar that screenshots the current
     /// page (#437). Off by default — a developer aid.</summary>
     [ObservableProperty] private bool _onPageScreenshot;
@@ -87,7 +92,7 @@ public sealed partial class DeveloperSettings : ObservableObject
     /// <summary>True for any developer flag that changes the health catalog (everything except the
     /// tab-visibility toggles), so the health service knows to re-evaluate.</summary>
     public static bool AffectsHealth(string? propertyName) =>
-        propertyName is not (nameof(ShowFiltersTab) or nameof(ShowJsonTab) or nameof(OnPageScreenshot)
+        propertyName is not (nameof(ShowFiltersTab) or nameof(ShowJsonTab) or nameof(ShowDiagnosticsTab) or nameof(OnPageScreenshot)
                              or nameof(ShowCutBelowMinimum) or nameof(ShowCardRoleTags)
                              or nameof(ScreenshotFormat));
 
@@ -127,6 +132,11 @@ public sealed partial class DeveloperSettings : ObservableObject
     partial void OnShowJsonTabChanged(bool value)
     {
         if (!_loading) AppSettings.Set(JsonKey, value ? "true" : "false");
+    }
+
+    partial void OnShowDiagnosticsTabChanged(bool value)
+    {
+        if (!_loading) AppSettings.Set(DiagnosticsKey, value ? "true" : "false");
     }
 
     partial void OnOnPageScreenshotChanged(bool value)

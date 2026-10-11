@@ -3,6 +3,7 @@ using System.Linq;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using OpenTabletArtist.Domain;
+using OpenTabletArtist.Services;
 
 namespace OpenTabletArtist.ViewModels;
 
@@ -69,6 +70,24 @@ public partial class AdvancedViewModel : ObservableObject
         Tabs = tabs;
         _allTabs = tabs;
         UpdateSelection();
+
+        // Diagnostics is a developer view: hidden unless Settings → Dev → Interface turns it on.
+        _diagnosticsItem = tabs.First(t => t.Tab == AdvancedTab.Diagnostics);
+        ApplyDiagnosticsVisibility();
+        DeveloperSettings.Instance.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName == nameof(DeveloperSettings.ShowDiagnosticsTab)) ApplyDiagnosticsVisibility();
+        };
+    }
+
+    private readonly AdvancedTabItem _diagnosticsItem;
+
+    private void ApplyDiagnosticsVisibility()
+    {
+        var show = DeveloperSettings.Instance.ShowDiagnosticsTab;
+        _diagnosticsItem.IsVisible = show;
+        // Turning it off while it is the open tab would leave the page showing a tab the rail no longer lists.
+        if (!show && SelectedTab == AdvancedTab.Diagnostics) SelectedTab = AdvancedTab.Daemon;
     }
 
     /// <summary>The advanced subpages, a single flat list (no owner grouping).</summary>

@@ -167,8 +167,9 @@
                       IsVisible="{Binding #InterfaceSubtab.IsChecked}">
             <Grid ColumnDefinitions="*,32,*" MaxWidth="1040" HorizontalAlignment="Left">
 
-                <!-- LEFT: reveal the normally-hidden tablet-page tabs / controls. -->
-                <c:Section Grid.Column="0" Title="Tablet page extras"
+                <!-- LEFT: reveal the normally-hidden tabs / controls — the tablet page's, then the Advanced page's. -->
+                <StackPanel Grid.Column="0" Spacing="24">
+                <c:Section Title="Tablet page extras"
                            Description="Show extra diagnostic tabs and rarely-needed controls on a tablet's page. Hidden by default.">
                     <StackPanel Spacing="4">
                         <c:ToggleSetting Label="Show the Filters tab"
@@ -183,6 +184,16 @@
                                          IsChecked="{Binding Settings.ShowCardRoleTags}" />
                     </StackPanel>
                 </c:Section>
+
+                <c:Section Title="Advanced page extras"
+                           Description="Show extra tabs on the Advanced page. Hidden by default.">
+                    <StackPanel Spacing="4">
+                        <c:ToggleSetting Label="Show the Diagnostics tab"
+                                         Description="The live pen-report stream, under Advanced."
+                                         IsChecked="{Binding Settings.ShowDiagnosticsTab}" />
+                    </StackPanel>
+                </c:Section>
+                </StackPanel>
 
                 <!-- RIGHT: window-size presets. -->
                 <!-- Force the window to an exact ACTUAL-PIXEL size (#546) — preview small-display layouts or
