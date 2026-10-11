@@ -50,7 +50,9 @@ internal static class HealthIssuePresenter
             Severity(f.Severity),
             "Conflicting tablet driver detected",
             "Another tablet driver is installed and may interfere with OpenTabletDriver",
-            new Remediation("Fix", RemediationArea.DriverCleanup)),
+            // "Review", not "Fix": which driver to remove, and whether it's a real conflict at all, is
+            // the user's call, so the action opens the cleanup page rather than promising a repair.
+            new Remediation("Review", RemediationArea.DriverCleanup)),
         HealthCheckCodes.ProcessElevated => new HealthIssue("app.elevated", Severity(f.Severity),
             "Running as administrator",
             "OpenTabletDriver does not work correctly if it is running with Administrator permissions",

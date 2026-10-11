@@ -431,6 +431,8 @@ public class HealthEvaluatorTests
         Assert.Equal("driver.conflict", issue.Id);
         Assert.Equal(HealthSeverity.Misconfigured, issue.Severity);
         Assert.Equal(RemediationArea.DriverCleanup, issue.Remediation!.Area);
+        // Which driver to remove is the user's call, so this is a review, not a one-click fix.
+        Assert.Equal("Review", issue.Remediation.ActionLabel);
     }
 
     [Fact]
