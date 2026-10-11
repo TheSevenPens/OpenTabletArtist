@@ -1,3 +1,4 @@
+using Newtonsoft.Json.Linq;
 using OpenTabletDriver.Desktop;
 
 namespace OtdInterop;
@@ -14,4 +15,6 @@ internal interface IDaemonSettingsBinding
     int Incarnation { get; }
     Task<Settings?> GetSettingsAsync();
     Task<bool> SetSettingsAsync(Settings settings);
+    /// <summary>The tablets the daemon has detected, as it returns them (TabletReference[]). Empty when there is no transport.</summary>
+    Task<JArray> GetTabletsAsync();
 }

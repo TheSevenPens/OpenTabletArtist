@@ -199,6 +199,9 @@ internal sealed class FakeDaemonTransport : IDaemonTransport, IDaemonSettingsCha
 
         public Task<bool> SetSettingsAsync(Settings settings) =>
             Live ? daemon.SetSettingsAsync(settings) : Task.FromResult(false);
+
+        public Task<JArray> GetTabletsAsync() =>
+            Live ? daemon.GetTabletsAsync() : Task.FromResult(new JArray());
     }
 
     public Task<Settings?> GetSettingsAsync()

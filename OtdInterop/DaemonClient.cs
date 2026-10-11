@@ -269,6 +269,12 @@ internal sealed class DaemonClient : IDaemonTransport, IDaemonSettingsChannel
             await rpc.InvokeAsync("SetSettings", settings);
             return true;
         }
+
+        public async Task<JArray> GetTabletsAsync()
+        {
+            if (rpc is not { IsDisposed: false }) return [];
+            return await rpc.InvokeAsync<JArray>("GetTablets");
+        }
     }
 
     public async Task<Settings?> GetSettingsAsync()

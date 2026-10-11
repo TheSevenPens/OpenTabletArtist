@@ -1,3 +1,4 @@
+using Newtonsoft.Json.Linq;
 using OpenTabletDriver.Desktop;
 
 namespace OtdInterop;
@@ -128,6 +129,26 @@ internal sealed class SettingsCoordinator : IOtdSettingsSession, IDisposable
         return SettingsCodec.Clone(settings);
     }
 
+    /// <summary>
+    /// The saved file as the daemon holds it after loading, which is what "unsaved" is measured against.
+    /// </summary>
+    /// <remarks>
+    /// The daemon restamps the revision and matches each detected tablet's profile to its specification
+    /// on load, and writes none of it back (<see cref="DaemonLoadNormalizer"/>). Compared raw, such a
+    /// file is "unsaved" from the moment of connecting, before anything has been edited. The fingerprint
+    /// stays that of the bytes on disk: it answers whether the file moved, not what it says.
+    /// </remarks>
+    private async Task<SettingsFileSnapshot> ReadSavedAsync(Settings live)
+    {
+        var primary = _store.ReadPrimary(_path);
+        if (primary.Settings is null) return primary;
+        var tablets = await DetectedTabletsAsync().ConfigureAwait(false);
+        return primary with { Settings = DaemonLoadNormalizer.AsLoaded(primary.Settings, live, tablets) };
+    }
+
+    private Task<JArray> DetectedTabletsAsync() =>
+        _channel.GetTabletsAsync().WaitAsync(_timeout, _lifetime.Token);
+
     public Task<SettingsReloadOutcome> RefreshAsync() => ReadAndAdoptAsync(accept: false);
     public Task<SettingsReloadOutcome> ReloadAsync() => ReadAndAdoptAsync(accept: true);
 
@@ -145,7 +166,7 @@ internal sealed class SettingsCoordinator : IOtdSettingsSession, IDisposable
                 }
                 return new SettingsReloadOutcome(SettingsReloadStatus.Unchanged);
             }
-            var saved = _store.ReadPrimary(_path);
+            var saved = await ReadSavedAsync(observed).ConfigureAwait(false);
             if (!IsConnected) return new SettingsReloadOutcome(SettingsReloadStatus.Disconnected);
             Publish(observed, saved);
             _paused = false;
@@ -299,13 +320,25 @@ internal sealed class SettingsCoordinator : IOtdSettingsSession, IDisposable
 
     public Task<SettingsRestoreOutcome> RestoreSavedAsync() => RunAsync(async () =>
     {
+        if (Published.Current is not { } live) return SettingsRestoreOutcome.Disconnected;
         var primary = _store.ReadPrimary(_path);
-        var saved = primary.Settings is null ? null : SettingsCodec.Clone(primary.Settings);
-        if (saved is null && (!_store.TryLoad(_path, out saved) || saved is null))
+        var source = primary.Settings;
+        if (source is null && (!_store.TryLoad(_path, out source) || source is null))
             return SettingsRestoreOutcome.SourceUnavailable;
+        // Applied as the daemon would load it, not as written. The daemon matches each detected tablet's
+        // profile to its specification on SetSettings as well, so a raw file reads back different from
+        // what was requested and the apply reports a rejection (DaemonLoadNormalizer).
+        JArray tablets;
+        try { tablets = await DetectedTabletsAsync().ConfigureAwait(false); }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            return IsConnected ? SettingsRestoreOutcome.Failed(ex) : SettingsRestoreOutcome.Disconnected;
+        }
+        var saved = DaemonLoadNormalizer.AsLoaded(source, live, tablets)!;
         ProfileSanitizer.EnsureValidAbsoluteAreas(saved);
         var applied = await ApplyCoreAsync(saved).ConfigureAwait(false);
-        if (applied.IsLive) Publish(Published.Current, primary);
+        if (applied.IsLive)
+            Publish(Published.Current, primary with { Settings = DaemonLoadNormalizer.AsLoaded(primary.Settings, live, tablets) });
         return applied.IsLive ? SettingsRestoreOutcome.Restored with { Prepared = applied.Prepared }
             : applied.Status == SettingsApplyStatus.Disconnected ? SettingsRestoreOutcome.Disconnected
             : SettingsRestoreOutcome.Failed(applied.Error);

@@ -376,6 +376,17 @@ call is not evidence the values took. A mismatch pauses the session rather than 
 whose outcome could not be established at all closes the session, because a late arrival must not race a
 later reload or save.
 
+**Saved means what the daemon loads.** `HasUnsavedChanges` compares the live settings with the saved
+file, but the daemon does not hold the file as written: on load it restamps `Revision` with its own
+version and matches each detected tablet's profile to its specification (button slots, wheel step size, a
+zero wheel threshold forced to one), and writes none of that back. Compared raw, such a file was "unsaved"
+from the first connect, and every daemon restart asked about changes nobody had made. `DaemonLoadNormalizer`
+applies the same load to the file before the comparison, with OTD's own `MatchSpecifications`, so the
+baseline is the file as the daemon holds it; Revert applies that too, because `SetSettings` matches
+profiles as well and a raw file read back different from the request. A detected tablet with no saved
+profile is not emulated (its defaults need the daemon's plugin manager) and reads as unsaved, which is
+also the truth.
+
 **Assemblies.** Nine projects: the app, `OtdInterop`, `OtdHealth`, the pen-dynamics plugin, the
 `OtdDaemonSwitchCheck` diagnostic tool, and four test projects. `OtdInterop` grants `InternalsVisibleTo`
 to its own suite and the two application test projects — shared fakes and `ForTesting` — which is a deliberate seam, not a migration bridge; none

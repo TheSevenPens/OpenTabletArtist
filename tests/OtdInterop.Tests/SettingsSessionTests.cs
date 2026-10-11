@@ -2,7 +2,10 @@ using System;
 using System.IO;
 using System.Threading.Tasks;
 using OpenTabletDriver.Desktop;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using OpenTabletDriver.Desktop.Profiles;
+using OpenTabletDriver.Plugin.Tablet;
 using Xunit;
 
 namespace OtdInterop.Tests;
@@ -508,5 +511,124 @@ public class SettingsSessionTests
         Assert.False(session.HasUnsavedChanges);
         Assert.Equal(0, store.Attempts);
         Assert.Equal(100, daemon.Settings!.Profiles[0].AbsoluteModeSettings.Tablet.Width);
+    }
+
+    // --- The saved file as the daemon loads it (DaemonLoadNormalizer) ---
+
+    /// <summary>
+    /// A tablet as GetTablets returns it, with the specification the daemon matches profiles to. Through
+    /// text, as the wire delivers it: OTD's decimal converter leaves a raw token in an in-memory tree.
+    /// </summary>
+    private static JArray Detected(string name, uint penButtons = 2, uint auxButtons = 4, int wheels = 1) =>
+        JArray.Parse(JsonConvert.SerializeObject(new[] { new TabletReference(new TabletConfiguration
+        {
+            Name = name,
+            Specifications = new TabletSpecifications
+            {
+                Digitizer = new DigitizerSpecifications { Width = 100, Height = 50, MaxX = 1000, MaxY = 500 },
+                Pen = new PenSpecifications { MaxPressure = 8191, ButtonCount = penButtons },
+                AuxiliaryButtons = new ButtonSpecifications { ButtonCount = auxButtons },
+                Wheels = Enumerable.Range(0, wheels)
+                    .Select(_ => new WheelSpecifications { RelativeWheelSteps = 24, ButtonCount = 0 }).ToList(),
+            },
+        }, []) }));
+
+    /// <summary>What the daemon holds after loading <paramref name="saved"/> with <paramref name="tablets"/> attached.</summary>
+    private static Settings LoadedByTheDaemon(Settings saved, JArray tablets, string revision)
+    {
+        var live = SettingsCodec.Clone(saved);
+        live.Revision = revision;
+        foreach (var tablet in tablets)
+        {
+            var properties = tablet.ToObject<TabletReference>()!.Properties;
+            live.Profiles.GetProfile(properties.Name)!.BindingSettings.MatchSpecifications(properties.Specifications);
+        }
+        return live;
+    }
+
+    private static async Task<(SettingsCoordinator Session, FakeDaemonTransport Daemon, MemorySettingsFileStore Store)>
+        OpenWith(Settings saved, Settings live, JArray tablets)
+    {
+        var daemon = new FakeDaemonTransport { Settings = live, Tablets = tablets };
+        daemon.Reconnect();
+        var store = new MemorySettingsFileStore { Saved = saved };
+        var session = new SettingsCoordinator(daemon, store, "settings.json");
+        Assert.Equal(SettingsReloadStatus.Adopted, (await session.ReloadAsync()).Status);
+        return (session, daemon, store);
+    }
+
+    /// <summary>
+    /// The daemon stamps the file's revision with its own version on load and never writes it back. A
+    /// file saved under the previous version is not something the artist changed.
+    /// </summary>
+    [Fact]
+    public async Task AFileTheDaemonRestampsOnLoadIsNotUnsaved()
+    {
+        var saved = Document();
+        saved.Revision = "0.6.6";
+        var (session, _, _) = await OpenWith(saved, LoadedByTheDaemon(saved, [], "0.6.7"), []);
+        using var lifetime = session;
+        Assert.False(session.HasUnsavedChanges);
+
+        // What the artist does change is still unsaved, measured against the same baseline.
+        Assert.True((await session.ApplyAsync(Document(120))).IsLive);
+        Assert.True(session.HasUnsavedChanges);
+    }
+
+    /// <summary>
+    /// On load the daemon matches each detected tablet's profile to its specification: button slots,
+    /// wheel step size, a zero wheel threshold forced to one. The file does not get those back, so
+    /// compared raw it was "unsaved" from the first connect — the launch-time prompt about changes
+    /// nobody made.
+    /// </summary>
+    [Fact]
+    public async Task AProfileTheDaemonMatchesToItsTabletOnLoadIsNotUnsaved()
+    {
+        var tablets = Detected("T");
+        var saved = Document();
+        saved.Profiles[0].BindingSettings.WheelBindings.Add(new WheelBindingSettings());  // thresholds 0, no step size
+        var live = LoadedByTheDaemon(saved, tablets, saved.Revision);
+        Assert.False(SettingsCodec.Same(saved, live), "the fixture must differ raw for the test to mean anything");
+
+        var (session, _, _) = await OpenWith(saved, live, tablets);
+        using var lifetime = session;
+        Assert.False(session.HasUnsavedChanges);
+    }
+
+    /// <summary>Only a detected tablet's profile is matched, because that is all the daemon matches.</summary>
+    [Fact]
+    public async Task AProfileForATabletThatIsNotDetectedIsComparedAsWritten()
+    {
+        var saved = Document();
+        saved.Profiles[0].BindingSettings.WheelBindings.Add(new WheelBindingSettings());
+        var live = LoadedByTheDaemon(saved, Detected("T"), saved.Revision);
+
+        var (session, _, _) = await OpenWith(saved, live, []);
+        using var lifetime = session;
+        Assert.True(session.HasUnsavedChanges);
+    }
+
+    /// <summary>
+    /// Revert applies the file as the daemon would load it. The daemon matches profiles on SetSettings
+    /// too, so a raw file read back different from the request and the apply reported a rejection.
+    /// </summary>
+    [Fact]
+    public async Task RestoreAppliesTheFileAsTheDaemonLoadsItAndIsThenSaved()
+    {
+        var tablets = Detected("T");
+        var saved = Document();
+        saved.Profiles[0].BindingSettings.WheelBindings.Add(new WheelBindingSettings());
+        var live = LoadedByTheDaemon(saved, tablets, saved.Revision);
+        var (session, daemon, _) = await OpenWith(saved, live, tablets);
+        using var lifetime = session;
+        Assert.True((await session.ApplyAsync(LoadedByTheDaemon(Document(120), tablets, saved.Revision))).IsLive);
+        Assert.True(session.HasUnsavedChanges);
+
+        Assert.True((await session.RestoreSavedAsync()).IsRestored);
+        var wheel = daemon.Applied[^1].Profiles[0].BindingSettings.WheelBindings[0];
+        Assert.Equal(1, wheel.ClockwiseActivationThreshold);
+        Assert.Equal(15, wheel.StepSize);
+        Assert.Equal(4, daemon.Applied[^1].Profiles[0].BindingSettings.AuxButtons.Count);
+        Assert.False(session.HasUnsavedChanges);
     }
 }
