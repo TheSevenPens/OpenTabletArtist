@@ -116,10 +116,6 @@
             <StackPanel Spacing="10">
                 <TextBlock TextWrapping="Wrap"
                            Text="A preset is a named copy of OpenTabletDriver's whole configuration — every tablet you have set up, with its area, mapping, pen settings and filters, saved together in one file." />
-                <TextBlock TextWrapping="Wrap"
-                           Text="Saving one leaves your current settings alone; it takes a copy. Loading one replaces the live settings for every tablet at once, so it switches your whole setup rather than one tablet's." />
-                <TextBlock TextWrapping="Wrap"
-                           Text="Presets are also what Settings → Hotkeys switches between: give a preset a key combination there and it loads on that key, even when OpenTabletArtist isn't the focused window." />
             </StackPanel>
         </c:Section>
     </WrapPanel>

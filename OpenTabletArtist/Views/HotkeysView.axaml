@@ -129,8 +129,7 @@
         </StackPanel>
 
         <!-- What these shortcuts are. The page never said the one thing that makes them worth setting —
-             that they fire while another application is focused — nor what loading a preset does to the
-             settings you have saved. Prose in a second column, as on Presets. -->
+             that they fire while another application is focused. Prose in a second column, as on Presets. -->
         <StackPanel Width="320" VerticalAlignment="Top">
             <!-- Same treatment as "shortcuts" opposite: the two columns are peers, so their headings sit
                  on one baseline at one size rather than the right one shrinking to an eyebrow. -->
@@ -138,10 +137,6 @@
             <StackPanel Spacing="10">
                 <TextBlock TextWrapping="Wrap"
                            Text="These are global shortcuts: they work whenever OpenTabletArtist is running, even when another application is focused." />
-                <TextBlock TextWrapping="Wrap"
-                           Text="Loading a preset replaces the live settings. Unsaved changes prompt you first. Use Save in OpenTabletArtist to keep the loaded settings after the OTD daemon restarts." />
-                <TextBlock TextWrapping="Wrap"
-                           Text="Presets come from Settings → Presets. Delete a preset there and its shortcut goes with it." />
             </StackPanel>
         </StackPanel>
     </WrapPanel>

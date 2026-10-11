@@ -92,7 +92,7 @@
                                 ToolTip.Tip="Copy the drawing to the clipboard as an image" />
                         <!-- Marks every report that lands ink with a red dot, on a layer above the brush, so
                              a stroke's individual reports are visible at high report rates. -->
-                        <CheckBox Content="Report dots" IsChecked="{Binding ShowReportDots}"
+                        <CheckBox Content="Mark positions" IsChecked="{Binding ShowReportDots}"
                                   VerticalAlignment="Center" Margin="20,0,0,0"
                                   ToolTip.Tip="Mark each pen report that lands ink with a red dot, to see where reports fall along a stroke" />
 
