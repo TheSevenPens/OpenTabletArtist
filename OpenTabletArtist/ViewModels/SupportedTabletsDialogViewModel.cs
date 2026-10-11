@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using OpenTabletArtist.Domain;
 using OpenTabletArtist.Services;
 
 namespace OpenTabletArtist.ViewModels;
@@ -35,6 +36,11 @@ public sealed partial class SupportedTabletsDialogViewModel : ObservableObject
 
         Rebuild();
     }
+
+    /// <summary>The dialog heading. Names the OpenTabletDriver release, because the list is that release's
+    /// built-in catalog (<see cref="SupportedTabletsCatalog"/>) — what "supported" means depends on it.
+    /// Read from <see cref="OtdRelease"/> rather than the linked assembly: see the note on that class.</summary>
+    public string Title { get; } = $"OpenTabletDriver {OtdRelease.AssetVersion} supports these tablets";
 
     /// <summary>Filter options for the brand dropdown: "All brands" plus each distinct brand.</summary>
     public List<string> Brands { get; }

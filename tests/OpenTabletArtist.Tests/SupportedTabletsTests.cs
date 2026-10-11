@@ -1,4 +1,5 @@
 using System.Linq;
+using OpenTabletArtist.Domain;
 using OpenTabletArtist.Services;
 using OpenTabletArtist.ViewModels;
 using Xunit;
@@ -30,6 +31,14 @@ public class SupportedTabletsTests
         Assert.Equal($"{all.Count} tablets", vm.CountText);   // bare total when not filtered
         Assert.Equal(1, vm.Rows[0].Number);                    // 1-based numbering
         Assert.Contains(vm.Rows, r => r.IsDetected && r.Name == sample.Name);
+    }
+
+    [Fact]
+    public void DialogVm_Title_NamesTheBundledOtdRelease()
+    {
+        var vm = new SupportedTabletsDialogViewModel(null);
+
+        Assert.Equal($"OpenTabletDriver {OtdRelease.AssetVersion} supports these tablets", vm.Title);
     }
 
     [Fact]
