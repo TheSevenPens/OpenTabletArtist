@@ -105,12 +105,15 @@ public class ExplicitSettingsTests
         using var lifetime = app;
         await app.ApplySettingsAsync(Document(true));
         daemon.RaiseDisconnected();
+        await PumpUntil(() => !app.IsConnected);
+        Assert.Equal(AppSession.DisconnectedWithUnsavedChangesMessage, app.DiscardedChangeNotice);
         daemon.Settings = Document();
         daemon.Reconnect();
         await PumpUntil(() => app.CurrentSettings?.Profiles[0].BindingSettings.DisablePressure == false);
         Assert.True(app.IsConnected);
         Assert.True(app.CanEditSettings);
-        Assert.Contains("unsaved", app.DiscardedChangeNotice);
+        // The "reconnecting" warning must not outlive the reconnect it was warning about.
+        Assert.Equal(AppSession.ReconnectedReplacedUnsavedChangesMessage, app.DiscardedChangeNotice);
         Assert.Single(daemon.Applied);
         Assert.Equal(0, store.Attempts);
     }

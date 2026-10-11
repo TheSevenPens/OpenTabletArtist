@@ -240,6 +240,14 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
     /// working setup.</summary>
     [ObservableProperty] private bool _daemonCannotOpenTablet;
 
+    /// <summary>The discarded-change notice while the daemon is gone and unsaved changes were open.</summary>
+    internal const string DisconnectedWithUnsavedChangesMessage =
+        "The OTD daemon disconnected. Reconnecting reloads its current settings; unsaved changes may be lost.";
+
+    /// <summary>What replaces <see cref="DisconnectedWithUnsavedChangesMessage"/> once the daemon is back.</summary>
+    internal const string ReconnectedReplacedUnsavedChangesMessage =
+        "Reconnected to the OTD daemon. Its current settings replaced the previous unsaved workspace.";
+
     /// <summary>Message shown when <see cref="IsDaemonExeMissing"/> — the most common cause of a
     /// dead connection (building only the app, or only running the test suite, never produces the
     /// standalone daemon exe).</summary>
@@ -634,8 +642,10 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
             if (DaemonOperationError == DaemonExeMissingMessage
                 || DaemonOperationError == NoDaemonToReachMessage) DaemonOperationError = "";
             ApplyDaemonIdentity(change);
-            if (_workspace is not null && HasUnsavedChanges)
-                DiscardedChangeNotice = "Reconnected to the OTD daemon. Its current settings replaced the previous unsaved workspace.";
+            // A disconnect with unsaved changes left its warning up and dropped the workspace, so by
+            // now the changes are gone: say so in the past tense instead of leaving "reconnecting".
+            if ((_workspace is not null && HasUnsavedChanges) || DiscardedChangeNotice == DisconnectedWithUnsavedChangesMessage)
+                DiscardedChangeNotice = ReconnectedReplacedUnsavedChangesMessage;
             _workspace = session.Settings is { } settings ? new SettingsWorkspace(settings, IsAppOwnedDaemon) : null;
             if (_workspace is null) Profiles = [];
             SettingsReplaced?.Invoke();
@@ -648,7 +658,7 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
         {
             if (Abandoned || session.ConnectionId != 0) return;
             if (HasUnsavedChanges)
-                DiscardedChangeNotice = "The OTD daemon disconnected. Reconnecting reloads its current settings; unsaved changes may be lost.";
+                DiscardedChangeNotice = DisconnectedWithUnsavedChangesMessage;
             _workspace = null;
             SettingsReplaced?.Invoke();
             ConnectionStatus = "Disconnected";
