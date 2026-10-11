@@ -26,7 +26,7 @@
                  on top of any explicit one. -->
             <TextBlock TextWrapping="Wrap" LineHeight="22"
                        Foreground="{DynamicResource TextSecondaryBrush}"><Run
-                Text="OpenTablet Artist is an alternative, artist-friendly experience for OpenTabletDriver on Windows. " /><Run
+                Text="OpenTabletArtist is an alternative, artist-friendly experience for OpenTabletDriver on Windows. " /><Run
                 Text="{Binding AppVersionSentence}" /></TextBlock>
 
             <!-- Source code, releases, help and the user manual as one row of links, wrapping when

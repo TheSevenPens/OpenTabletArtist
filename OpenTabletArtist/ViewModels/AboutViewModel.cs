@@ -42,7 +42,7 @@ public partial class AboutViewModel : ObservableObject
     /// the Help card that used to sit on Home (#568): the guidance outgrew a paragraph, and a page can say
     /// what to include in a post without turning the column into an essay. The Discord link lives there
     /// now, along with the reason it is the first stop rather than the OpenTabletDriver forums.</summary>
-    public string HelpUrl => $"{RepoUrl}/blob/master/docs/user/HELP.md";
+    public string HelpUrl => "https://thesevenpens.github.io/OpenTabletArtist/HELP/";
 
     /// <summary>App version, read from the assembly so it never drifts (the release workflow stamps
     /// the tag version at build). Moved here from the sidebar footer so version info lives on About.</summary>
