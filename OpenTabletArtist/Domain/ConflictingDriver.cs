@@ -1,6 +1,8 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using OpenTabletDriver.Plugin.Logging;
+using OtdHealth.Collector;
 
 namespace OpenTabletArtist.Domain;
 
@@ -10,6 +12,20 @@ public sealed record DetectedDriver(
     string Name, bool Blocking, bool Flaky, bool Uncertain,
     string Processes, string WikiUrl, string Detail)
 {
+    /// <summary>The driver-store packages behind this detection, when we looked for them. Null means we did
+    /// not look (only Wacom is, and only on Windows) or could not; empty means we looked and found none.</summary>
+    public IReadOnlyList<DriverStorePackage>? Packages { get; init; }
+
+    public bool HasPackageLookup => Packages is not null;
+    public bool HasPackages => Packages is { Count: > 0 };
+
+    /// <summary>What the package list means, so it is not mistaken for what a cleanup would remove.</summary>
+    public string PackagesNote => HasPackages
+        ? "These are the packages OpenTabletDriver matched on the word \"Wacom\". Removing them is optional, " +
+          "and a connected Wacom tablet may be using one of them."
+        : "No Wacom packages are in the driver store now. They may have been removed since OpenTabletDriver " +
+          "last scanned; restart the daemon to refresh this warning.";
+
     /// <summary>One-line plain-English impact, worst-first.</summary>
     public string Impact =>
         Blocking ? "Blocks OpenTabletDriver from detecting tablets"

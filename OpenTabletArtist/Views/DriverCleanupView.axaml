@@ -22,6 +22,23 @@
                                        Foreground="{DynamicResource TextPrimaryBrush}" TextWrapping="Wrap" />
                             <TextBlock Text="{Binding ProcessesText}" IsVisible="{Binding HasProcesses}"
                                        Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap" />
+                            <!-- What OTD matched, named. Only the Wacom detection carries it (the daemon's
+                                 message never says which package), and the note says it is not a to-do list. -->
+                            <StackPanel Spacing="4" IsVisible="{Binding HasPackageLookup}">
+                                <TextBlock Text="Found in the Windows driver store" FontWeight="SemiBold"
+                                           Foreground="{DynamicResource TextPrimaryBrush}" TextWrapping="Wrap" />
+                                <ItemsControl ItemsSource="{Binding Packages}" IsVisible="{Binding HasPackages}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <SelectableTextBlock Text="{Binding Summary}"
+                                                                 Foreground="{DynamicResource TextSecondaryBrush}"
+                                                                 TextWrapping="Wrap" />
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                                <TextBlock Text="{Binding PackagesNote}"
+                                           Foreground="{DynamicResource TextMutedBrush}" TextWrapping="Wrap" />
+                            </StackPanel>
                             <!-- Full daemon message — selectable so it can be copied for troubleshooting. -->
                             <SelectableTextBlock Text="{Binding Detail}"
                                                  Foreground="{DynamicResource TextMutedBrush}" TextWrapping="Wrap"
