@@ -83,6 +83,21 @@ Expected (daemon up, tablet connected):
 Exit codes: `0` OK · `2` couldn't connect · `3` connected but an RPC call failed. See
 `tools/DaemonProbe/README.md`.
 
+### 1b. `tools/OtdMacPermissionCheck` — is Input Monitoring actually working?
+
+Python 3, no build. Asks the running daemon what it can *see* (`GetDevices`, no permission needed) versus
+what it could *open* (`GetTablets`, needs Input Monitoring) and prints the verdict with the evidence:
+
+```sh
+python3 tools/OtdMacPermissionCheck/otd-permcheck.py
+```
+
+A supported tablet seen but none opened is the missing-grant signature — the same inference the Home
+page's "OpenTabletDriver can't read your tablet" check makes. Use it when a rebuilt daemon stops seeing
+the tablet (a new ad-hoc cdhash loses the TCC grant, see HANDOFF.md) before touching System Settings.
+Remember the grant is recorded under the app that *launched* the daemon, not the daemon. See
+`tools/OtdMacPermissionCheck/README.md` for exit codes and what it cannot tell you (Accessibility).
+
 ### 2. Avalonia screens harness (throwaway)
 
 A minimal Avalonia app that boots the real macOS backend and prints `Screens.All` — proves the display data

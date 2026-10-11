@@ -324,6 +324,7 @@ OpenTabletArtist.slnx
   ├── tests/OpenTabletArtist.Tests/OpenTabletArtist.Tests.csproj (the app's logic tests)
   ├── tests/OpenTabletArtist.UiTests/OpenTabletArtist.UiTests.csproj (headless Avalonia)
   ├── tools/OtdDaemonSwitchCheck/...                             (hand-run daemon-switch check)
+  ├── tools/OtdMacPermissionCheck/otd-permcheck.py               (macOS: is the daemon's Input Monitoring grant working?)
   └── external/OpenTabletDriver/OpenTabletDriver.Daemon/...      (built daemon)
 ```
 
