@@ -118,6 +118,85 @@ public class ExplicitSettingsTests
         Assert.Equal(0, store.Attempts);
     }
 
+    /// <summary>Reconnect with unsaved changes open, so the reconnect notice is up.</summary>
+    private static async Task<(AppSession App, FakeDaemonTransport Daemon, MemorySettingsFileStore Store)>
+        OpenReconnected()
+    {
+        var (app, daemon, store) = await Open();
+        await app.ApplySettingsAsync(Document(true));
+        daemon.RaiseDisconnected();
+        await PumpUntil(() => !app.IsConnected);
+        daemon.Settings = Document();
+        daemon.Reconnect();
+        await PumpUntil(() => app.IsConnected && app.CanEditSettings);
+        Assert.Equal(AppSession.ReconnectedReplacedUnsavedChangesMessage, app.DiscardedChangeNotice);
+        Assert.True(app.HasSettingsNotice);
+        return (app, daemon, store);
+    }
+
+    /// <summary>
+    /// The reconnect notice describes something over and asks for nothing, so the artist can put it
+    /// away — it used to stay for the session, since its only clear was a Reload offered only while paused.
+    /// </summary>
+    [AvaloniaFact]
+    public async Task TheReconnectNoticeCanBeDismissed()
+    {
+        var (app, _, _) = await OpenReconnected();
+        using var lifetime = app;
+        app.DismissSettingsNoticesCommand.Execute(null);
+        Assert.False(app.HasSettingsNotice);
+        Assert.Equal("", app.DiscardedChangeNotice);
+    }
+
+    /// <summary>An edit of the artist's landing makes the notice history; so does a save.</summary>
+    [AvaloniaFact]
+    public async Task TheReconnectNoticeGoesWhenTheArtistMovesOn()
+    {
+        var (app, _, _) = await OpenReconnected();
+        using var lifetime = app;
+        Assert.True((await app.ApplySettingsAsync(Document(true))).IsLive);
+        Assert.False(app.HasSettingsNotice);
+
+        var (saved, _, _) = await OpenReconnected();
+        using var lifetime2 = saved;
+        Assert.True(await saved.SaveSettingsAsync());
+        Assert.False(saved.HasSettingsNotice);
+    }
+
+    /// <summary>
+    /// A restarted daemon finishes detecting its tablets after OTA has reconnected, and the adoption
+    /// that follows said "settings refreshed" right under "reconnected" — two sentences about one event.
+    /// The reconnect line already says the daemon's current settings are showing, so it stands alone.
+    /// </summary>
+    [AvaloniaFact]
+    public async Task ARefreshUnderTheReconnectNoticeDoesNotAddASecondLine()
+    {
+        var (app, daemon, _) = await OpenReconnected();
+        using var lifetime = app;
+        app.HasPendingEditorInput = () => false;    // idle, so the driver's change is adopted, not paused
+        daemon.Settings = Document(true);
+        await app.ReloadAsync();
+        Assert.True(app.CurrentSettings!.Profiles[0].BindingSettings.DisablePressure);   // adopted
+        Assert.Equal("", app.SettingsRefreshedNotice);
+        Assert.Equal(AppSession.ReconnectedReplacedUnsavedChangesMessage, app.DiscardedChangeNotice);
+    }
+
+    /// <summary>On its own, the refresh notice still appears — and leaves when the artist edits.</summary>
+    [AvaloniaFact]
+    public async Task TheRefreshNoticeAppearsOnItsOwnAndGoesWhenTheArtistEdits()
+    {
+        var (app, daemon, _) = await Open();
+        using var lifetime = app;
+        app.HasPendingEditorInput = () => false;
+        daemon.Settings = Document(true);
+        await app.ReloadAsync();
+        Assert.True(app.HasSettingsRefreshedNotice);
+        Assert.True(app.HasSettingsNotice);
+
+        Assert.True((await app.ApplySettingsAsync(Document())).IsLive);
+        Assert.False(app.HasSettingsNotice);
+    }
+
     [AvaloniaFact]
     public async Task StopCanBeCancelledByUnsavedChangesPrompt()
     {

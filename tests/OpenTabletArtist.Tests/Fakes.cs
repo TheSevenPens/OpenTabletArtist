@@ -276,6 +276,14 @@ internal sealed class FakeConnectionState : IConnectionState
     /// <summary>Derived for the same reason.</summary>
     public bool HasSettingsRefreshedNotice => !string.IsNullOrEmpty(_settingsRefreshedNotice);
 
+    public bool HasSettingsNotice => HasDiscardedChangeNotice || HasSettingsRefreshedNotice;
+
+    public IRelayCommand DismissSettingsNoticesCommand => new RelayCommand(() =>
+    {
+        DiscardedChangeNotice = "";
+        SettingsRefreshedNotice = "";
+    });
+
     /// <summary>How many times each was asked for, so a test can assert which one a refresh chose.</summary>
     public int Reloads { get; private set; }
     public int Connects { get; private set; }

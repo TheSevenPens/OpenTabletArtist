@@ -82,15 +82,18 @@ public class SettingsFooterTests
 
     private sealed class ConnectionState
     {
-        public string DiscardedChangeNotice => "";
-        public bool HasDiscardedChangeNotice => false;
-        public string SettingsRefreshedNotice => "";
-        public bool HasSettingsRefreshedNotice => false;
+        public string DiscardedChangeNotice { get; init; } = "";
+        public bool HasDiscardedChangeNotice => DiscardedChangeNotice.Length > 0;
+        public string SettingsRefreshedNotice { get; init; } = "";
+        public bool HasSettingsRefreshedNotice => SettingsRefreshedNotice.Length > 0;
+        public bool HasSettingsNotice => HasDiscardedChangeNotice || HasSettingsRefreshedNotice;
+        public Recording Dismiss { get; } = new();
+        public ICommand DismissSettingsNoticesCommand => Dismiss;
     }
 
     private static (Window Window, FooterState State, Button[] Buttons) Footer(
         bool canEdit, bool busy = false, bool paused = false, string status = "", double width = 1100,
-        bool unsaved = false)
+        bool unsaved = false, string notice = "", string refreshed = "")
     {
         var state = new FooterState
         {
@@ -102,6 +105,7 @@ public class SettingsFooterTests
                 SaveStatusText = status,
                 HasUnsavedChanges = unsaved,
             },
+            Connection = new ConnectionState { DiscardedChangeNotice = notice, SettingsRefreshedNotice = refreshed },
         };
         var footer = new SettingsFooterView();
         var window = new Window { Content = footer, DataContext = state, Width = width };
@@ -110,9 +114,13 @@ public class SettingsFooterTests
         window.Arrange(new Rect(0, 0, width, 600));
         Dispatcher.UIThread.RunJobs();
 
-        var buttons = footer.GetVisualDescendants().OfType<Button>().ToArray();
+        // The two actions. The notices' Dismiss link is a Button too, and has its own tests below.
+        var buttons = footer.GetVisualDescendants().OfType<Button>().Where(b => b.Name != "DismissNotices").ToArray();
         return (window, state, buttons);
     }
+
+    private static Button DismissOf(Window window) =>
+        window.GetVisualDescendants().OfType<Button>().Single(b => b.Name == "DismissNotices");
 
     private static Button Named(Button[] buttons, string content) =>
         buttons.Single(b => (b.Content as string) == content);
@@ -345,5 +353,43 @@ public class SettingsFooterTests
             Assert.True(right is { } p && p.X <= window.Width,
                 $"'{button.Content}' runs past the window edge at 800px");
         }
+    }
+
+    // ── the notices, and the way to make them go ─────────────────────────────────────────────────
+
+    /// <summary>
+    /// A notice describes something that already happened and asks for nothing, so it comes with a way
+    /// to put it away. Without a notice there is nothing to dismiss, and no control pretending otherwise.
+    /// </summary>
+    [AvaloniaFact]
+    public void ANoticeComesWithDismiss_AndNoNoticeDoesNot()
+    {
+        var (quiet, _, _) = Footer(canEdit: true);
+        Assert.False(DismissOf(quiet).IsEffectivelyVisible);
+
+        var (reconnected, _, _) = Footer(canEdit: true, notice: "Reconnected to the OTD daemon.");
+        Assert.True(DismissOf(reconnected).IsEffectivelyVisible);
+
+        var (refreshed, _, _) = Footer(canEdit: true, refreshed: "OTD daemon settings refreshed.");
+        Assert.True(DismissOf(refreshed).IsEffectivelyVisible);
+        quiet.Close(); reconnected.Close(); refreshed.Close();
+    }
+
+    [AvaloniaFact]
+    public void DismissRunsTheConnectionsCommand_AndNothingElse()
+    {
+        var (window, state, _) = Footer(canEdit: true, notice: "Reconnected to the OTD daemon.");
+
+        // Through the control, as the keyboard test above does: raising ClickEvent alone bypasses the
+        // button's own OnClick, which is where the command is invoked.
+        var dismiss = DismissOf(window);
+        dismiss.RaiseEvent(new KeyEventArgs { RoutedEvent = InputElement.KeyDownEvent, Key = Key.Enter, Source = dismiss });
+        dismiss.RaiseEvent(new KeyEventArgs { RoutedEvent = InputElement.KeyUpEvent, Key = Key.Enter, Source = dismiss });
+        Dispatcher.UIThread.RunJobs();
+
+        Assert.Equal(1, state.Connection.Dismiss.Ran);
+        Assert.Equal(0, state.Save.Ran);
+        Assert.Equal(0, state.Revert.Ran);
+        window.Close();
     }
 }

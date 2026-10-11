@@ -110,6 +110,13 @@ public interface IConnectionState : INotifyPropertyChanged
     /// <summary>Whether there is such a notice to show.</summary>
     bool HasSettingsRefreshedNotice { get; }
 
+    /// <summary>Either notice is showing, so the footer offers to dismiss it.</summary>
+    bool HasSettingsNotice { get; }
+
+    /// <summary>Clear both notices. They describe something that already happened and ask for nothing,
+    /// so the artist gets to say when they have read them.</summary>
+    IRelayCommand DismissSettingsNoticesCommand { get; }
+
     /// <summary>Re-reads what the daemon holds, for a connection that is already up.</summary>
     Task ReloadAsync();
 
@@ -318,6 +325,7 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
     };
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasDiscardedChangeNotice))]
+    [NotifyPropertyChangedFor(nameof(HasSettingsNotice))]
     private string _discardedChangeNotice = "";
     public bool HasDiscardedChangeNotice => !string.IsNullOrEmpty(DiscardedChangeNotice);
     public event Action? SettingsReplaced;
@@ -440,9 +448,29 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
     /// </remarks>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasSettingsRefreshedNotice))]
+    [NotifyPropertyChangedFor(nameof(HasSettingsNotice))]
     private string _settingsRefreshedNotice = "";
 
     public bool HasSettingsRefreshedNotice => !string.IsNullOrEmpty(SettingsRefreshedNotice);
+
+    public bool HasSettingsNotice => HasDiscardedChangeNotice || HasSettingsRefreshedNotice;
+
+    /// <summary>
+    /// Both notices describe a moment, and leave once it has passed.
+    /// </summary>
+    /// <remarks>
+    /// Neither used to have an end. The reconnect notice cleared only on a Reload that moved the
+    /// baseline, and Reload is offered only while paused; the refresh notice cleared on nothing at all.
+    /// Two sentences about events that were over, pinned beside Save for the rest of the session, where
+    /// text otherwise means something is being asked. So: the artist dismisses them, and anything that
+    /// makes them history does too — an edit of theirs landing, a save, a reload, a new connection.
+    /// </remarks>
+    [RelayCommand]
+    private void DismissSettingsNotices()
+    {
+        DiscardedChangeNotice = "";
+        SettingsRefreshedNotice = "";
+    }
     public Func<Task<bool>>? ResolveUnsavedChanges { get; set; }
 
     partial void OnSaveStateChanged(SettingsSaveState value) => NotifySettingsState();
@@ -648,6 +676,7 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
                 DiscardedChangeNotice = ReconnectedReplacedUnsavedChangesMessage;
             _workspace = session.Settings is { } settings ? new SettingsWorkspace(settings, IsAppOwnedDaemon) : null;
             if (_workspace is null) Profiles = [];
+            SettingsRefreshedNotice = "";   // about a workspace that no longer exists
             SettingsReplaced?.Invoke();
             SaveState = SettingsSaveState.None;
             UpdateSettingsState();
@@ -1047,9 +1076,15 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
                 {
                     if (refreshed.ChangedTheBaseline)
                     {
-                        SettingsRefreshedNotice =
-                            "OTD daemon settings refreshed. It changed them and you had nothing unsaved "
-                            + "in progress, so this page now shows what it holds.";
+                        // Not when the reconnect notice is up. A restarted daemon finishes detecting
+                        // its tablets after OTA has connected, so this adoption follows that reconnect
+                        // within a second or two, and the reconnect line already says the daemon's
+                        // current settings are what is showing. Two sentences for one event read as
+                        // two events, and the first is the one that carries the loss.
+                        if (DiscardedChangeNotice != ReconnectedReplacedUnsavedChangesMessage)
+                            SettingsRefreshedNotice =
+                                "OTD daemon settings refreshed. It changed them and you had nothing unsaved "
+                                + "in progress, so this page now shows what it holds.";
                         SettingsReplaced?.Invoke();
                         PublishSettings();
                         SaveState = SettingsSaveState.None;
@@ -1200,6 +1235,7 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
         var outcome = await apply(workspace);
         if (outcome.Error is not null) AppLog.Warn("Settings apply could not be confirmed.", outcome.Error);
         if (!ReferenceEquals(workspace, _workspace) || Abandoned) return SettingsApplyOutcome.Disconnected;
+        if (outcome.IsLive) DismissSettingsNotices();
         if (!workspace.HasPendingApply)
         {
             UpdateSettingsState();
@@ -1236,7 +1272,11 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
         UpdateSettingsState();
         if (!outcome.IsSaved) SaveState = outcome.Status == SettingsSaveStatus.Paused
             ? SettingsSaveState.ChangedElsewhere : SettingsSaveState.Failed;
-        if (outcome.IsSaved) PublishSettings();
+        if (outcome.IsSaved)
+        {
+            DismissSettingsNotices();
+            PublishSettings();
+        }
         return outcome.IsSaved;
     }
 
@@ -1256,7 +1296,7 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
         if (!ReferenceEquals(workspace, _workspace) || Abandoned) return;
         if (outcome.ChangedTheBaseline)
         {
-            DiscardedChangeNotice = "";
+            DismissSettingsNotices();
             SettingsReplaced?.Invoke();
             PublishSettings();
             SaveState = SettingsSaveState.None;

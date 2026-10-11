@@ -34,13 +34,25 @@
         <Grid ColumnDefinitions="*,Auto">
             <StackPanel VerticalAlignment="Center" Margin="0,0,16,0">
                 <TextBlock Text="{Binding SettingsSession.SaveStatusText}" TextWrapping="Wrap" />
-                <TextBlock Text="{Binding Connection.DiscardedChangeNotice}" TextWrapping="Wrap"
-                           IsVisible="{Binding Connection.HasDiscardedChangeNotice}" />
-                <!-- The driver changed its own settings while nothing was half-edited, so the page
-                     followed along. Quiet: nothing was lost and nothing is being asked (#920). -->
-                <TextBlock Text="{Binding Connection.SettingsRefreshedNotice}" TextWrapping="Wrap"
-                           Foreground="{DynamicResource TextSecondaryBrush}"
-                           IsVisible="{Binding Connection.HasSettingsRefreshedNotice}" />
+                <!-- The two notices describe something that already happened and ask for nothing, which
+                     is the opposite of what text beside Save usually means. They leave when the artist
+                     says so, or when they become history (an edit, a save, a reload, a reconnect). -->
+                <Grid ColumnDefinitions="*,Auto" IsVisible="{Binding Connection.HasSettingsNotice}">
+                    <StackPanel>
+                        <TextBlock Text="{Binding Connection.DiscardedChangeNotice}" TextWrapping="Wrap"
+                                   IsVisible="{Binding Connection.HasDiscardedChangeNotice}" />
+                        <!-- The driver changed its own settings while nothing was half-edited, so the page
+                             followed along. Quiet: nothing was lost and nothing is being asked (#920). -->
+                        <TextBlock Text="{Binding Connection.SettingsRefreshedNotice}" TextWrapping="Wrap"
+                                   Foreground="{DynamicResource TextSecondaryBrush}"
+                                   IsVisible="{Binding Connection.HasSettingsRefreshedNotice}" />
+                    </StackPanel>
+                    <Button Grid.Column="1" x:Name="DismissNotices" Content="Dismiss"
+                            Theme="{StaticResource LinkButton}" Margin="12,0,0,0"
+                            VerticalAlignment="Center" Foreground="{DynamicResource AccentBrush}"
+                            Command="{Binding Connection.DismissSettingsNoticesCommand}"
+                            ToolTip.Tip="Hide these notices. Nothing else changes." />
+                </Grid>
             </StackPanel>
 
             <!-- Two buttons, ranked rather than equal. Save is wanted almost every time and reads
