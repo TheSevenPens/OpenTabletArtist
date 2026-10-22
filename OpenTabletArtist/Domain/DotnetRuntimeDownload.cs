@@ -18,7 +18,7 @@ namespace OpenTabletArtist.Domain;
 ///
 /// <para><b>Why this URL.</b> It is the one the .NET host itself prints when it cannot find a runtime, so
 /// OTA points at the remedy Microsoft already recommends for exactly this failure rather than inventing
-/// its own. It redirects to the arch-correct installer page — "Download .NET 8.0 Runtime, Windows x64
+/// its own. It redirects to the arch-correct installer page — "Download .NET 10.0 Runtime, Windows x64
 /// Installer" — so there is nothing to choose. The generic download page is the thing to avoid: it offers
 /// SDK, Runtime, Desktop Runtime and ASP.NET Core Runtime across architectures, and a wrong pick fails in
 /// a way the user would blame on OTA.</para>

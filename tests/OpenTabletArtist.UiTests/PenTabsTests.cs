@@ -29,8 +29,7 @@ public class PenTabsTests
 
     private static TabletDetailViewModel Vm(string outputMode, int penButtons = 3, bool tipBound = true)
     {
-        var profile = new Profile { Tablet = "Test Tablet" };
-        profile.OutputMode = new PluginSettingStore(outputMode) { Path = outputMode };
+        var profile = new Profile { Tablet = "Test Tablet", OutputMode = new PluginSettingStore(outputMode) { Path = outputMode } };
         profile.BindingSettings.TipButton = tipBound ? PenSwitchBinding.MakeAdaptiveBinding(PenSwitchKind.Tip) : null!;
         profile.BindingSettings.EraserButton = PenSwitchBinding.MakeAdaptiveBinding(PenSwitchKind.Eraser);
         profile.BindingSettings.PenButtons = new PluginSettingStoreCollection();

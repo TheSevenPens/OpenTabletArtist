@@ -38,9 +38,9 @@ public class HoverFilter : IPositionedPipelineElement<IDeviceReport>
 
     public PipelinePosition Position => PipelinePosition.PreTransform;
 
-    public event Action<IDeviceReport>? Emit;
+    public event Action<IDeviceReport?>? Emit;
 
-    public void Consume(IDeviceReport value)
+    public void Consume(IDeviceReport? value)
     {
         if (LimiterEnabled && value is IProximityReport proximity)
         {

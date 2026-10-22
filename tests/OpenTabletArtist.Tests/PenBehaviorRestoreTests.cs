@@ -12,6 +12,7 @@ public class PenBehaviorRestoreTests
     {
         var profile = new Profile
         {
+            Tablet = "T",
             OutputMode = new PluginSettingStore(typeof(object), true) { Path = "OpenTabletDriver.Desktop.Output.AbsoluteMode" },
         };
         profile.BindingSettings.DisablePressure = true;
@@ -32,6 +33,7 @@ public class PenBehaviorRestoreTests
     {
         var profile = new Profile
         {
+            Tablet = "T",
             OutputMode = new PluginSettingStore(typeof(object), true) { Path = "OpenTabletDriver.Desktop.Output.AbsoluteMode" },
         };
         profile.BindingSettings.DisableTilt = true;
@@ -48,6 +50,7 @@ public class PenBehaviorRestoreTests
     {
         var profile = new Profile
         {
+            Tablet = "T",
             OutputMode = new PluginSettingStore(typeof(object), true) { Path = PenBehaviorRestore.WinInkAbsoluteModePath },
         };
         profile.BindingSettings.TipButton = PenSwitchBinding.MakeAdaptiveBinding(PenSwitchKind.Tip);

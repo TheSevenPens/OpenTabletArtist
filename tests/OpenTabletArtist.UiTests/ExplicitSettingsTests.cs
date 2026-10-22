@@ -17,7 +17,7 @@ public class ExplicitSettingsTests
 {
     private static Settings Document(bool pressureDisabled = false) => new()
     {
-        Profiles = new ProfileCollection { new Profile { Tablet = "T",
+        Profiles = new ProfileCollection { new Profile { OutputMode = Tests.TestOtd.Output(), Tablet = "T",
             BindingSettings = new BindingSettings { DisablePressure = pressureDisabled } } }
     };
 

@@ -28,8 +28,7 @@ public class PenButtonsViewTests
 
     private static TabletDetailViewModel Vm(params PluginSettingStore?[] buttons)
     {
-        var profile = new Profile { Tablet = "Test Tablet" };
-        profile.OutputMode = new PluginSettingStore(WinInk) { Path = WinInk };
+        var profile = new Profile { Tablet = "Test Tablet", OutputMode = new PluginSettingStore(WinInk) { Path = WinInk } };
         profile.BindingSettings.TipButton = PenSwitchBinding.MakeAdaptiveBinding(PenSwitchKind.Tip);
         profile.BindingSettings.EraserButton = PenSwitchBinding.MakeAdaptiveBinding(PenSwitchKind.Eraser);
         profile.BindingSettings.PenButtons = new PluginSettingStoreCollection();

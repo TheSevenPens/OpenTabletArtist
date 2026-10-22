@@ -28,8 +28,8 @@ public class DaemonExePathsTests
         // Bundled + Debug + Release dev candidates.
         Assert.Equal(3, candidates.Count);
         Assert.All(candidates, c => Assert.EndsWith(Exe, c));
-        Assert.Contains(candidates, c => c.Contains(Path.Combine("bin", "Debug", "net8.0")));
-        Assert.Contains(candidates, c => c.Contains(Path.Combine("bin", "Release", "net8.0")));
+        Assert.Contains(candidates, c => c.Contains(Path.Combine("bin", "Debug", "net10.0")));
+        Assert.Contains(candidates, c => c.Contains(Path.Combine("bin", "Release", "net10.0")));
     }
 
     /// <summary>
@@ -50,7 +50,7 @@ public class DaemonExePathsTests
         // assertions said the same thing less clearly, and a failure named only the half it checked.
         string Dev(string config) => Path.GetFullPath(Path.Combine(
             baseDir, "..", "..", "..", "..",
-            "external", "OpenTabletDriver", "OpenTabletDriver.Daemon", "bin", config, "net8.0", Exe));
+            "external", "OpenTabletDriver", "OpenTabletDriver.Daemon", "bin", config, "net10.0", Exe));
 
         Assert.Equal(
             [Path.GetFullPath(Path.Combine(baseDir, "Daemon", Exe)), Dev("Debug"), Dev("Release")],

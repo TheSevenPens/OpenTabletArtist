@@ -51,7 +51,7 @@ public class CalibrationJourneyTests
 
     private static Settings Document() => new()
     {
-        Profiles = new ProfileCollection { new Profile { Tablet = "T" } }
+        Profiles = new ProfileCollection { new Profile { OutputMode = Tests.TestOtd.Output(), Tablet = "T" } }
     };
 
     private sealed class NoPenInput : IDaemonDebugSession

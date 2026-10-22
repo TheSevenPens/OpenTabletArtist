@@ -55,7 +55,7 @@ public static class CalibrationProfile
 
     public static CalibrationData? ReadProfile(Profile? profile)
     {
-        var store = profile?.Filters?.FirstOrDefault(f => f.Path == FilterTypeName);
+        var store = profile?.Filters?.FirstOrDefault(f => f?.Path == FilterTypeName);
         if (store == null) return null;
 
         float Get(string name, float fallback) =>
@@ -91,7 +91,7 @@ public static class CalibrationProfile
         var profile = settings?.Profiles?.FirstOrDefault(p => p.Tablet == tabletName);
         if (profile?.Filters == null) return;
 
-        var store = profile.Filters.FirstOrDefault(f => f.Path == FilterTypeName);
+        var store = profile.Filters.FirstOrDefault(f => f?.Path == FilterTypeName);
         if (store == null)
         {
             store = NewStore();
@@ -121,7 +121,7 @@ public static class CalibrationProfile
     public static void Clear(Settings? settings, string tabletName)
     {
         var filters = settings?.Profiles?.FirstOrDefault(p => p.Tablet == tabletName)?.Filters;
-        var store = filters?.FirstOrDefault(f => f.Path == FilterTypeName);
+        var store = filters?.FirstOrDefault(f => f?.Path == FilterTypeName);
         if (filters != null && store != null) filters.Remove(store);
     }
 
@@ -150,8 +150,8 @@ public static class CalibrationProfile
     private static void EnsureBeforeDynamics(Profile profile)
     {
         var filters = profile.Filters!;
-        int cal = filters.ToList().FindIndex(f => f.Path == FilterTypeName);
-        int dyn = filters.ToList().FindIndex(f => f.Path == PressureCurveProfile.FilterTypeName);
+        int cal = filters.ToList().FindIndex(f => f?.Path == FilterTypeName);
+        int dyn = filters.ToList().FindIndex(f => f?.Path == PressureCurveProfile.FilterTypeName);
         if (cal >= 0 && dyn >= 0 && cal > dyn)
         {
             var store = filters[cal];

@@ -17,8 +17,8 @@ namespace OpenTabletArtist.Domain;
 /// </summary>
 public static class DotnetRuntime
 {
-    /// <summary>The major version OpenTabletDriver's daemon targets (<c>net8.0</c>).</summary>
-    public const int DaemonMajor = 8;
+    /// <summary>The major version OpenTabletDriver's daemon targets (<c>net10.0</c> from OpenTabletDriver 0.6.8).</summary>
+    public const int DaemonMajor = 10;
 
     /// <summary>The shared framework a console app needs. (Desktop apps also need WindowsDesktop; the
     /// daemon does not, which is the difference between a 27 MB download and a 55 MB one.)</summary>
@@ -56,7 +56,7 @@ public static class DotnetRuntime
     /// Whether any installed runtime can run an app targeting <paramref name="requiredMajor"/>.
     ///
     /// Same major only. .NET's default roll-forward moves <em>forward within a major version</em>, so a
-    /// net8.0 app is not satisfied by .NET 9 or 10 — "some .NET is installed" is the wrong question, and
+    /// net10.0 app is not satisfied by .NET 9 or 11 — "some .NET is installed" is the wrong question, and
     /// a machine kept current can fail this while looking perfectly healthy.
     /// </summary>
     public static bool Satisfies(IEnumerable<Version> installed, int requiredMajor) =>

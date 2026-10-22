@@ -46,7 +46,7 @@ public static class ProfileInspector
             (p.OutputMode?.Path ?? "").Contains("WinInk", StringComparison.OrdinalIgnoreCase),
             item.Detected ? ClassifyMapping(p, displays) : DisplayMappingStatus.None,
             item.Detected && Math.Abs(normalized - Math.Round(normalized / 90) * 90) > 0.5,
-            policy.RequiredDynamicsFilter is { } path && p.Filters?.Any(f => f.Path == path && !f.Enable) == true,
+            policy.RequiredDynamicsFilter is { } path && p.Filters?.Any(f => f?.Path == path && !f.Enable) == true,
             overrides.Contains(item.Name), policy.WinInkOptedOutProfileIds.Contains(item.Id),
             p.BindingSettings.TipButton?.Path == null, p.BindingSettings.DisablePressure,
             p.BindingSettings.DisableTilt, item.Id);

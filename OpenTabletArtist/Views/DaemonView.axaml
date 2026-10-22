@@ -348,7 +348,7 @@
                     </StackPanel>
 
                     <!-- Missing .NET runtime (#786, D2). OpenTabletDriver's official Windows build is
-                         framework-dependent where OTA is self-contained, so a machine with no .NET 8 gets a
+                         framework-dependent where OTA is self-contained, so a machine with no .NET 10 gets a
                          daemon that exits before printing anything. Offered here, beside the error that
                          explains it, rather than as a health card: this is a prerequisite for connecting,
                          which is what this page is about.
@@ -359,12 +359,12 @@
                          when OTA was already elevated, a quiet install with no visible sign at all,
                          which reads as a hang. The browser does all of that properly already. -->
                     <StackPanel Margin="0,14,0,0" Spacing="8" IsVisible="{Binding ShowInstallRuntime}">
-                        <TextBlock Text="OpenTabletDriver needs the .NET 8 runtime" TextWrapping="Wrap"
+                        <TextBlock Text="OpenTabletDriver needs the .NET 10 runtime" TextWrapping="Wrap"
                                    Foreground="{DynamicResource TextPrimaryBrush}" />
                         <TextBlock Text="{Binding InstallRuntimeDescription}" TextWrapping="Wrap"
                                    Foreground="{DynamicResource TextSecondaryBrush}" />
                         <StackPanel Orientation="Horizontal" Spacing="8">
-                            <Button Content="Get .NET 8 from Microsoft"
+                            <Button Content="Get .NET 10 from Microsoft"
                                     Command="{Binding OpenRuntimeDownloadCommand}"
                                     Theme="{StaticResource AccentButton}" Padding="12,6" />
                             <Button Content="Check again"

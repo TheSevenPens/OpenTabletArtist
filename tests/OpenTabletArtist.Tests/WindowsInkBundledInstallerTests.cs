@@ -64,7 +64,8 @@ public class WindowsInkBundledInstallerTests
         var src = Path.Combine(dir, "bundle");
         Directory.CreateDirectory(src);
         File.WriteAllText(Path.Combine(src, "WindowsInk.dll"), "dll");
-        var fields = new List<string> { "\"Name\": \"Windows Ink\"", "\"PluginVersion\": \"1.2.3\"" };
+        // Name, Owner, Description, PluginVersion and SupportedDriverVersion are all [JsonRequired] as of OTD 0.6.8.
+        var fields = new List<string> { "\"Name\": \"Windows Ink\"", "\"Owner\": \"o\"", "\"Description\": \"d\"", "\"PluginVersion\": \"1.2.3\"" };
         if (min != null) fields.Add($"\"SupportedDriverVersion\": \"{min}\"");
         if (max != null) fields.Add($"\"MaxSupportedDriverVersion\": \"{max}\"");
         File.WriteAllText(Path.Combine(src, "metadata.json"), "{" + string.Join(",", fields) + "}");

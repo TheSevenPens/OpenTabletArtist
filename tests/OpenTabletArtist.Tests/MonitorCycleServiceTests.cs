@@ -25,6 +25,7 @@ public class MonitorCycleServiceTests
     {
         var profile = new Profile
         {
+            OutputMode = TestOtd.Output(),
             Tablet = tablet,
             AbsoluteModeSettings = new AbsoluteModeSettings
             {

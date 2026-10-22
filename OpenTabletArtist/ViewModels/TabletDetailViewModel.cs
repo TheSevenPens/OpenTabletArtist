@@ -852,7 +852,11 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
     // Parameterless constructor for design-time
     public TabletDetailViewModel()
     {
-        _profile = new Profile();
+        _profile = new Profile
+        {
+            Tablet = "Design Tablet",
+            OutputMode = new PluginSettingStore(typeof(OpenTabletDriver.Desktop.Output.AbsoluteMode)),
+        };
         TabletName = "Design Tablet";
         Displays = [];
     }

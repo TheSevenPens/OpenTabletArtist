@@ -20,7 +20,7 @@ public class TabletDetailViewModelTests
     private const string WinInkAbsolute = "VoiDPlugins.OutputMode.WinInkAbsoluteMode";
 
     private static Settings SettingsWith(string tablet) =>
-        new() { Profiles = new ProfileCollection { new Profile { Tablet = tablet } } };
+        new() { Profiles = new ProfileCollection { new Profile { OutputMode = TestOtd.Output(), Tablet = tablet } } };
 
     private static Settings AbsoluteSettingsWith(string tablet)
     {
@@ -38,6 +38,7 @@ public class TabletDetailViewModelTests
         var settings = SettingsWith(tablet);
         settings.Profiles.First().AbsoluteModeSettings = new AbsoluteModeSettings
         {
+            Display = new AreaSettings(),
             Tablet = new AreaSettings { Width = width, Height = 30, X = 25, Y = 15 },
         };
         return settings;
@@ -224,6 +225,7 @@ public class TabletDetailViewModelTests
         var prof = settings.Profiles.First();
         prof.AbsoluteModeSettings = new AbsoluteModeSettings
         {
+            Display = new AreaSettings(),
             Tablet = new AreaSettings { Width = 50, Height = 30, X = 25, Y = 15 },
         };
 

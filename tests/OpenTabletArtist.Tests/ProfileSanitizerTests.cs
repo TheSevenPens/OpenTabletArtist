@@ -15,7 +15,7 @@ public class ProfileSanitizerTests
     [Fact]
     public void FillsNullAbsoluteModeSettings()
     {
-        var p = new Profile { Tablet = "T", AbsoluteModeSettings = null! };
+        var p = new Profile { OutputMode = TestOtd.Output(), Tablet = "T", AbsoluteModeSettings = null! };
         Assert.Equal(1, ProfileSanitizer.EnsureValidAbsoluteAreas(With(p)));
         Assert.NotNull(p.AbsoluteModeSettings);
         Assert.NotNull(p.AbsoluteModeSettings.Tablet);
@@ -25,8 +25,9 @@ public class ProfileSanitizerTests
     [Fact]
     public void FillsNullTabletAndDisplay_SoTheOtdUxPredicateWontThrow()
     {
-        // A `new AbsoluteModeSettings()` leaves Tablet/Display null — exactly the forced-tablet malformation.
-        var p = new Profile { Tablet = "T", AbsoluteModeSettings = new AbsoluteModeSettings() };
+        // Both areas null — exactly the forced-tablet malformation. They are required members as of OTD 0.6.8, so
+        // the compiler no longer lets a new instance leave them out; a settings.json that omits them still can.
+        var p = new Profile { OutputMode = TestOtd.Output(), Tablet = "T", AbsoluteModeSettings = new AbsoluteModeSettings { Display = null!, Tablet = null! } };
         Assert.Equal(1, ProfileSanitizer.EnsureValidAbsoluteAreas(With(p)));
         Assert.NotNull(p.AbsoluteModeSettings.Tablet);
         Assert.NotNull(p.AbsoluteModeSettings.Display);
@@ -34,7 +35,7 @@ public class ProfileSanitizerTests
         // The precise expression OpenTabletDriver's UX runs on Save (MainForm.cs) must no longer NRE.
         var settings = With(p);
         var ex = Record.Exception(() =>
-            settings.Profiles.Any(x => x.AbsoluteModeSettings.Tablet.Width + x.AbsoluteModeSettings.Tablet.Height == 0));
+            settings.Profiles.Any(x => x.AbsoluteModeSettings!.Tablet.Width + x.AbsoluteModeSettings!.Tablet.Height == 0));
         Assert.Null(ex);
     }
 
@@ -43,6 +44,7 @@ public class ProfileSanitizerTests
     {
         var p = new Profile
         {
+            OutputMode = TestOtd.Output(),
             Tablet = "T",
             AbsoluteModeSettings = new AbsoluteModeSettings
             {

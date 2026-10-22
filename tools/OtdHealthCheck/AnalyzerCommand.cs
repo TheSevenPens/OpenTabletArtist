@@ -24,7 +24,7 @@ public static class AnalyzerCommand
         {
             bool json = false;
             string? snapshotPath = null, reportPath = null;
-            string pipe = "OpenTabletDriver.Daemon", expected = "0.6.7.0";
+            string pipe = "OpenTabletDriver.Daemon", expected = "0.6.8.0";
             double timeout = 5;
             IReadOnlyList<ProbeId> coverage = Enum.GetValues<ProbeId>();
             var seen = new HashSet<string>(StringComparer.Ordinal);

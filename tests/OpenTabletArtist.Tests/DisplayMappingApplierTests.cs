@@ -14,6 +14,7 @@ public class DisplayMappingApplierTests
         new()
         {
             Tablet = tablet,
+            OutputMode = TestOtd.Output(),
             AbsoluteModeSettings = new AbsoluteModeSettings
             {
                 Display = new AreaSettings(),
@@ -39,7 +40,7 @@ public class DisplayMappingApplierTests
         var ok = DisplayMappingApplier.ApplyToProfile(p, (152f, 95f), displays[1], displays);
 
         Assert.True(ok);
-        var disp = p.AbsoluteModeSettings.Display;
+        var disp = p.AbsoluteModeSettings!.Display;
         Assert.Equal(2560f, disp.Width, Precision);
         Assert.Equal(1440f, disp.Height, Precision);
         // Primary at the origin ⇒ virtual-screen space equals raw coords: monitor centre.
@@ -62,7 +63,7 @@ public class DisplayMappingApplierTests
         var p = ProfileWithAbsolute();
         DisplayMappingApplier.ApplyToProfile(p, (152f, 95f), displays[1], displays);
 
-        var disp = p.AbsoluteModeSettings.Display;
+        var disp = p.AbsoluteModeSettings!.Display;
         // minX=-2880 ⇒ X = display.X - minX + width/2 = 0 - (-2880) + 1920/2 = 3840 (centre of monitor 2,
         // whose 0-based span is 2880..4800). Monitor 1 occupies 0..2880.
         Assert.Equal(3840f, disp.X, Precision);
@@ -79,7 +80,7 @@ public class DisplayMappingApplierTests
         var d = Display(1, 0, 0, 1920, 1080, primary: true);
         DisplayMappingApplier.ApplyToProfile(p, (152f, 95f), d, new[] { d });
 
-        var tab = p.AbsoluteModeSettings.Tablet;
+        var tab = p.AbsoluteModeSettings!.Tablet;
         // 16:9 display wider than the 152x95 tablet → full width, reduced height, centered.
         Assert.Equal(152f, tab.Width, Precision);
         Assert.Equal(152f * 1080f / 1920f, tab.Height, Precision);
@@ -92,7 +93,7 @@ public class DisplayMappingApplierTests
     public void ApplyToProfile_FallsBackToProfileTabletSize_WhenNoDigitizer()
     {
         var p = ProfileWithAbsolute();
-        p.AbsoluteModeSettings.Tablet.Width = 100f;
+        p.AbsoluteModeSettings!.Tablet.Width = 100f;
         p.AbsoluteModeSettings.Tablet.Height = 100f;
 
         var d = Display(1, 0, 0, 1000, 500, primary: true);
@@ -107,7 +108,7 @@ public class DisplayMappingApplierTests
     [Fact]
     public void ApplyToProfile_ReturnsFalse_WhenNoAbsoluteSettings()
     {
-        var p = new Profile { Tablet = "X", AbsoluteModeSettings = null! };
+        var p = new Profile { OutputMode = TestOtd.Output(), Tablet = "X", AbsoluteModeSettings = null! };
         var d = Display(1, 0, 0, 1920, 1080, primary: true);
         Assert.False(DisplayMappingApplier.ApplyToProfile(p, (152f, 95f), d, new[] { d }));
     }
@@ -134,7 +135,7 @@ public class DisplayMappingApplierTests
         var displays = new[] { Display(1, 0, 0, 1920, 1080) };
         var p = ProfileWithAbsolute();
         // A sub-area, not a whole monitor.
-        p.AbsoluteModeSettings.Display.Width = 800;
+        p.AbsoluteModeSettings!.Display.Width = 800;
         p.AbsoluteModeSettings.Display.Height = 600;
         p.AbsoluteModeSettings.Display.X = 400;
         p.AbsoluteModeSettings.Display.Y = 300;
@@ -156,7 +157,7 @@ public class DisplayMappingApplierTests
     {
         var displays = new[] { Display(1, 0, 0, 1920, 1080, primary: true) };
         var p = ProfileWithAbsolute();
-        var d = p.AbsoluteModeSettings.Display;
+        var d = p.AbsoluteModeSettings!.Display;
         d.Width = 800; d.Height = 600; d.X = 400; d.Y = 300; // fully inside the monitor, but not the whole one
         Assert.Equal(DisplayMappingValidity.Custom, DisplayMappingApplier.ClassifyMapping(p, displays));
     }
@@ -166,7 +167,7 @@ public class DisplayMappingApplierTests
     {
         var displays = new[] { Display(1, 0, 0, 1920, 1080, primary: true) };
         var p = ProfileWithAbsolute();
-        var d = p.AbsoluteModeSettings.Display;
+        var d = p.AbsoluteModeSettings!.Display;
         // A large area centred so it spills well past the monitor's right and bottom edges.
         d.Width = 2560; d.Height = 1440; d.X = 1500; d.Y = 800;
         Assert.Equal(DisplayMappingValidity.OffScreen, DisplayMappingApplier.ClassifyMapping(p, displays));
@@ -208,7 +209,7 @@ public class DisplayMappingApplierTests
         var mapped = DisplayMappingApplier.CurrentlyMapped(p, displays);
         Assert.NotNull(mapped);
         Assert.Equal(2, mapped!.Number);
-        Assert.Equal(2400f, p.AbsoluteModeSettings.Display.X, Precision); // documents the 0-based centre
+        Assert.Equal(2400f, p.AbsoluteModeSettings!.Display.X, Precision); // documents the 0-based centre
     }
 
     // --- Desktop origin (OTD's 0-based space → screen coordinates) ---

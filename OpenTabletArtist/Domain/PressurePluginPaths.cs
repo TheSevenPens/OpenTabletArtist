@@ -21,10 +21,10 @@ public static class PressurePluginPaths
         // 1. Bundled next to the app — published release layout: <app>/BundledPlugins/<folder>/<dll>
         yield return Path.GetFullPath(Path.Combine(baseDir, "BundledPlugins", PluginFolderName, DllName));
 
-        // 2/3. Dev build tree: <app>/bin/<cfg>/net10.0 → repo root → plugin build output (net8.0).
+        // 2/3. Dev build tree: <app>/bin/<cfg>/net10.0 → repo root → plugin build output (net10.0).
         foreach (var config in new[] { "Debug", "Release" })
             yield return Path.GetFullPath(Path.Combine(
                 baseDir, "..", "..", "..", "..",
-                "plugins", "OpenTabletArtist.Dynamics", "bin", config, "net8.0", DllName));
+                "plugins", "OpenTabletArtist.Dynamics", "bin", config, "net10.0", DllName));
     }
 }

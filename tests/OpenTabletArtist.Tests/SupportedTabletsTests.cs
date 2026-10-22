@@ -110,10 +110,20 @@ public class SupportedTabletsTests
         // Most tablets have a support status.
         Assert.True(all.Count(t => t.Status.Length > 0) > all.Count / 2);
         // Statuses come from the known TABLETS.md set.
-        string[] known = { "Supported", "Has Quirks", "Missing Features" };
+        string[] known = { "Supported", "Has Quirks", "Missing Features", "Questionable" };
         Assert.All(all.Where(t => t.Status.Length > 0), t => Assert.Contains(t.Status, known));
         // At least some tablets carry a note.
         Assert.Contains(all, t => t.Notes.Length > 0);
+    }
+
+    [Fact]
+    public void Questionable_IsAKnownStatus_ThatRanksAfterMissingFeatures()
+    {
+        // OpenTabletDriver 0.6.8 introduced it (one tablet carries it today); it must sort last, not first.
+        var questionable = SupportedTabletsCatalog.All.Where(t => t.Status == "Questionable").ToList();
+
+        Assert.NotEmpty(questionable);
+        Assert.All(questionable, t => Assert.True(t.StatusRank > SupportedTabletsCatalog.All.First(x => x.Status == "Missing Features").StatusRank));
     }
 
     [Fact]
@@ -125,7 +135,10 @@ public class SupportedTabletsTests
         var ranks = vm.Rows.Where(r => r.Status.Length > 0)
             .Select(r => r.Status switch
             {
-                "Supported" => 0, "Has Quirks" => 1, "Missing Features" => 2, _ => 3
+                "Supported" => 0,
+                "Has Quirks" => 1,
+                "Missing Features" => 2,
+                _ => 3
             }).ToList();
         Assert.Equal(ranks.OrderBy(x => x), ranks); // ascending by support rank
     }

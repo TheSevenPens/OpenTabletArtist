@@ -20,8 +20,7 @@ public class PenTabsViewModelTests
 
     private static TabletDetailViewModel Open(string outputMode, bool disablePressure = false)
     {
-        var profile = new Profile { Tablet = "T" };
-        profile.OutputMode = new PluginSettingStore(outputMode) { Path = outputMode };
+        var profile = new Profile { Tablet = "T", OutputMode = new PluginSettingStore(outputMode) { Path = outputMode } };
         profile.BindingSettings.DisablePressure = disablePressure;
         var settings = new Settings { Profiles = new ProfileCollection { profile } };
         return new TabletDetailViewModel(profile, settings, applyAction: _ => Task.FromResult(SettingsApplyOutcome.Live));

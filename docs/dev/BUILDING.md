@@ -6,7 +6,7 @@ for building and running from source.
 ## Prerequisites
 
 - **.NET 10 SDK** — builds and runs the app.
-- **.NET 8 SDK** — the bundled OpenTabletDriver daemon (and our pen-dynamics plugin) target `net8.0`.
+- **.NET 10 SDK** — the app, the bundled OpenTabletDriver daemon (from 0.6.8) and our pen-dynamics plugin all target `net10.0`.
 - **Git** — OpenTabletDriver is a submodule, so clone recursively.
 - **Windows** for the full experience (VMulti / Windows Ink are Windows-only). The app builds and runs on
   macOS/Linux too, with the Windows-only surface hidden; see the [macOS notes](../design/macos/HANDOFF.md) and
@@ -79,7 +79,7 @@ What stays dark without a bundled daemon:
 
 | | dev tree | Windows release |
 |---|---|---|
-| THIS APP line | `built against OTD 0.6.7.0` | `bundles OTD 0.6.7.0` |
+| THIS APP line | `built against OTD 0.6.8.0` | `bundles OTD 0.6.8.0` |
 | provenance chip | `YOURS` only | `BUNDLED`, or `YOURS` on someone else's daemon |
 | way back to the bundled copy | cannot appear | offered, or explained when a location is chosen |
 | driver card | always shown | hidden until there is something to offer |
@@ -132,7 +132,7 @@ and the offered way back to the bundled copy all went with #930. Starting a seco
 daemon (a dev tree beside a release, or Debug beside Release) reaches the other external case, the one
 the driver card calls "another copy of the OTD daemon this app ships".
 
-> **What none of this gives you** is a machine without the .NET 8 runtime the shipped daemon needs. That
+> **What none of this gives you** is a machine without the .NET 10 runtime the shipped daemon needs. That
 > is #878, and it wants a clean VM or a Windows Sandbox session (#902) — not a dev box with a folder moved
 > around.
 

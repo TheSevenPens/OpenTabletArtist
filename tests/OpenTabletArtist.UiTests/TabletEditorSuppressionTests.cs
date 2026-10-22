@@ -47,7 +47,7 @@ public class TabletEditorSuppressionTests
     private static readonly TimeSpan PastDebounce = TimeSpan.FromMilliseconds(900);
 
     private static Settings SettingsFor(string tablet) =>
-        new() { Profiles = new ProfileCollection { new Profile { Tablet = tablet } } };
+        new() { Profiles = new ProfileCollection { new Profile { OutputMode = Tests.TestOtd.Output(), Tablet = tablet } } };
 
     /// <summary>
     /// Runs the dispatcher for <paramref name="window"/> of wall-clock time. The persist path schedules

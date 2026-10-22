@@ -42,7 +42,7 @@ public class BundleVerificationTests : IDisposable
 
         var otd = WindowsInkPluginService.OtdVersion;
         Write(Path.Combine("BundledPlugins", "WindowsInk", "metadata.json"),
-            $$"""{"Name":"Windows Ink","PluginVersion":"1.0.0","SupportedDriverVersion":"{{otd.Major}}.{{otd.Minor}}.0"}""");
+            $$"""{"Name":"Windows Ink","Owner":"o","Description":"d","PluginVersion":"1.0.0","SupportedDriverVersion":"{{otd.Major}}.{{otd.Minor}}.0"}""");
 
         Write(Path.Combine("Bundled", "VMulti.Driver.zip"), "pretend archive");
         var digest = VMultiInstaller.ComputeSha256(Path.Combine(_dir, "Bundled", "VMulti.Driver.zip"));
@@ -91,7 +91,7 @@ public class BundleVerificationTests : IDisposable
         WriteCompleteBundle();
         var otd = WindowsInkPluginService.OtdVersion;
         Write(Path.Combine("BundledPlugins", "WindowsInk", "metadata.json"),
-            $$"""{"Name":"Windows Ink","PluginVersion":"9.0.0","SupportedDriverVersion":"{{otd.Major}}.{{otd.Minor + 1}}.0"}""");
+            $$"""{"Name":"Windows Ink","Owner":"o","Description":"d","PluginVersion":"9.0.0","SupportedDriverVersion":"{{otd.Major}}.{{otd.Minor + 1}}.0"}""");
 
         var winInk = BundleVerification.Run(_dir).Single(c => c.Name.Contains("Windows Ink", StringComparison.Ordinal));
 

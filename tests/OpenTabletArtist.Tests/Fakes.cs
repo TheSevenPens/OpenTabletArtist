@@ -15,6 +15,16 @@ using OtdInterop;
 
 namespace OpenTabletArtist.Tests;
 
+/// <summary>Values OpenTabletDriver 0.6.8 made required members of the types tests build by hand.</summary>
+internal static class TestOtd
+{
+    /// <summary><c>Profile.OutputMode</c> for a fixture that does not care about it. Deliberately neither
+    /// Absolute nor Relative: these fixtures used to leave it null, which the app reads as "no mode chosen",
+    /// and a test that wants a mode sets its own.</summary>
+    public static OpenTabletDriver.Desktop.Reflection.PluginSettingStore Output() =>
+        new(typeof(object), true);
+}
+
 /// <summary>Records dialog requests and lets tests script confirm/input results.</summary>
 internal sealed class FakeDialogService : IDialogService
 {
@@ -48,7 +58,7 @@ internal sealed class FakeDialogService : IDialogService
         {
             Profiles = new OpenTabletDriver.Desktop.Profiles.ProfileCollection
             {
-                new Profile { Tablet = tabletName },
+                new Profile { OutputMode = TestOtd.Output(), Tablet = tabletName },
             },
         };
         return new(settings.Profiles[0], settings);

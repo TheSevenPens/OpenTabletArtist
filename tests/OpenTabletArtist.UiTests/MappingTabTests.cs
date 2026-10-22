@@ -33,9 +33,10 @@ public class MappingTabTests
 
     private static Settings Mapped(string tablet)
     {
-        var settings = new Settings { Profiles = new ProfileCollection { new Profile { Tablet = tablet } } };
+        var settings = new Settings { Profiles = new ProfileCollection { new Profile { OutputMode = Tests.TestOtd.Output(), Tablet = tablet } } };
         settings.Profiles.First().AbsoluteModeSettings = new AbsoluteModeSettings
         {
+            Display = new AreaSettings(),
             Tablet = new AreaSettings { Width = WidthMm, Height = HeightMm, X = WidthMm / 2, Y = HeightMm / 2 },
         };
         return settings;

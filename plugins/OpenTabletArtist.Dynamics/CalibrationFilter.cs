@@ -60,9 +60,9 @@ public class CalibrationFilter : IPositionedPipelineElement<IDeviceReport>
 
     public PipelinePosition Position => PipelinePosition.PreTransform;
 
-    public event Action<IDeviceReport>? Emit;
+    public event Action<IDeviceReport?>? Emit;
 
-    public void Consume(IDeviceReport value)
+    public void Consume(IDeviceReport? value)
     {
         var digitizer = Tablet?.Properties?.Specifications?.Digitizer;
         // Need the digitizer maxima to normalize; pass through untouched if they're unknown.

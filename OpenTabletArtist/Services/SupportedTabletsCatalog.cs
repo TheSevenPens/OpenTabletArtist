@@ -54,8 +54,8 @@ public static class SupportedTabletsCatalog
         try
         {
             foreach (var config in new DeviceConfigurationProvider().TabletConfigurations)
-            foreach (var id in config.DigitizerIdentifiers ?? [])
-                ids.Add((id.VendorID, id.ProductID));
+                foreach (var id in config.DigitizerIdentifiers ?? [])
+                    ids.Add((id.VendorID, id.ProductID));
         }
         catch (Exception ex)
         {
@@ -95,11 +95,14 @@ public static class SupportedTabletsCatalog
     }
 
     // Best → worst, so a Status sort surfaces fully-supported tablets first; unknown sorts last.
+    // "Questionable" is OpenTabletDriver 0.6.8's word for a config whose behaviour nobody has verified (it
+    // replaced "Incomplete"); it sorts with the unknown, after Missing Features, and shows in the neutral pill.
     private static int StatusRank(string status) => status switch
     {
         "Supported" => 0,
         "Has Quirks" => 1,
         "Missing Features" => 2,
+        "Questionable" => 3,
         _ => 3,
     };
 
