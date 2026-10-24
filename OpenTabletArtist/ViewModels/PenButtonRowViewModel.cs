@@ -11,7 +11,7 @@ namespace OpenTabletArtist.ViewModels;
 /// shortcut, Disabled (#1015). Tip and eraser keep <see cref="PenSwitchRowViewModel"/>.
 ///
 /// Built only from bindings OTD already ships. It never rewrites a binding it does not model: a button set
-/// elsewhere (OTD's own UI) shows no radio selected, a plain-language summary of what it does, and a warning
+/// elsewhere (OTD's own UI) has none of the three ticked, a plain-language line saying what it does, and a warning
 /// when that does not suit the output mode. The warning is worked out from the saved binding each time the
 /// row is built, so it does not matter where the binding came from.
 /// </summary>
@@ -55,10 +55,11 @@ public partial class PenButtonRowViewModel : ObservableObject
     private bool _switchPossible;
     public bool CanSwitchToBarrel => _switchPossible && CanEdit;
 
+    // Which choice is saved. The card's "…" menu shows a tick against it; a binding set elsewhere (or one the
+    // card cannot model) is none of the three, so no tick.
     public bool IsDefaultAction => Action == PenButtonAction.Default;
     public bool IsShortcut => Action == PenButtonAction.Shortcut;
     public bool IsDisabled => Action == PenButtonAction.Disabled;
-    /// <summary>A binding set elsewhere, or one the card cannot model: no radio is selected.</summary>
     public bool IsOther => Action == PenButtonAction.Other;
 
     public bool HasWarning => Warning != null;
@@ -67,22 +68,19 @@ public partial class PenButtonRowViewModel : ObservableObject
     /// <summary>Adaptive Binding knows Buttons 1 to 3 only, so a fourth button has no Default action.</summary>
     public bool CanUseDefaultAction => PenButtonBinding.CanUseDefaultAction(_index);
 
-    /// <summary>Under mouse output the shortcut editor also offers a mouse click, so the choice is named for both.</summary>
+    /// <summary>The menu entry that opens the shortcut editor. Under mouse output the editor also offers a
+    /// mouse click, so the entry is named for both.</summary>
     public string ShortcutLabel => _outputIsWindowsInk ? "Keyboard shortcut" : "Shortcut or mouse click";
 
-    /// <summary>What Default action does here, in the artist's terms. Under Windows Ink there is one barrel
-    /// behavior for every button, so it is plain text and not a choice.</summary>
-    public string DefaultActionText => _outputIsWindowsInk
-        ? "Barrel Switch (right-click / context menu)"
-        : _index switch { 1 => "Right click", 2 => "Middle click", _ => "No action" };
+    /// <summary>One line saying what the button does now: "Barrel Switch", "Ctrl + Z", "Disabled", or, for a
+    /// binding set elsewhere, "Currently: …" (no choice is ticked for it).</summary>
+    [ObservableProperty] private string _stateText = "";
 
-    public bool ShowDefaultActionHelp => IsDefaultAction && _outputIsWindowsInk;
-    public string DefaultActionHelp => "Interpreted natively by your drawing software, using its stylus settings.";
+    /// <summary>Who decides what the Default action does, shown on hover so it costs the card no height.
+    /// Only the Windows Ink Barrel Switch needs saying: your drawing software reads it through its own stylus settings.</summary>
+    [ObservableProperty] private string? _stateTooltip;
 
-    public bool ShowShortcutSummary => IsShortcut;
-
-    /// <summary>Show "what it does now" for a binding set elsewhere (no radio carries it).</summary>
-    public bool ShowOtherSummary => IsOther;
+    private const string DefaultActionHelp = "Interpreted natively by your drawing software, using its stylus settings.";
 
     partial void OnActionChanged(PenButtonAction value)
     {
@@ -90,9 +88,6 @@ public partial class PenButtonRowViewModel : ObservableObject
         OnPropertyChanged(nameof(IsShortcut));
         OnPropertyChanged(nameof(IsDisabled));
         OnPropertyChanged(nameof(IsOther));
-        OnPropertyChanged(nameof(ShowDefaultActionHelp));
-        OnPropertyChanged(nameof(ShowShortcutSummary));
-        OnPropertyChanged(nameof(ShowOtherSummary));
     }
 
     partial void OnWarningChanged(string? value) => OnPropertyChanged(nameof(HasWarning));
@@ -119,6 +114,8 @@ public partial class PenButtonRowViewModel : ObservableObject
         Summary = PenButtonBinding.Describe(store, _index, _outputIsWindowsInk,
             otherLabel: store?.Path is { } p ? FriendlyName(p) : "Disabled");
         var hazard = BindingSafety.Assess(store, _outputIsWindowsInk);
+        StateText = Action == PenButtonAction.Other ? $"Currently: {Summary}" : Summary;
+        StateTooltip = Action == PenButtonAction.Default && _outputIsWindowsInk ? DefaultActionHelp : null;
         Warning = BindingSafety.Message(hazard);
         _switchPossible = hazard == BindingHazard.MouseClickUnderWindowsInk
             && BindingSafety.IsRightClick(store) && CanUseDefaultAction;
@@ -146,18 +143,19 @@ public partial class PenButtonRowViewModel : ObservableObject
     [RelayCommand(CanExecute = nameof(CanSwitchToBarrel))]
     private Task SwitchToBarrel() => ApplyAsync(PenButtonBinding.MakeDefault(_index));
 
-    /// <summary>Open the shortcut editor (Keyboard shortcut radio, or Change). Cancel leaves everything as
-    /// it was; Save writes the shortcut; Clear (which the editor reports as Unbound) disables the button.</summary>
+    /// <summary>Open the shortcut editor (the card's "Keyboard shortcut…" entry, which also changes an existing
+    /// one). Cancel leaves everything as it was; Save writes the shortcut; Clear (which the editor reports as
+    /// Unbound) disables the button.</summary>
     [RelayCommand(CanExecute = nameof(CanEdit))]
     private async Task UseShortcut()
     {
-        if (_editShortcut == null) { RevertSelection(); return; }
+        if (_editShortcut == null) return;
 
         var current = PenButtonBinding.ReadShortcut(_store);
         var options = new BindingEditorOptions(AllowMouseAndScroll: !_outputIsWindowsInk);
         var result = await _editShortcut(current, $"Button {_index}", options);
 
-        if (result is not { } binding) { RevertSelection(); return; } // cancelled
+        if (result is not { } binding) return; // cancelled: nothing was changed, so nothing to put back
         await ApplyAsync(AuxKeyBinding.MakeBinding(binding));
     }
 
@@ -167,14 +165,5 @@ public partial class PenButtonRowViewModel : ObservableObject
         Load(store);
         try { await _applyAsync(_index, store); }
         catch { Load(before); throw; }
-    }
-
-    /// <summary>A radio the user clicked has already drawn itself checked; put the row back to what is
-    /// saved so a cancelled choice does not look like a change.</summary>
-    private void RevertSelection()
-    {
-        OnPropertyChanged(nameof(IsDefaultAction));
-        OnPropertyChanged(nameof(IsShortcut));
-        OnPropertyChanged(nameof(IsDisabled));
     }
 }

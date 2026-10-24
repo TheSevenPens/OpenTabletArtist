@@ -44,6 +44,7 @@ public class PenButtonRowViewModelTests
         Assert.False(row.IsDefaultAction);
         Assert.False(row.IsShortcut);
         Assert.Equal("Disabled", row.Summary);
+        Assert.Equal("Disabled", row.StateText);
         Assert.False(row.HasWarning);
         Assert.Equal("BUTTON 1", row.SectionLabel);
     }
@@ -54,20 +55,20 @@ public class PenButtonRowViewModelTests
         var row = Row(new Recorder(), PenButtonBinding.MakeDefault(1));
 
         Assert.True(row.IsDefaultAction);
-        Assert.Contains("Barrel Switch", row.DefaultActionText);
-        Assert.True(row.ShowDefaultActionHelp);
-        Assert.Contains("drawing software", row.DefaultActionHelp);
+        Assert.Equal("Barrel Switch", row.StateText);
+        // Who decides what it does goes on hover, so the card stays one line tall.
+        Assert.Contains("drawing software", row.StateTooltip);
     }
 
     [Fact]
-    public void Adaptive_UnderMouseOutput_NamesTheMouseButtonAndSkipsTheInkHelp()
+    public void Adaptive_UnderMouseOutput_NamesTheMouseButtonAndHasNoInkTooltip()
     {
         var one = Row(new Recorder(), PenButtonBinding.MakeDefault(1), MouseOutput, index: 1);
         var two = Row(new Recorder(), PenButtonBinding.MakeDefault(2), MouseOutput, index: 2);
 
-        Assert.Equal("Right click", one.DefaultActionText);
-        Assert.Equal("Middle click", two.DefaultActionText);
-        Assert.False(one.ShowDefaultActionHelp);
+        Assert.Equal("Right click", one.StateText);
+        Assert.Equal("Middle click", two.StateText);
+        Assert.Null(one.StateTooltip);
     }
 
     [Fact]
@@ -76,9 +77,9 @@ public class PenButtonRowViewModelTests
         var row = Row(new Recorder(), AuxKeyBinding.MakeBinding(Shortcut(true, false, false, "Z").Combo));
 
         Assert.True(row.IsShortcut);
-        Assert.Equal("Ctrl + Z", row.Summary);
-        Assert.True(row.ShowShortcutSummary);
+        Assert.Equal("Ctrl + Z", row.StateText);
         Assert.Equal("Keyboard shortcut", row.ShortcutLabel);
+        Assert.Null(row.StateTooltip);
     }
 
     [Fact]
@@ -97,7 +98,7 @@ public class PenButtonRowViewModelTests
     // ── A binding set elsewhere: described, warned about, never rewritten ──
 
     [Fact]
-    public void RightClickUnderWindowsInk_IsDescribedAndWarned_NoRadioSelected_NothingWritten()
+    public void RightClickUnderWindowsInk_IsDescribedAndWarned_NothingTicked_NothingWritten()
     {
         var r = new Recorder();
         var row = Row(r, AuxKeyBinding.MakeMouseBinding("Right"));
@@ -105,6 +106,7 @@ public class PenButtonRowViewModelTests
         Assert.True(row.IsOther);
         Assert.False(row.IsDefaultAction || row.IsShortcut || row.IsDisabled);
         Assert.Equal("Right click", row.Summary);
+        Assert.Equal("Currently: Right click", row.StateText);
         Assert.True(row.HasWarning);
         Assert.Equal(BindingSafety.Message(BindingHazard.MouseClickUnderWindowsInk), row.Warning);
         Assert.True(row.CanSwitchToBarrel);
@@ -236,20 +238,16 @@ public class PenButtonRowViewModelTests
     }
 
     [Fact]
-    public async Task UseShortcut_Cancelled_ChangesNothing_AndSaysSoToTheRadios()
+    public async Task UseShortcut_Cancelled_ChangesNothing()
     {
         var r = new Recorder { EditorResult = null };
         var row = Row(r, PenButtonBinding.MakeDefault(1));
-        var raised = new List<string?>();
-        row.PropertyChanged += (_, e) => raised.Add(e.PropertyName);
 
         await row.UseShortcutCommand.ExecuteAsync(null);
 
         Assert.Empty(r.Applied);
         Assert.True(row.IsDefaultAction);       // still what is saved
-        // The radio the user clicked has already drawn itself checked, so the row must say again which one is.
-        Assert.Contains(nameof(PenButtonRowViewModel.IsShortcut), raised);
-        Assert.Contains(nameof(PenButtonRowViewModel.IsDefaultAction), raised);
+        Assert.Equal("Barrel Switch", row.StateText);
     }
 
     [Fact]

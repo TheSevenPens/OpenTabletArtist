@@ -4,48 +4,57 @@
              xmlns:c="using:OpenTabletArtist.Controls">
 
     <!-- One pen barrel button (#1015). DataContext is a PenButtonRowViewModel, bound by the pen tab to a
-         slot (Button N). Three choices in the artist's terms, built only from bindings OTD already ships:
+         slot (Button N). Same height as the tip and eraser cards: a title, one line saying what the button
+         does now, and a "…" menu holding the three choices, built only from bindings OTD already ships:
            Default action     the pen's native behavior (the Barrel Switch under Windows Ink)
            Keyboard shortcut  held while the button is held
            Disabled           nothing bound
-         A button set somewhere else (OTD's own UI) has no radio selected: the card says what it does now
-         and, if that does not suit the output mode, why. Nothing is rewritten unless the user picks.
-         The radios are one-way: the saved binding decides which is checked, and a click is a command. -->
+         It is the same "…" menu the ExpressKey and wheel rows carry (#row-actions). The first version
+         stacked three radios, which made each card up to four times as tall; with five cards in the column
+         that pushed the pen's movement and pressing settings off the screen.
+
+         A button set somewhere else (OTD's own UI) has none of the three ticked: the card says what it does
+         now and, if that does not suit the output mode, why. Nothing is rewritten unless the user picks. -->
     <c:Section Padding="12,10" Width="240" HorizontalAlignment="Left">
         <StackPanel Spacing="6">
-            <TextBlock Text="{Binding SectionLabel}" Classes="SectionLabel" />
+            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                <StackPanel Grid.Column="0" Spacing="2" VerticalAlignment="Center">
+                    <TextBlock Text="{Binding SectionLabel}" Classes="SectionLabel" />
+                    <!-- The tooltip says who decides what the Barrel Switch does: your drawing software. -->
+                    <TextBlock Text="{Binding StateText}" TextWrapping="Wrap"
+                               Foreground="{DynamicResource TextPrimaryBrush}"
+                               ToolTip.Tip="{Binding StateTooltip}" />
+                </StackPanel>
 
-            <!-- No GroupName on purpose: the radios of one card share a parent, so they group on their own,
-                 and a shared name would make every card's radios uncheck each other's. -->
-            <StackPanel Spacing="2">
-                <RadioButton Content="Default action" IsChecked="{Binding IsDefaultAction, Mode=OneWay}"
-                             Command="{Binding UseDefaultActionCommand}"
-                             IsVisible="{Binding CanUseDefaultAction}" />
-                <RadioButton Content="{Binding ShortcutLabel}" IsChecked="{Binding IsShortcut, Mode=OneWay}"
-                             Command="{Binding UseShortcutCommand}" />
-                <RadioButton Content="Disabled" IsChecked="{Binding IsDisabled, Mode=OneWay}"
-                             Command="{Binding DisableCommand}" />
-            </StackPanel>
-
-            <!-- Default action: what it is, and who interprets it. -->
-            <StackPanel Spacing="2" IsVisible="{Binding IsDefaultAction}">
-                <TextBlock Text="{Binding DefaultActionText}" TextWrapping="Wrap"
-                           Foreground="{DynamicResource TextPrimaryBrush}" />
-                <TextBlock Text="{Binding DefaultActionHelp}" TextWrapping="Wrap"
-                           Foreground="{DynamicResource TextMutedBrush}" IsVisible="{Binding ShowDefaultActionHelp}" />
-            </StackPanel>
-
-            <!-- Keyboard shortcut: the shortcut, and a way to change it. -->
-            <StackPanel Orientation="Horizontal" Spacing="10" IsVisible="{Binding ShowShortcutSummary}">
-                <TextBlock Text="{Binding Summary}" VerticalAlignment="Center"
-                           Foreground="{DynamicResource TextPrimaryBrush}" />
-                <Button Content="Change" Command="{Binding UseShortcutCommand}"
-                        Theme="{StaticResource GhostButton}" Padding="10,3" />
-            </StackPanel>
-
-            <!-- Set somewhere else: no radio is selected; say what it does now. -->
-            <TextBlock Text="{Binding Summary, StringFormat='Currently: {0}'}" TextWrapping="Wrap"
-                       Foreground="{DynamicResource TextMutedBrush}" IsVisible="{Binding ShowOtherSummary}" />
+                <!-- Commands live on the row's own DataContext, which a flyout inherits. A tick marks the saved
+                     choice; none is ticked for a binding set elsewhere. -->
+                <c:IconButton Grid.Column="1" Icon="{StaticResource IconDotsHorizontal}"
+                              VerticalAlignment="Center"
+                              ToolTip.Tip="Choose what this button does"
+                              AutomationProperties.Name="Choose what this button does">
+                    <c:IconButton.Flyout>
+                        <MenuFlyout>
+                            <MenuItem Header="Default action" Command="{Binding UseDefaultActionCommand}"
+                                      IsVisible="{Binding CanUseDefaultAction}">
+                                <MenuItem.Icon>
+                                    <PathIcon Data="{StaticResource IconCheck}" IsVisible="{Binding IsDefaultAction}" />
+                                </MenuItem.Icon>
+                            </MenuItem>
+                            <MenuItem Header="{Binding ShortcutLabel, StringFormat='{}{0}…'}"
+                                      Command="{Binding UseShortcutCommand}">
+                                <MenuItem.Icon>
+                                    <PathIcon Data="{StaticResource IconCheck}" IsVisible="{Binding IsShortcut}" />
+                                </MenuItem.Icon>
+                            </MenuItem>
+                            <MenuItem Header="Disabled" Command="{Binding DisableCommand}">
+                                <MenuItem.Icon>
+                                    <PathIcon Data="{StaticResource IconCheck}" IsVisible="{Binding IsDisabled}" />
+                                </MenuItem.Icon>
+                            </MenuItem>
+                        </MenuFlyout>
+                    </c:IconButton.Flyout>
+                </c:IconButton>
+            </Grid>
 
             <!-- Unsuitable for the output mode: plain sentence, and the one-click fix when there is one. -->
             <StackPanel Spacing="6" IsVisible="{Binding HasWarning}">
