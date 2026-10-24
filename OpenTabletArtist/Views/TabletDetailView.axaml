@@ -64,6 +64,13 @@
                                    TextWrapping="Wrap" />
                         <TextBlock Text="{Binding Summary}" TextWrapping="Wrap"
                                    Foreground="{DynamicResource TextSecondaryBrush}" />
+                        <!-- A mouse click or scroll under Windows Ink (#1015): say so, change nothing. -->
+                        <StackPanel Orientation="Horizontal" Spacing="8" IsVisible="{Binding HasWarning}">
+                            <PathIcon Data="{StaticResource IconAlert}" Width="14" Height="14" VerticalAlignment="Top"
+                                      Margin="0,2,0,0" Foreground="{DynamicResource WarningBrush}" />
+                            <TextBlock Text="{Binding Warning}" TextWrapping="Wrap"
+                                       Foreground="{DynamicResource TextPrimaryBrush}" />
+                        </StackPanel>
                     </StackPanel>
                     <!-- The card's actions behind one "…", the same menu the wheel rows carry
                          (#row-actions, #692). This was a bare pencil glyph, which made Edit the only
@@ -97,6 +104,13 @@
                                TextWrapping="Wrap" />
                     <TextBlock Text="{Binding Summary}" TextWrapping="Wrap"
                                Foreground="{DynamicResource TextSecondaryBrush}" />
+                    <!-- A mouse click or scroll under Windows Ink (#1015): say so, change nothing. -->
+                    <StackPanel Orientation="Horizontal" Spacing="8" IsVisible="{Binding HasWarning}">
+                        <PathIcon Data="{StaticResource IconAlert}" Width="14" Height="14" VerticalAlignment="Top"
+                                  Margin="0,2,0,0" Foreground="{DynamicResource WarningBrush}" />
+                        <TextBlock Text="{Binding Warning}" TextWrapping="Wrap"
+                                   Foreground="{DynamicResource TextPrimaryBrush}" />
+                    </StackPanel>
                 </StackPanel>
                 <!-- The row's actions behind one "…", as elsewhere in the app (#row-actions). Clear is new:
                      it was reachable only by opening the editor and pressing Clear in there, and for a

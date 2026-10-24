@@ -110,9 +110,12 @@
                              IsChecked="{Binding IsKeyboardTab, Mode=TwoWay}" />
                 <RadioButton Classes="tab" Content="MEDIA" GroupName="type"
                              IsChecked="{Binding IsMediaTab, Mode=TwoWay}" />
+                <!-- Hidden under Windows Ink (#1015): a click there can interrupt a stroke and scroll does nothing. -->
                 <RadioButton Classes="tab" Content="MOUSE" GroupName="type"
+                             IsVisible="{Binding AllowMouseAndScroll}"
                              IsChecked="{Binding IsMouseTab, Mode=TwoWay}" />
                 <RadioButton Classes="tab" Content="SCROLL" GroupName="type"
+                             IsVisible="{Binding AllowMouseAndScroll}"
                              IsChecked="{Binding IsScrollTab, Mode=TwoWay}" />
             </StackPanel>
         </Border>
@@ -131,8 +134,17 @@
                                       VerticalAlignment="Top" />
                     </StackPanel>
 
-                    <TextBlock Text="Ctrl, Shift and Alt are held modifiers — tap to toggle, then pick a key."
-                               Foreground="{DynamicResource TextMutedBrush}" />
+                    <!-- Record: press the shortcut on the real keyboard (#1015). -->
+                    <StackPanel Orientation="Horizontal" Spacing="12">
+                        <Button Content="{Binding RecordButtonText}"
+                                Command="{Binding ToggleRecordingCommand}"
+                                Theme="{StaticResource AccentButton}" Padding="16,6" />
+                        <TextBlock Text="{Binding RecordHint}" VerticalAlignment="Center"
+                                   Foreground="{DynamicResource TextMutedBrush}" />
+                    </StackPanel>
+
+                    <TextBlock Text="Ctrl, Shift and Alt are held modifiers — tap to toggle, then pick a key. Leave the key empty to hold a modifier by itself (for example Alt)."
+                               TextWrapping="Wrap" Foreground="{DynamicResource TextMutedBrush}" />
 
                     <StackPanel Spacing="7">
                         <TextBlock Text="MORE KEYS" Classes="caption" />

@@ -99,11 +99,11 @@ public class DialogService : IDialogService
                 return ShowCalibrationAsync(current, owner, options);
             },
             // Express-key / wheel binding editor, owned by the main window (the page has no window).
-            editBinding: async (binding, title) =>
+            editBinding: async (binding, title, options) =>
             {
                 var owner = Dialogs.GetMainWindow();
                 return owner != null
-                    ? await Views.BindingEditorDialog.ShowAsync(owner, binding, title)
+                    ? await Views.BindingEditorDialog.ShowAsync(owner, binding, title, options)
                     : null;
             },
             // ABOUT tab → the config-override card's Review button navigates to the CONFIGS page (#467).

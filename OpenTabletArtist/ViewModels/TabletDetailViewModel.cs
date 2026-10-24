@@ -120,7 +120,7 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
     private void DraftSubmitted(DraftGroup group) => _unsubmitted &= ~group;
     // Opens the modal binding editor for a card's current binding + label; returns the chosen binding
     // (or Unbound on Clear), or null on Cancel. Provided by the host that has the owner window.
-    private readonly Func<AuxBinding, string, Task<AuxBinding?>>? _editBinding;
+    private readonly Func<AuxBinding, string, BindingEditorOptions, Task<AuxBinding?>>? _editBinding;
     // Detection source — when provided, the banner + tablet-dependent actions live-update on each
     // data load (tablet plug/unplug, #177). Unsubscribed in Dispose so a cached page VM doesn't leak.
     private readonly IDeviceData? _deviceData;
@@ -762,7 +762,7 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
         IDeviceData? deviceData = null,
         Func<Task>? forgetAction = null,
         Func<CalibrationOptions, Task>? onCalibrate = null,
-        Func<AuxBinding, string, Task<AuxBinding?>>? editBinding = null,
+        Func<AuxBinding, string, BindingEditorOptions, Task<AuxBinding?>>? editBinding = null,
         Action? openConfigsPage = null)
     {
         _profile = profile;
@@ -1222,7 +1222,9 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
                 otherLabel: binding == null ? GetBindingName(store) : "",
                 canEdit: canEditAux,
                 applyBinding: ApplyAuxBindingAsync,
-                editBinding: _editBinding));
+                editBinding: AuxEditBinding,
+                outputIsWindowsInk: IsWindowsInkOutput,
+                otherHazard: binding == null ? BindingSafety.Assess(store, IsWindowsInkOutput) : BindingHazard.None));
         }
         AuxButtons = newAuxButtons;
         NoAuxButtons = newAuxButtons.Count == 0;
@@ -1352,23 +1354,51 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
     {
         var bindings = _profile.BindingSettings;
         var canEdit = _applyAction != null;
-        var rows = new List<PenSwitchRowViewModel>
-        {
-            new(PenSwitchKind.Tip, 1, bindings.TipButton, canEdit, ApplyPenSwitchBindingAsync),
-            new(PenSwitchKind.Eraser, 1, bindings.EraserButton, canEdit, ApplyPenSwitchBindingAsync),
-        };
+        var outputIsWindowsInk = IsWindowsInkOutput;
+        var tip = new PenSwitchRowViewModel(PenSwitchKind.Tip, 1, bindings.TipButton, canEdit, ApplyPenSwitchBindingAsync);
+        var eraser = new PenSwitchRowViewModel(PenSwitchKind.Eraser, 1, bindings.EraserButton, canEdit, ApplyPenSwitchBindingAsync);
+        tip.IsFirst = true; // suppresses the leading divider in the merged card
+
+        // Barrel buttons are the three choices of #1015 (Default action / Keyboard shortcut / Disabled).
+        var buttons = new List<PenButtonRowViewModel>();
         for (int i = 0; i < bindings.PenButtons.Count; i++)
-            rows.Add(new(PenSwitchKind.PenButton, i + 1, bindings.PenButtons[i], canEdit, ApplyPenSwitchBindingAsync));
-        if (rows.Count > 0) rows[0].IsFirst = true; // suppresses the leading divider in the merged card
+            buttons.Add(new PenButtonRowViewModel(i + 1, bindings.PenButtons[i], outputIsWindowsInk, canEdit,
+                ApplyPenButtonAsync, _editBinding));
+        NoteSharedBarrel(buttons, outputIsWindowsInk);
 
         // Expose each switch by slot so the visual pen diagram can bind tip/eraser/buttons (#pen-switch-diagram).
-        PenTipRow = rows[0];
-        PenEraserRow = rows[1];
-        var buttons = rows.Skip(2).ToList();
+        PenTipRow = tip;
+        PenEraserRow = eraser;
         PenButton1Row = buttons.ElementAtOrDefault(0);
         PenButton2Row = buttons.ElementAtOrDefault(1);
         PenButton3Row = buttons.ElementAtOrDefault(2);
     }
+
+    /// <summary>Under Windows Ink every barrel button is the same Barrel bit, so two buttons both set to the
+    /// Default action do the same thing. Say so on those cards (informational; nothing is changed).</summary>
+    internal static void NoteSharedBarrel(IReadOnlyList<PenButtonRowViewModel> buttons, bool outputIsWindowsInk)
+    {
+        var barrel = outputIsWindowsInk ? buttons.Where(b => b.IsDefaultAction).ToList() : [];
+        foreach (var b in buttons)
+            b.SharedBarrelHint = null;
+        if (barrel.Count < 2) return;
+
+        foreach (var b in barrel)
+        {
+            var others = barrel.Where(o => o != b).Select(o => o.SectionLabel["BUTTON ".Length..]).ToList();
+            var names = others.Count == 1 ? $"button {others[0]}" : $"buttons {string.Join(", ", others)}";
+            b.SharedBarrelHint = $"Does the same thing as {names} in Windows Ink mode. " +
+                                 "Give one a keyboard shortcut if you want a different action.";
+        }
+    }
+
+    /// <summary>The binding editor for ExpressKeys and wheel rows, told what this tablet's output mode allows.
+    /// Read when the editor opens, so a mode change since the row was built is not missed (#1015).</summary>
+    private Func<AuxBinding, string, Task<AuxBinding?>>? AuxEditBinding => _editBinding == null
+        ? null
+        : (binding, title) => _editBinding(binding, title, new BindingEditorOptions(AllowMouseAndScroll: !IsWindowsInkOutput));
+
+    private bool IsWindowsInkOutput => BindingSafety.IsWindowsInkOutput(_profile.OutputMode?.Path);
 
     private async Task ApplyPenSwitchBindingAsync(PenSwitchKind kind, int penButtonIndex, PluginSettingStore store)
     {
@@ -1387,6 +1417,17 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
                         p.BindingSettings.PenButtons[penButtonIndex - 1] = store;
                     break;
             }
+        });
+    }
+
+    /// <summary>Write a barrel button's binding. A null store is Disabled: OTD's own "nothing bound" is a null
+    /// entry at the button's index, and ExpressKeys already unbind the same way.</summary>
+    private async Task ApplyPenButtonAsync(int penButtonIndex, PluginSettingStore? store)
+    {
+        await ApplySettingsChange(p =>
+        {
+            if (penButtonIndex >= 1 && penButtonIndex <= p.BindingSettings.PenButtons.Count)
+                p.BindingSettings.PenButtons[penButtonIndex - 1] = store!;
         });
     }
 
@@ -1541,7 +1582,9 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
             canEdit: canEdit,
             applyBinding: apply,
             label: label,
-            editBinding: _editBinding);
+            editBinding: AuxEditBinding,
+            outputIsWindowsInk: IsWindowsInkOutput,
+            otherHazard: binding == null ? BindingSafety.Assess(store, IsWindowsInkOutput) : BindingHazard.None);
     }
 
     private Task ApplyWheelRotationAsync(int wheelIndex, bool clockwise, AuxBinding binding)
@@ -1786,9 +1829,9 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
     [ObservableProperty] private PenSwitchRowViewModel? _penEraserRow;
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasPenButtons))]
-    private PenSwitchRowViewModel? _penButton1Row;
-    [ObservableProperty] private PenSwitchRowViewModel? _penButton2Row;
-    [ObservableProperty] private PenSwitchRowViewModel? _penButton3Row;
+    private PenButtonRowViewModel? _penButton1Row;
+    [ObservableProperty] private PenButtonRowViewModel? _penButton2Row;
+    [ObservableProperty] private PenButtonRowViewModel? _penButton3Row;
 
     /// <summary>True when the pen has at least one barrel button — gates the PEN BUTTONS tab (#494), so
     /// pens with none don't show an empty tab.</summary>

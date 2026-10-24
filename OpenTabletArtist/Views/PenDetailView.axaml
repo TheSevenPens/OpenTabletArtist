@@ -73,11 +73,11 @@
                 <StackPanel Spacing="16" VerticalAlignment="Top">
                     <views:PenSwitchCard DataContext="{Binding PenTipRow}" />
                     <views:PenSwitchCard DataContext="{Binding PenEraserRow}" />
-                    <views:PenSwitchCard DataContext="{Binding PenButton3Row}"
+                    <views:PenButtonCard DataContext="{Binding PenButton3Row}"
                                          IsVisible="{Binding $parent[StackPanel].DataContext.PenButton3Row, Converter={x:Static conv:ObjectConverters.IsNotNull}}" />
-                    <views:PenSwitchCard DataContext="{Binding PenButton2Row}"
+                    <views:PenButtonCard DataContext="{Binding PenButton2Row}"
                                          IsVisible="{Binding $parent[StackPanel].DataContext.PenButton2Row, Converter={x:Static conv:ObjectConverters.IsNotNull}}" />
-                    <views:PenSwitchCard DataContext="{Binding PenButton1Row}"
+                    <views:PenButtonCard DataContext="{Binding PenButton1Row}"
                                          IsVisible="{Binding $parent[StackPanel].DataContext.PenButton1Row, Converter={x:Static conv:ObjectConverters.IsNotNull}}" />
                 </StackPanel>
 

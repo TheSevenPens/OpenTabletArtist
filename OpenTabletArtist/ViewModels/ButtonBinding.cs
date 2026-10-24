@@ -16,9 +16,16 @@ public partial class ButtonBinding : ObservableObject
     private readonly Func<AuxBinding, string, Task<AuxBinding?>>? _editBinding;
     private AuxBinding _applied;
 
+    private readonly bool _outputIsWindowsInk;
+    private readonly BindingHazard _otherHazard;
+
+    /// <param name="outputIsWindowsInk">Whether the tablet uses Windows Ink, for the warning below.</param>
+    /// <param name="otherHazard">The hazard of a binding this editor cannot model (its own store was judged by
+    /// the caller, since the row only holds a label for it).</param>
     public ButtonBinding(int index, AuxBinding binding, bool isOtherBinding, string otherLabel,
         bool canEdit, Func<int, AuxBinding, Task>? applyBinding, string? label = null,
-        Func<AuxBinding, string, Task<AuxBinding?>>? editBinding = null)
+        Func<AuxBinding, string, Task<AuxBinding?>>? editBinding = null,
+        bool outputIsWindowsInk = false, BindingHazard otherHazard = BindingHazard.None)
     {
         Index = index;
         _label = label;
@@ -28,6 +35,35 @@ public partial class ButtonBinding : ObservableObject
         _applyBinding = applyBinding;
         _editBinding = editBinding;
         _applied = binding;
+        _outputIsWindowsInk = outputIsWindowsInk;
+        _otherHazard = otherHazard;
+    }
+
+    /// <summary>A plain sentence when what this button is set to does not suit the output mode (a mouse click
+    /// or scroll under Windows Ink, #1015), else null. Worked out from the saved binding, so it is there
+    /// whoever set it. The binding is never changed for the user: Edit and Clear are theirs to use.</summary>
+    public string? Warning => BindingSafety.Message(Hazard);
+    public bool HasWarning => Warning != null;
+
+    private BindingHazard Hazard
+    {
+        get
+        {
+            if (IsOtherBinding && !_applied.IsBound) return _otherHazard;
+            if (!_outputIsWindowsInk) return BindingHazard.None;
+            return _applied.Kind switch
+            {
+                AuxKind.Mouse when _applied.IsBound => BindingHazard.MouseClickUnderWindowsInk,
+                AuxKind.Scroll when _applied.IsBound => BindingHazard.ScrollUnderWindowsInk,
+                _ => BindingHazard.None,
+            };
+        }
+    }
+
+    private void NotifyWarningChanged()
+    {
+        OnPropertyChanged(nameof(Warning));
+        OnPropertyChanged(nameof(HasWarning));
     }
 
     public int Index { get; }
@@ -67,6 +103,7 @@ public partial class ButtonBinding : ObservableObject
         if (binding == _applied) return;        // no change
         _applied = binding;
         OnPropertyChanged(nameof(Summary));
+        NotifyWarningChanged();
         ClearCommand.NotifyCanExecuteChanged();
         if (_applyBinding != null) await _applyBinding(Index, binding);
     }
@@ -84,6 +121,7 @@ public partial class ButtonBinding : ObservableObject
         IsOtherBinding = false;
         OtherLabel = "";
         OnPropertyChanged(nameof(Summary));
+        NotifyWarningChanged();
         ClearCommand.NotifyCanExecuteChanged();
         if (_applyBinding != null) await _applyBinding(Index, _applied);
     }

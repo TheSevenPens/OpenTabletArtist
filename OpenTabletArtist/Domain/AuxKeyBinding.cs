@@ -12,11 +12,16 @@ namespace OpenTabletArtist.Domain;
 public sealed record KeyOption(string Display, string Value);
 
 /// <summary>A keystroke an express key can send: optional Ctrl/Shift/Alt modifiers plus one key.
-/// No modifiers maps to a plain Key Binding; with modifiers, a Multi-Key Binding.</summary>
+/// No modifiers maps to a plain Key Binding; with modifiers, a Multi-Key Binding. A combo may be
+/// modifiers alone (e.g. Alt, for an eyedropper held while the button is down, #1015): the key is then
+/// <see cref="AuxKeyBinding.None"/>.</summary>
 public sealed record AuxCombo(bool Ctrl, bool Shift, bool Alt, string Key)
 {
     public static readonly AuxCombo Unbound = new(false, false, false, AuxKeyBinding.None);
-    public bool IsBound => !string.IsNullOrEmpty(Key) && Key != AuxKeyBinding.None;
+    public bool HasKey => !string.IsNullOrEmpty(Key) && Key != AuxKeyBinding.None;
+    public bool HasModifier => Ctrl || Shift || Alt;
+    public bool IsModifierOnly => HasModifier && !HasKey;
+    public bool IsBound => HasKey || HasModifier;
 }
 
 /// <summary>The kind of action an express key performs. <see cref="None"/> is an explicit "do
@@ -93,7 +98,14 @@ public static class AuxKeyBinding
     {
         if (store?.Path == null) return AuxCombo.Unbound; // unbound button
         if (store.Path == KeyBindingPath)
-            return new AuxCombo(false, false, false, ReadKey(store));
+        {
+            // A single modifier key (set here or in OTD's own UI) is a modifier-only combo, not a "main key".
+            var key = ReadKey(store);
+            if (CtrlNames.Contains(key)) return new AuxCombo(true, false, false, None);
+            if (ShiftNames.Contains(key)) return new AuxCombo(false, true, false, None);
+            if (AltNames.Contains(key)) return new AuxCombo(false, false, true, None);
+            return new AuxCombo(false, false, false, key);
+        }
         if (store.Path == MultiKeyBindingPath)
         {
             var keysStr = store.Settings?.FirstOrDefault(s => s.Property == "Keys")?.Value?.ToString();
@@ -109,23 +121,26 @@ public static class AuxKeyBinding
                 else if (mainKey == null) mainKey = seg;
                 else return null; // more than one non-modifier key — beyond our simple model
             }
-            return mainKey == null ? null : new AuxCombo(ctrl, shift, alt, mainKey);
+            if (mainKey != null) return new AuxCombo(ctrl, shift, alt, mainKey);
+            // Modifiers alone (e.g. "Control+Shift") are a modifier-only combo; nothing at all isn't modelled.
+            return ctrl || shift || alt ? new AuxCombo(ctrl, shift, alt, None) : null;
         }
         return null; // some other binding type (mouse, scroll, …)
     }
 
     /// <summary>Build the right store for a combo: a Key Binding when there are no modifiers, a
-    /// Multi-Key Binding when there are, or null (unbound) when there's no key.</summary>
+    /// Multi-Key Binding when there are (with or without a main key), or null (unbound) when the combo
+    /// is empty.</summary>
     public static PluginSettingStore? MakeBinding(AuxCombo combo)
     {
         if (!combo.IsBound) return null;
-        if (!combo.Ctrl && !combo.Shift && !combo.Alt) return MakeKeyBinding(combo.Key);
+        if (!combo.HasModifier) return MakeKeyBinding(combo.Key);
 
         var parts = new List<string>();
         if (combo.Ctrl) parts.Add("Control");
         if (combo.Shift) parts.Add("Shift");
         if (combo.Alt) parts.Add("Alt");
-        parts.Add(combo.Key);
+        if (combo.HasKey) parts.Add(combo.Key);
 
         var store = NewStore(MultiKeyBindingPath);
         store.Settings.Add(new PluginSetting("Keys", string.Join("+", parts)));
@@ -221,7 +236,7 @@ public static class AuxKeyBinding
         if (c.Ctrl) parts.Add("Ctrl");
         if (c.Shift) parts.Add("Shift");
         if (c.Alt) parts.Add("Alt");
-        parts.Add(KeyDisplay(c.Key));
+        if (c.HasKey) parts.Add(KeyDisplay(c.Key));
         return string.Join(" + ", parts);
     }
 

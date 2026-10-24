@@ -76,9 +76,53 @@ public class AuxKeyBindingTests
     }
 
     [Fact]
-    public void MakeBinding_Unbound_WhenNoKey_EvenWithModifiers()
+    public void MakeBinding_Unbound_WhenNoKeyAndNoModifiers()
     {
-        Assert.Null(AuxKeyBinding.MakeBinding(new AuxCombo(true, true, true, AuxKeyBinding.None)));
+        Assert.Null(AuxKeyBinding.MakeBinding(AuxCombo.Unbound));
+        Assert.Null(AuxKeyBinding.MakeBinding(new AuxCombo(false, false, false, "")));
+    }
+
+    // Modifiers on their own are a complete binding (#1015): held while the button is held, e.g. Alt for an
+    // eyedropper. They used to be refused here; now they are a Multi-Key Binding of the modifiers alone.
+    [Theory]
+    [InlineData(true, false, false, "Control")]
+    [InlineData(false, true, false, "Shift")]
+    [InlineData(false, false, true, "Alt")]
+    [InlineData(true, true, false, "Control+Shift")]
+    [InlineData(true, true, true, "Control+Shift+Alt")]
+    public void MakeBinding_ModifiersOnly_IsMultiKeyBindingOfTheModifiers(bool ctrl, bool shift, bool alt, string keys)
+    {
+        var combo = new AuxCombo(ctrl, shift, alt, AuxKeyBinding.None);
+
+        Assert.True(combo.IsBound);
+        Assert.True(combo.IsModifierOnly);
+        var store = AuxKeyBinding.MakeBinding(combo);
+        Assert.Equal(AuxKeyBinding.MultiKeyBindingPath, store!.Path);
+        Assert.Equal(keys, store.Settings.First(s => s.Property == "Keys").Value!.ToString());
+        Assert.Equal(combo, AuxKeyBinding.ReadCombo(store));
+    }
+
+    [Theory]
+    [InlineData("Alt", false, false, true)]
+    [InlineData("LeftAlt", false, false, true)]
+    [InlineData("Control", true, false, false)]
+    [InlineData("RightShift", false, true, false)]
+    public void ReadCombo_SingleModifierKeyBinding_IsModifierOnly(string key, bool ctrl, bool shift, bool alt)
+    {
+        // A plain Key Binding on a modifier (typically set in OTD's own UI) reads as that modifier, not as a "main key".
+        var combo = AuxKeyBinding.ReadCombo(AuxKeyBinding.MakeKeyBinding(key));
+
+        Assert.Equal(new AuxCombo(ctrl, shift, alt, AuxKeyBinding.None), combo);
+    }
+
+    [Fact]
+    public void Describe_ModifierOnly_NamesTheModifiersWithoutAKey()
+    {
+        var binding = new AuxBinding(AuxKind.Keyboard, new AuxCombo(true, false, true, AuxKeyBinding.None),
+            AuxKeyBinding.None, AuxKeyBinding.None);
+
+        Assert.Equal("Ctrl + Alt", AuxKeyBinding.Describe(binding));
+        Assert.True(binding.IsBound);
     }
 
     [Fact]
@@ -112,9 +156,10 @@ public class AuxKeyBindingTests
         twoKeys.Settings.Add(new PluginSetting("Keys", "A+B")); // two non-modifier keys
         Assert.Null(AuxKeyBinding.ReadCombo(twoKeys));
 
+        // Modifiers with no key are now modelled (#1015), so they are no longer in this list.
         var modsOnly = StoreAt(AuxKeyBinding.MultiKeyBindingPath);
-        modsOnly.Settings.Add(new PluginSetting("Keys", "Control+Shift")); // no actual key
-        Assert.Null(AuxKeyBinding.ReadCombo(modsOnly));
+        modsOnly.Settings.Add(new PluginSetting("Keys", "Control+Shift"));
+        Assert.Equal(new AuxCombo(true, true, false, AuxKeyBinding.None), AuxKeyBinding.ReadCombo(modsOnly));
 
         Assert.Null(AuxKeyBinding.ReadCombo(StoreAt(AuxKeyBinding.MouseBindingPath)));
     }

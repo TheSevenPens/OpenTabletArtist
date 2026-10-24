@@ -14,6 +14,16 @@ If the daemon page reports that **OpenTabletDriver.Daemon.exe wasn't found**, th
 2. Wait a few seconds — the app reconciles with the daemon every 30 seconds (and immediately on connect).
 3. Click the refresh icon to force an immediate check.
 
+## A button's keyboard shortcut works everywhere except one app
+
+Keyboard shortcuts are sent to Windows as ordinary key presses, and Windows does not let a normal program send keys to an app that is running **as administrator**. The pen itself still draws in that app, because pen input takes a different route, so only the shortcuts are affected.
+
+If a shortcut works in your other apps but not in one, check whether that app is running as administrator. Starting it normally should fix it. The other way round, running OpenTabletDriver at the same privilege, follows from the same Windows rule but hasn't been tested here.
+
+## A key seems stuck after switching profile or unplugging the tablet
+
+A keyboard shortcut on a pen button is held down for as long as the button is held. It is released when you let go of the button or take the pen away from the tablet. If the profile changes or the tablet is disconnected while a button is held, the release can be missed and the key stays down. Pressing that key once on your keyboard releases it.
+
 ## Diagnostic log (for bug reports)
 
 OpenTabletArtist keeps a small diagnostics log of its own at:

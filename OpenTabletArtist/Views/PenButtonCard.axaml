@@ -1,0 +1,72 @@
+<UserControl x:Class="OpenTabletArtist.Views.PenButtonCard"
+             xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:c="using:OpenTabletArtist.Controls">
+
+    <!-- One pen barrel button (#1015). DataContext is a PenButtonRowViewModel, bound by the pen tab to a
+         slot (Button N). Three choices in the artist's terms, built only from bindings OTD already ships:
+           Default action     the pen's native behavior (the Barrel Switch under Windows Ink)
+           Keyboard shortcut  held while the button is held
+           Disabled           nothing bound
+         A button set somewhere else (OTD's own UI) has no radio selected: the card says what it does now
+         and, if that does not suit the output mode, why. Nothing is rewritten unless the user picks.
+         The radios are one-way: the saved binding decides which is checked, and a click is a command. -->
+    <c:Section Padding="12,10" Width="240" HorizontalAlignment="Left">
+        <StackPanel Spacing="6">
+            <TextBlock Text="{Binding SectionLabel}" Classes="SectionLabel" />
+
+            <!-- No GroupName on purpose: the radios of one card share a parent, so they group on their own,
+                 and a shared name would make every card's radios uncheck each other's. -->
+            <StackPanel Spacing="2">
+                <RadioButton Content="Default action" IsChecked="{Binding IsDefaultAction, Mode=OneWay}"
+                             Command="{Binding UseDefaultActionCommand}"
+                             IsVisible="{Binding CanUseDefaultAction}" />
+                <RadioButton Content="{Binding ShortcutLabel}" IsChecked="{Binding IsShortcut, Mode=OneWay}"
+                             Command="{Binding UseShortcutCommand}" />
+                <RadioButton Content="Disabled" IsChecked="{Binding IsDisabled, Mode=OneWay}"
+                             Command="{Binding DisableCommand}" />
+            </StackPanel>
+
+            <!-- Default action: what it is, and who interprets it. -->
+            <StackPanel Spacing="2" IsVisible="{Binding IsDefaultAction}">
+                <TextBlock Text="{Binding DefaultActionText}" TextWrapping="Wrap"
+                           Foreground="{DynamicResource TextPrimaryBrush}" />
+                <TextBlock Text="{Binding DefaultActionHelp}" TextWrapping="Wrap"
+                           Foreground="{DynamicResource TextMutedBrush}" IsVisible="{Binding ShowDefaultActionHelp}" />
+            </StackPanel>
+
+            <!-- Keyboard shortcut: the shortcut, and a way to change it. -->
+            <StackPanel Orientation="Horizontal" Spacing="10" IsVisible="{Binding ShowShortcutSummary}">
+                <TextBlock Text="{Binding Summary}" VerticalAlignment="Center"
+                           Foreground="{DynamicResource TextPrimaryBrush}" />
+                <Button Content="Change" Command="{Binding UseShortcutCommand}"
+                        Theme="{StaticResource GhostButton}" Padding="10,3" />
+            </StackPanel>
+
+            <!-- Set somewhere else: no radio is selected; say what it does now. -->
+            <TextBlock Text="{Binding Summary, StringFormat='Currently: {0}'}" TextWrapping="Wrap"
+                       Foreground="{DynamicResource TextMutedBrush}" IsVisible="{Binding ShowOtherSummary}" />
+
+            <!-- Unsuitable for the output mode: plain sentence, and the one-click fix when there is one. -->
+            <StackPanel Spacing="6" IsVisible="{Binding HasWarning}">
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                    <PathIcon Data="{StaticResource IconAlert}" Width="15" Height="15" VerticalAlignment="Top"
+                              Margin="0,2,0,0" Foreground="{DynamicResource WarningBrush}" />
+                    <TextBlock Text="{Binding Warning}" TextWrapping="Wrap" MaxWidth="200"
+                               Foreground="{DynamicResource TextPrimaryBrush}" />
+                </StackPanel>
+                <Button Content="Switch to Barrel Switch" Command="{Binding SwitchToBarrelCommand}"
+                        IsVisible="{Binding CanSwitchToBarrel}"
+                        Theme="{StaticResource AccentButton}" Padding="12,5" HorizontalAlignment="Left" />
+            </StackPanel>
+
+            <!-- Two or more buttons are the Barrel Switch: say they do the same thing. -->
+            <StackPanel Orientation="Horizontal" Spacing="8" IsVisible="{Binding HasSharedBarrelHint}">
+                <PathIcon Data="{StaticResource IconInformationOutline}" Width="15" Height="15" VerticalAlignment="Top"
+                          Margin="0,2,0,0" Foreground="{DynamicResource TextMutedBrush}" />
+                <TextBlock Text="{Binding SharedBarrelHint}" TextWrapping="Wrap" MaxWidth="200"
+                           Foreground="{DynamicResource TextMutedBrush}" />
+            </StackPanel>
+        </StackPanel>
+    </c:Section>
+</UserControl>

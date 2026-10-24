@@ -3,9 +3,19 @@ using System.Collections.Generic;
 using System.Linq;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using Avalonia.Input;
 using OpenTabletArtist.Domain;
+using OpenTabletArtist.Services;
 
 namespace OpenTabletArtist.ViewModels;
+
+/// <summary>What the editor may offer for the button being edited (#1015).</summary>
+/// <param name="AllowMouseAndScroll">False under Windows Ink, where a mouse click can interrupt a stroke and
+/// scroll does nothing; the Mouse and Scroll tabs are then hidden.</param>
+public sealed record BindingEditorOptions(bool AllowMouseAndScroll = true)
+{
+    public static readonly BindingEditorOptions Default = new();
+}
 
 /// <summary>
 /// View model for the modal binding editor (<c>BindingEditorDialog</c>): one tab per binding type
@@ -44,10 +54,20 @@ public partial class BindingEditorViewModel : ObservableObject
     [ObservableProperty] private string? _selectedScroll;
     [ObservableProperty] private string? _selectedMediaKey;
 
-    public BindingEditorViewModel(AuxBinding initial, string title)
+    /// <summary>False hides the Mouse and Scroll tabs (Windows Ink, #1015).</summary>
+    public bool AllowMouseAndScroll { get; }
+
+    public BindingEditorViewModel(AuxBinding initial, string title, BindingEditorOptions? options = null)
     {
         Title = title;
+        AllowMouseAndScroll = (options ?? BindingEditorOptions.Default).AllowMouseAndScroll;
         BuildKeyboard();
+
+        // A mouse or scroll binding that is already saved but not allowed here opens on Keyboard. Nothing
+        // is changed by opening it; Save needs a keyboard choice, Clear removes it, Cancel keeps it.
+        if (!AllowMouseAndScroll && initial.Kind is AuxKind.Mouse or AuxKind.Scroll)
+            initial = AuxBinding.Unbound;
+
         switch (initial.Kind)
         {
             case AuxKind.Keyboard when initial.Combo.IsBound && MediaKeyValues.Contains(initial.Combo.Key):
@@ -80,9 +100,10 @@ public partial class BindingEditorViewModel : ObservableObject
     /// <summary>Save is enabled only when the active tab has a complete selection.</summary>
     public bool CanSave => SelectedTabIndex switch
     {
-        KeyboardTab => SelectedKeyOption != null,
-        MouseTab => !string.IsNullOrEmpty(SelectedMouseButton),
-        ScrollTab => !string.IsNullOrEmpty(SelectedScroll),
+        // A modifier on its own (Alt, Ctrl, Shift) is a complete binding: held while the button is held.
+        KeyboardTab => SelectedKeyOption != null || Ctrl || Shift || Alt,
+        MouseTab => AllowMouseAndScroll && !string.IsNullOrEmpty(SelectedMouseButton),
+        ScrollTab => AllowMouseAndScroll && !string.IsNullOrEmpty(SelectedScroll),
         MediaTab => !string.IsNullOrEmpty(SelectedMediaKey),
         _ => false,
     };
@@ -113,7 +134,8 @@ public partial class BindingEditorViewModel : ObservableObject
     {
         Result = SelectedTabIndex switch
         {
-            KeyboardTab => new AuxBinding(AuxKind.Keyboard, new AuxCombo(Ctrl, Shift, Alt, SelectedKeyOption!.Value),
+            KeyboardTab => new AuxBinding(AuxKind.Keyboard,
+                                          new AuxCombo(Ctrl, Shift, Alt, SelectedKeyOption?.Value ?? AuxKeyBinding.None),
                                           AuxKeyBinding.None, AuxKeyBinding.None),
             MouseTab => new AuxBinding(AuxKind.Mouse, AuxCombo.Unbound, SelectedMouseButton!, AuxKeyBinding.None),
             ScrollTab => new AuxBinding(AuxKind.Scroll, AuxCombo.Unbound, AuxKeyBinding.None, SelectedScroll!),
@@ -176,9 +198,116 @@ public partial class BindingEditorViewModel : ObservableObject
         foreach (var cap in _keyCaps.Values) cap.IsSelected = cap.Value == value;
     }
 
-    partial void OnCtrlChanged(bool value) { SyncModifierCaps(); UpdateCombo(); }
-    partial void OnShiftChanged(bool value) { SyncModifierCaps(); UpdateCombo(); }
-    partial void OnAltChanged(bool value) { SyncModifierCaps(); UpdateCombo(); }
+    partial void OnCtrlChanged(bool value) { SyncModifierCaps(); UpdateCombo(); SaveCommand.NotifyCanExecuteChanged(); }
+    partial void OnShiftChanged(bool value) { SyncModifierCaps(); UpdateCombo(); SaveCommand.NotifyCanExecuteChanged(); }
+    partial void OnAltChanged(bool value) { SyncModifierCaps(); UpdateCombo(); SaveCommand.NotifyCanExecuteChanged(); }
+
+    // ── Record (Keyboard tab) ───────────────────────────────────────────────────
+    // Press the shortcut on the real keyboard instead of clicking caps. A main key ends the recording at
+    // once, with whichever modifiers are held; modifiers alone end it when the last one is released, so
+    // "hold Alt" can be recorded (#1015). Escape (handled by the dialog) abandons it.
+    [ObservableProperty] private bool _isRecording;
+    [ObservableProperty] private string _recordHint = "";
+
+    public string RecordButtonText => IsRecording ? "Stop" : "Record";
+
+    partial void OnIsRecordingChanged(bool value) => OnPropertyChanged(nameof(RecordButtonText));
+
+    private readonly HashSet<CapturedModifier> _heldModifiers = new();
+    private bool _gestureCtrl, _gestureShift, _gestureAlt;
+    private (bool Ctrl, bool Shift, bool Alt, string? Key) _beforeRecording;
+
+    [RelayCommand]
+    private void ToggleRecording()
+    {
+        if (IsRecording) CancelRecording();
+        else StartRecording();
+    }
+
+    public void StartRecording()
+    {
+        _beforeRecording = (Ctrl, Shift, Alt, SelectedKeyOption?.Value);
+        _heldModifiers.Clear();
+        _gestureCtrl = _gestureShift = _gestureAlt = false;
+        Ctrl = Shift = Alt = false;
+        SelectKey(null);
+        RecordHint = "Press the shortcut on your keyboard…";
+        IsRecording = true;
+    }
+
+    /// <summary>Stop recording and put back what was there before it started.</summary>
+    public void CancelRecording()
+    {
+        if (!IsRecording) return;
+        IsRecording = false;
+        RecordHint = "";
+        Ctrl = _beforeRecording.Ctrl;
+        Shift = _beforeRecording.Shift;
+        Alt = _beforeRecording.Alt;
+        SelectKey(_beforeRecording.Key);
+    }
+
+    /// <summary>Feed a physical key press while recording. Returns true if the key was consumed.</summary>
+    public bool CaptureKeyDown(Key key)
+    {
+        if (!IsRecording) return false;
+
+        var modifier = KeyCaptureMap.ModifierOf(key);
+        if (modifier != CapturedModifier.None)
+        {
+            _heldModifiers.Add(modifier);
+            switch (modifier)
+            {
+                case CapturedModifier.Ctrl: _gestureCtrl = Ctrl = true; break;
+                case CapturedModifier.Shift: _gestureShift = Shift = true; break;
+                case CapturedModifier.Alt: _gestureAlt = Alt = true; break;
+            }
+            return true;
+        }
+
+        if (!KeyCaptureMap.TryMap(key, out var name))
+        {
+            RecordHint = "That key can't be used. Try another.";
+            return true;
+        }
+
+        // A main key: the modifiers held right now are the ones that belong with it.
+        Ctrl = _heldModifiers.Contains(CapturedModifier.Ctrl);
+        Shift = _heldModifiers.Contains(CapturedModifier.Shift);
+        Alt = _heldModifiers.Contains(CapturedModifier.Alt);
+        SelectKey(name);
+        FinishRecording();
+        return true;
+    }
+
+    /// <summary>Feed a physical key release while recording. Releasing the last modifier, with no main key
+    /// pressed, finishes a modifier-only recording.</summary>
+    public bool CaptureKeyUp(Key key)
+    {
+        if (!IsRecording) return false;
+
+        var modifier = KeyCaptureMap.ModifierOf(key);
+        if (modifier == CapturedModifier.None) return true;
+
+        _heldModifiers.Remove(modifier);
+        if (_heldModifiers.Count == 0 && (_gestureCtrl || _gestureShift || _gestureAlt))
+        {
+            Ctrl = _gestureCtrl;
+            Shift = _gestureShift;
+            Alt = _gestureAlt;
+            SelectKey(null);
+            FinishRecording();
+        }
+        return true;
+    }
+
+    private void FinishRecording()
+    {
+        IsRecording = false;
+        RecordHint = "";
+        _heldModifiers.Clear();
+        SaveCommand.NotifyCanExecuteChanged();
+    }
 
     private void SyncModifierCaps()
     {
@@ -198,8 +327,8 @@ public partial class BindingEditorViewModel : ObservableObject
         if (Ctrl) Add(ComboPart.Chip("CTRL"));
         if (Shift) Add(ComboPart.Chip("SHIFT"));
         if (Alt) Add(ComboPart.Chip("ALT"));
+        // Modifiers alone are a complete shortcut (held while the button is held), so no "?" placeholder.
         if (SelectedKeyOption is { } k) Add(ComboPart.Chip(k.Display));
-        else if (parts.Count > 0) Add(ComboPart.Chip("?", placeholder: true)); // modifiers set, no key yet
 
         ComboParts = parts;
         ComboEmpty = parts.Count == 0;
