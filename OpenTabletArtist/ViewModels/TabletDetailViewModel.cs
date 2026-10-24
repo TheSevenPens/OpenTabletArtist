@@ -735,8 +735,21 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
     /// <see cref="RefreshFromProfile"/> (guarded); only a real user toggle applies a mode change.</summary>
     [ObservableProperty] private bool _disableWindowsInk;
 
+    /// <summary>True when the pen presses like a mouse: on Windows, any mode that is not Windows Ink. That
+    /// output takes no pressure and no tilt (OTD's native Windows pointer has no handler for either), so the
+    /// Disable pressure and Disable tilt toggles change nothing and the pressure curve has no effect. The pen
+    /// page greys the toggles out and the pressure tab says so, instead of showing controls that do nothing.</summary>
+    public bool PressesLikeMouse => DisableWindowsInk;
+
+    /// <summary>The Disable pressure / Disable tilt toggles can change something only when pressure and tilt
+    /// reach the pointer, i.e. when the pen does not press like a mouse.</summary>
+    public bool PressureAndTiltAvailable => !DisableWindowsInk;
+
     partial void OnDisableWindowsInkChanged(bool value)
     {
+        OnPropertyChanged(nameof(PressesLikeMouse));
+        OnPropertyChanged(nameof(PressureAndTiltAvailable));
+        OnPropertyChanged(nameof(PressureDisabledNote));
         OnPropertyChanged(nameof(SelectedPressMode));
         if (_skipOutputModeChange || !OperatingSystem.IsWindows()) return;
         _ = SetOutputMode(ModePath(IsAbsoluteOutputMode, value));
@@ -1109,7 +1122,7 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
 
     /// <summary>Shown on the Pressure Dynamics tab when pressure is disabled — the curve then has no
     /// effect, because the output stage drops pressure entirely (#469).</summary>
-    public bool PressureDisabledNote => DisablePressure;
+    public bool PressureDisabledNote => DisablePressure && !DisableWindowsInk; // a mouse-like pen has its own, stronger note
 
     partial void OnDisablePressureChanged(bool value)
     {

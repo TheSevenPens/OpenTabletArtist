@@ -34,6 +34,8 @@ public partial class PenDetailView : UserControl, ITabbedContent
         // Live pen-pressure stream feeds the pressure dot + live bar on the Dynamics pivot; run it only
         // while that pivot is selected (#102).
         DynamicsTab.IsCheckedChanged += OnDynamicsTabChanged;
+        ButtonsTab.PropertyChanged += OnButtonsTabPropertyChanged;
+        LeaveButtonsTabIfHidden();
         UpdateLiveInput(); // start now if we opened on the dynamics pivot
     }
 
@@ -42,7 +44,21 @@ public partial class PenDetailView : UserControl, ITabbedContent
         base.OnDetachedFromVisualTree(e);
         if (Vm != null) Vm.TabRequested -= OnTabRequested;
         DynamicsTab.IsCheckedChanged -= OnDynamicsTabChanged;
+        ButtonsTab.PropertyChanged -= OnButtonsTabPropertyChanged;
         Vm?.StopLiveInput();
+    }
+
+    // The buttons pivot hides on a pen with no barrel buttons (switching tablets can do that while it is the
+    // selected one). Its content is gated on the pivot being CHECKED, not visible, so a hidden-but-checked
+    // pivot would leave a page with no visible tab selected: fall back to basics.
+    private void OnButtonsTabPropertyChanged(object? sender, AvaloniaPropertyChangedEventArgs e)
+    {
+        if (e.Property == IsVisibleProperty) LeaveButtonsTabIfHidden();
+    }
+
+    private void LeaveButtonsTabIfHidden()
+    {
+        if (!ButtonsTab.IsVisible && ButtonsTab.IsChecked == true) MovementTab.IsChecked = true;
     }
 
     private void OnDynamicsTabChanged(object? sender, RoutedEventArgs e) => UpdateLiveInput();
@@ -62,8 +78,8 @@ public partial class PenDetailView : UserControl, ITabbedContent
     }
 
     // The pen page carries the pen deep-links (#artist-pen-health): the pen-behaviour "Fix" (output mode)
-    // and the tip/pressure health links both land on BASICS, which since #pen-merge holds the movement
-    // radios AND the pen-input opt-outs they used to be separate tabs for. Tilt still goes to pressure.
+    // and the tip/pressure health links both land on BASICS, which holds the movement and pressing choices
+    // AND the pen-input opt-outs. Tilt still goes to pressure. Nothing deep-links to the buttons tab.
     private void SelectTab(TabletDetailTab tab)
     {
         switch (tab)

@@ -32,14 +32,20 @@
          pivot-gated content. Only ever embedded in the PEN page, so the switcher/actions always show. -->
     <Grid RowDefinitions="Auto,*">
 
-        <!-- Toolbar row: switcher · pivots (basics · inputs · pressure) · compact actions (D · R · F). -->
+        <!-- Toolbar row: switcher · pivots (basics · pressure · buttons) · compact actions (D · R · F). -->
         <Border Grid.Row="0" BorderBrush="{DynamicResource DividerBrush}" BorderThickness="0,0,0,1"
                 Margin="0,0,0,14" Padding="0,0,0,7">
             <!-- Pivots only; the switcher moved to the shell top bar (#switcher-in-shell). -->
             <Grid>
                 <!-- Pivots — the pen's sub-sections. RadioButtons switched by ElementName; content gates on
-                     #XTab.IsChecked. "basics" is the whole pen — switches, diagram, inputs and movement
-                     (#pen-merge); it absorbed the old "inputs" tab, which had already absorbed "buttons". -->
+                     #XTab.IsChecked. Three, named for what they hold:
+                       basics    how the pen moves and presses, and the tip and eraser
+                       pressure  the pressure curve and smoothing
+                       buttons   the barrel buttons and the pen diagram
+                     "buttons" is last so the first two sit where they always have, and it is hidden on a pen
+                     with no barrel buttons. It was split back out of "basics" (which held the buttons, the
+                     diagram, movement, pressing and the input opt-outs in four columns) because those are
+                     separate jobs, and the buttons column with its diagram was the odd one out. -->
                 <WrapPanel Orientation="Horizontal" x:Name="TabRail" VerticalAlignment="Center">
                     <RadioButton Content="basics" IsChecked="True" x:Name="MovementTab"
                                  Theme="{StaticResource PivotTab}" Margin="0,1,26,1" />
@@ -47,32 +53,134 @@
                          here from the tablet page (#pen-dynamics-move); x:Name kept for the code-behind. -->
                     <RadioButton Content="pressure" x:Name="DynamicsTab"
                                  Theme="{StaticResource PivotTab}" Margin="0,1,26,1" />
+                    <RadioButton Content="buttons" x:Name="ButtonsTab"
+                                 IsVisible="{Binding HasPenButtons}"
+                                 Theme="{StaticResource PivotTab}" Margin="0,1,26,1" />
                 </WrapPanel>
 
             </Grid>
         </Border>
 
-        <!-- BASICS — the whole pen in one view (#pen-merge). Four columns:
-               1  the physical switches — tip, eraser, then barrel buttons 3-2-1
-               2  the pen diagram, whose lit buttons line up with the cards beside it
-               3  how the pen moves and presses, plus position smoothing
-               4  the pen-input opt-outs
+        <!-- BASICS — how the pen moves and presses, and the tip and eraser. Two columns:
+               1  the tip and eraser, then the pen-input opt-outs (they sit together because "Disable pen
+                  tip" edits the very binding the tip card describes)
+               2  how the pen moves, then how it presses
 
-             This was two tabs, "basics" and "inputs". They described one object between them, and the
-             split meant you could not see which barrel button did what while changing how the pen
-             presses — the two things most often set together.
-
-             Column 3 is the star one: the smoothing slider needs a definite width to render its track,
+             Column 2 is the star one: the smoothing slider needs a definite width to render its track,
              since a size-to-content Slider collapses it to nothing. -->
         <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto"
                       IsVisible="{Binding #MovementTab.IsChecked}">
             <WrapPanel ItemSpacing="32" LineSpacing="20" Margin="0,12,0,0">
 
-                <!-- 1 — the switches. Buttons run 3-2-1 top-to-bottom so they read against the diagram
-                     beside them: button 1 sits nearest the tip, at the bottom. -->
-                <StackPanel Spacing="16" VerticalAlignment="Top">
-                    <views:PenSwitchCard DataContext="{Binding PenTipRow}" />
-                    <views:PenSwitchCard DataContext="{Binding PenEraserRow}" />
+                <!-- 1 — tip and eraser, then the input opt-outs. -->
+                <StackPanel Width="240" Spacing="20" VerticalAlignment="Top">
+                    <StackPanel>
+                        <TextBlock Text="tip and eraser" Classes="Display section" />
+                        <StackPanel Spacing="16" Margin="0,12,0,0">
+                            <views:PenSwitchCard DataContext="{Binding PenTipRow}" />
+                            <views:PenSwitchCard DataContext="{Binding PenEraserRow}" />
+                        </StackPanel>
+                    </StackPanel>
+
+                    <c:Section VerticalAlignment="Top">
+                        <StackPanel Spacing="10">
+                            <TextBlock Text="pen input" Classes="Display section" />
+                            <ctrl:ToggleSetting Label="Disable pen tip" InlineDescription="True"
+                                                IsChecked="{Binding DisablePenTip}" />
+                            <!-- Pressure and tilt reach the pointer only when the pen presses normally (Windows Ink).
+                                 When it presses like a mouse the output takes neither, so these two change nothing:
+                                 they are greyed out, with the reason beneath, rather than left looking live (#1015
+                                 follow-up). Their saved values are untouched, so they come back as they were. -->
+                            <StackPanel Spacing="10" IsEnabled="{Binding PressureAndTiltAvailable}">
+                                <!-- Disable pressure sensitivity (#494): a flat on/off contact that drops
+                                     pressure entirely (the Pen Dynamics curve is then inert). Moved here from
+                                     the Dynamics tab. -->
+                                <ctrl:ToggleSetting Label="Disable pressure sensitivity" InlineDescription="True"
+                                                    IsChecked="{Binding DisablePressure}" />
+                                <!-- Disable tilt (#494): apps receive no tilt from this tablet. Moved here from
+                                     the Dynamics tab so all pen-input opt-outs live together. -->
+                                <ctrl:ToggleSetting Label="Disable tilt" InlineDescription="True"
+                                                    IsChecked="{Binding DisableTilt}" />
+                            </StackPanel>
+                            <TextBlock Text="Pressure and tilt are off while the pen presses like a mouse."
+                                       TextWrapping="Wrap" Foreground="{DynamicResource TextMutedBrush}"
+                                       IsVisible="{Binding PressesLikeMouse}" />
+                            <!-- Drag bindings hidden for now (#492); the binding + apply wiring stays. -->
+                            <ctrl:ToggleSetting Label="Drag bindings" IsVisible="False"
+                                                Description="Pen button bindings only work while the pen is touching the tablet (drag-only), not while hovering."
+                                                IsChecked="{Binding DragBindingsEnabled}" />
+                        </StackPanel>
+                    </c:Section>
+                </StackPanel>
+
+                <!-- 2 — movement (the choice, then position smoothing), then pressing. -->
+                <StackPanel Width="320" VerticalAlignment="Top">
+                    <TextBlock Text="movement" Classes="Display section" />
+
+                    <!-- A dropdown, not radios: each option carries a MUTED explanation under its title in the
+                         open list; the closed box shows just the name.
+                         SelectedMovement derives from the profile and its setter forwards a real pick to
+                         SelectMovementCommand (a no-op when the mode is already there). The item template
+                         is shared with the pressing dropdown below. -->
+                    <ComboBox Margin="0,12,0,0" HorizontalAlignment="Stretch"
+                              ItemsSource="{Binding MovementOptions}"
+                              SelectedItem="{Binding SelectedMovement, Mode=TwoWay}"
+                              ItemTemplate="{StaticResource ChoiceOptionTemplate}"
+                              SelectionBoxItemTemplate="{StaticResource ChoiceOptionNameTemplate}" />
+
+                    <!-- Position smoothing (EMA), moved here from the Pressure tab: it steadies the pen's
+                         on-screen position, so it belongs with movement. Capped at 0.25 (#487): heavier is
+                         too laggy to be useful. Sits directly under the movement choice.
+                         One top margin, not two: this used to be a single-child StackPanel carrying
+                         Margin="0,28,0,0" around a slider carrying another "0,8,0,0", which opened a 36px
+                         gap under the radios that nothing else in the column came close to. The wrapper
+                         did nothing else — a LabeledSlider stretches to the column width on its own. -->
+                    <ctrl:LabeledSlider Label="Position smoothing" LabelWidth="130" Margin="0,20,0,0"
+                                        Minimum="0" Maximum="{Binding PositionSmoothingMax}"
+                                        Ticks="0,0.05,0.1,0.15,0.2,0.25" TickPlacement="BottomRight"
+                                        Value="{Binding PositionSmoothing}"
+                                        ValueTextOverride="{Binding PositionSmoothingText}"
+                                        Monospace="True" ValueWidth="44"
+                                        ToolTip.Tip="EMA smoothing of the pen position — steadies wobbly lines, at a little lag." />
+
+                    <StackPanel IsVisible="{Binding CanDisableWindowsInk}">
+                        <!-- The heading style carries only a bottom margin; the gap above is the slider's to the
+                             movement choice, 20, so the same here. -->
+                        <TextBlock Text="pressing" Classes="Display section" Margin="0,20,0,6" />
+                        <ComboBox Margin="0,12,0,0" HorizontalAlignment="Stretch"
+                                  ItemsSource="{Binding PressModeOptions}"
+                                  SelectedItem="{Binding SelectedPressMode, Mode=TwoWay}"
+                                  ItemTemplate="{StaticResource ChoiceOptionTemplate}"
+                                  SelectionBoxItemTemplate="{StaticResource ChoiceOptionNameTemplate}" />
+
+                        <!-- Only when the current mode isn't Windows Ink: pressure/tilt won't work; offer a fix. It
+                             sits with the Pressing choice because pressure and tilt are what it is about (it used to
+                             sit under Movement, which it has nothing to do with). -->
+                        <TextBlock Text="Output mode needs to use Windows Ink for pressure and tilt to work"
+                                   Foreground="{DynamicResource TextPrimaryBrush}" FontStyle="Italic" Margin="0,12,0,0"
+                                   TextWrapping="Wrap"
+                                   IsVisible="{Binding CanFixOutputMode}" />
+                        <Button Content="Fix" Theme="{StaticResource AccentButton}"
+                                Command="{Binding FixOutputModeCommand}"
+                                Padding="12,6" Margin="0,6,0,0"
+                                HorizontalAlignment="Left"
+                                IsVisible="{Binding CanFixOutputMode}" />
+                    </StackPanel>
+                </StackPanel>
+
+            </WrapPanel>
+        </ScrollViewer>
+
+        <!-- BUTTONS — the barrel buttons beside the pen diagram. The cards run 3-2-1 top-to-bottom so they read
+             against the diagram: button 1 sits nearest the tip, at the bottom. The diagram is about 430 tall and
+             its three buttons sit at roughly 240, 275 and 310 from the top, so the three cards (about 185 tall
+             together) start 183 down to sit level with them. That offset is arithmetic on the drawing below, not
+             a measured fit: if the drawing changes, so does the number. -->
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto"
+                      IsVisible="{Binding #ButtonsTab.IsChecked}">
+            <WrapPanel ItemSpacing="32" LineSpacing="20" Margin="0,12,0,0">
+
+                <StackPanel Spacing="16" VerticalAlignment="Top" Margin="0,183,0,0">
                     <views:PenButtonCard DataContext="{Binding PenButton3Row}"
                                          IsVisible="{Binding $parent[StackPanel].DataContext.PenButton3Row, Converter={x:Static conv:ObjectConverters.IsNotNull}}" />
                     <views:PenButtonCard DataContext="{Binding PenButton2Row}"
@@ -132,82 +240,6 @@
                 </Viewbox>
                 </LayoutTransformControl>
 
-
-                <!-- 3 — movement (the choice, then position smoothing), then pressing. -->
-                <StackPanel Width="320" VerticalAlignment="Top">
-                    <TextBlock Text="movement" Classes="Display section" />
-
-                    <!-- A dropdown, not radios: each option carries a MUTED explanation under its title in the
-                         open list; the closed box shows just the name.
-                         SelectedMovement derives from the profile and its setter forwards a real pick to
-                         SelectMovementCommand (a no-op when the mode is already there). The item template
-                         is shared with the pressing dropdown below. -->
-                    <ComboBox Margin="0,12,0,0" HorizontalAlignment="Stretch"
-                              ItemsSource="{Binding MovementOptions}"
-                              SelectedItem="{Binding SelectedMovement, Mode=TwoWay}"
-                              ItemTemplate="{StaticResource ChoiceOptionTemplate}"
-                              SelectionBoxItemTemplate="{StaticResource ChoiceOptionNameTemplate}" />
-
-                    <!-- Only when the current mode isn't Windows Ink: pressure/tilt won't work; offer a fix. -->
-                    <TextBlock Text="Output mode needs to use Windows Ink for pressure and tilt to work"
-                               Foreground="{DynamicResource TextPrimaryBrush}" FontStyle="Italic" Margin="0,12,0,0"
-                               TextWrapping="Wrap"
-                               IsVisible="{Binding CanFixOutputMode}" />
-                    <Button Content="Fix" Theme="{StaticResource AccentButton}"
-                            Command="{Binding FixOutputModeCommand}"
-                            Padding="12,6" Margin="0,6,0,0"
-                            HorizontalAlignment="Left"
-                            IsVisible="{Binding CanFixOutputMode}" />
-
-                    <!-- Position smoothing (EMA), moved here from the Pressure tab: it steadies the pen's
-                         on-screen position, so it belongs with movement. Capped at 0.25 (#487): heavier is
-                         too laggy to be useful. Sits directly under the movement choice, with the
-                         output-mode notice (when there is one) between them.
-                         One top margin, not two: this used to be a single-child StackPanel carrying
-                         Margin="0,28,0,0" around a slider carrying another "0,8,0,0", which opened a 36px
-                         gap under the radios that nothing else in the column came close to. The wrapper
-                         did nothing else — a LabeledSlider stretches to the column width on its own. -->
-                    <ctrl:LabeledSlider Label="Position smoothing" LabelWidth="130" Margin="0,20,0,0"
-                                        Minimum="0" Maximum="{Binding PositionSmoothingMax}"
-                                        Ticks="0,0.05,0.1,0.15,0.2,0.25" TickPlacement="BottomRight"
-                                        Value="{Binding PositionSmoothing}"
-                                        ValueTextOverride="{Binding PositionSmoothingText}"
-                                        Monospace="True" ValueWidth="44"
-                                        ToolTip.Tip="EMA smoothing of the pen position — steadies wobbly lines, at a little lag." />
-
-                    <StackPanel IsVisible="{Binding CanDisableWindowsInk}">
-                        <!-- The heading style carries only a bottom margin; the gap above is the slider's to the
-                             movement choice, 20, so the same here. -->
-                        <TextBlock Text="pressing" Classes="Display section" Margin="0,20,0,6" />
-                        <ComboBox Margin="0,12,0,0" HorizontalAlignment="Stretch"
-                                  ItemsSource="{Binding PressModeOptions}"
-                                  SelectedItem="{Binding SelectedPressMode, Mode=TwoWay}"
-                                  ItemTemplate="{StaticResource ChoiceOptionTemplate}"
-                                  SelectionBoxItemTemplate="{StaticResource ChoiceOptionNameTemplate}" />
-                    </StackPanel>
-                </StackPanel>
-
-                <!-- 4 — the pen-input opt-outs. -->
-                <c:Section Width="240" VerticalAlignment="Top">
-                    <StackPanel Spacing="10">
-                        <TextBlock Text="pen input" Classes="Display section" />
-                        <ctrl:ToggleSetting Label="Disable pen tip" InlineDescription="True"
-                                            IsChecked="{Binding DisablePenTip}" />
-                        <!-- Disable pressure sensitivity (#494): a flat on/off contact that drops
-                             pressure entirely (the Pen Dynamics curve is then inert). Moved here from
-                             the Dynamics tab. -->
-                        <ctrl:ToggleSetting Label="Disable pressure sensitivity" InlineDescription="True"
-                                            IsChecked="{Binding DisablePressure}" />
-                        <!-- Disable tilt (#494): apps receive no tilt from this tablet. Moved here from
-                             the Dynamics tab so all pen-input opt-outs live together. -->
-                        <ctrl:ToggleSetting Label="Disable tilt" InlineDescription="True"
-                                            IsChecked="{Binding DisableTilt}" />
-                        <!-- Drag bindings hidden for now (#492); the binding + apply wiring stays. -->
-                        <ctrl:ToggleSetting Label="Drag bindings" IsVisible="False"
-                                            Description="Pen button bindings only work while the pen is touching the tablet (drag-only), not while hovering."
-                                            IsChecked="{Binding DragBindingsEnabled}" />
-                    </StackPanel>
-                </c:Section>
             </WrapPanel>
         </ScrollViewer>
 

@@ -29,6 +29,14 @@
                         <TextBlock Text="Pressure sensitivity is disabled, so this curve has no effect right now."
                                    Foreground="{DynamicResource TextPrimaryBrush}" TextWrapping="Wrap" />
                     </Border>
+                    <!-- The same for a pen that presses like a mouse: that output takes no pressure at all, so the
+                         curve has nothing to act on. The Pressing choice is on the Pen page's basics tab. -->
+                    <Border Background="{DynamicResource WarningMutedBrush}" BorderBrush="{DynamicResource WarningBrush}"
+                            BorderThickness="1" CornerRadius="0" Padding="10,7" Margin="0,0,0,8"
+                            IsVisible="{Binding PressesLikeMouse}">
+                        <TextBlock Text="The pen is set to press like a mouse, so this curve has no effect right now."
+                                   Foreground="{DynamicResource TextPrimaryBrush}" TextWrapping="Wrap" />
+                    </Border>
 
                     <!-- Two columns: compact chart on the left, controls on the right. -->
                     <Grid ColumnDefinitions="Auto,*">

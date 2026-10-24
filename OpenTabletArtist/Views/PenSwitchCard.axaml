@@ -23,6 +23,11 @@
                            Foreground="{DynamicResource TextPrimaryBrush}" />
             </StackPanel>
 
+            <!-- The tip, switched off by the "Disable pen tip" toggle beside it: say so, with no fix (the toggle
+                 is the way back). -->
+            <TextBlock Text="Disabled" IsVisible="{Binding IsDisabled}"
+                       Foreground="{DynamicResource TextPrimaryBrush}" />
+
             <!-- Needs attention — plain problem sentence, the current binding (plain), and one fix. -->
             <StackPanel Spacing="8" IsVisible="{Binding IsNotRecommended}">
                 <TextBlock Text="Changed to a custom action — it may not work as expected."

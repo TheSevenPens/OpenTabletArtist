@@ -43,7 +43,7 @@ Window
 |---|---|---|
 | **home** | — | — |
 | **tablet** | about · mapping · calibration · buttons · wheels *(+ filters · json when enabled)* | — |
-| **pen** | basics · pressure | — |
+| **pen** | basics · pressure · buttons *(buttons only for a pen with barrel buttons)* | — |
 | **scribble** | — | — |
 | **settings** | presets · hotkeys · theme · system · drivers · dev | **theme** → theme · backdrop · colors<br>**dev** → warnings · config errors · tablets · interface · screenshots |
 | **advanced** | daemon · console · configs · diagnostics · plugins | — |

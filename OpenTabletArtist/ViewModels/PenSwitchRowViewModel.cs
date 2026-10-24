@@ -50,11 +50,18 @@ public partial class PenSwitchRowViewModel : ObservableObject
     [ObservableProperty] private PenSwitchBindingMode _mode;
     [ObservableProperty] private bool _canEdit;
 
+    private bool _unbound;
+
+    /// <summary>The pen tip with nothing bound: what the "Disable pen tip" toggle on the same tab leaves behind.
+    /// The card says "Disabled" for it, not "Changed to a custom action", and offers no Fix: the toggle is the
+    /// way back. (Only the tip has such a toggle, so an unbound eraser keeps the Fix.)</summary>
+    public bool IsDisabled => _kind == PenSwitchKind.Tip && _unbound;
+
     public bool IsRecommended => Mode == PenSwitchBindingMode.Auto;
-    public bool IsNotRecommended => Mode != PenSwitchBindingMode.Auto;
+    public bool IsNotRecommended => Mode != PenSwitchBindingMode.Auto && !IsDisabled;
     /// <summary>Show the "Use Adaptive" fix only when the switch isn't already on Adaptive and the host
     /// can apply changes.</summary>
-    public bool ShowUseAdaptive => CanEdit && Mode != PenSwitchBindingMode.Auto;
+    public bool ShowUseAdaptive => CanEdit && Mode != PenSwitchBindingMode.Auto && !IsDisabled;
 
     partial void OnModeChanged(PenSwitchBindingMode value)
     {
@@ -73,6 +80,10 @@ public partial class PenSwitchRowViewModel : ObservableObject
     private void RefreshFromStore(PluginSettingStore? store, bool canEdit)
     {
         CanEdit = canEdit;
+        _unbound = store?.Path == null;
+        OnPropertyChanged(nameof(IsDisabled));
+        OnPropertyChanged(nameof(IsNotRecommended));
+        OnPropertyChanged(nameof(ShowUseAdaptive));
         Mode = PenSwitchBinding.DetectMode(store, _kind, _penButtonIndex);
         BindingLabel = PenSwitchBinding.GetDisplayLabel(store, _kind, _penButtonIndex, GetPluginFriendlyName);
         CurrentPlainLabel = PenSwitchBinding.GetPlainCurrentLabel(store, _kind, _penButtonIndex, GetPluginFriendlyName);
@@ -81,7 +92,7 @@ public partial class PenSwitchRowViewModel : ObservableObject
     private static string? GetPluginFriendlyName(string? path) =>
         path == null ? null : AppInfo.PluginManager.GetFriendlyName(path);
 
-    private bool CanSetAuto => CanEdit && Mode != PenSwitchBindingMode.Auto;
+    private bool CanSetAuto => CanEdit && Mode != PenSwitchBindingMode.Auto && !IsDisabled;
 
     [RelayCommand(CanExecute = nameof(CanSetAuto))]
     private Task SetAuto() =>
