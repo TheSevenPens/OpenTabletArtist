@@ -7,7 +7,7 @@ using OpenTabletArtist.Helpers;
 namespace OpenTabletArtist.Controls;
 
 /// <summary>
-/// The pen lying flat, tip on the left, with its barrel buttons numbered from the tip. When the cards below sit
+/// The pen lying flat (the shared <see cref="PenArtwork"/> outline), tip on the left, with its barrel buttons numbered from the tip. When the cards below sit
 /// side by side, an elbow line joins each button to its card, so which card is which button is a line to follow
 /// and not a number to match. All the layout arithmetic is in <see cref="PenDiagramGeometry"/>; this only paints it.
 /// The pen is drawn at its natural size and shrinks evenly when the window is narrower than that.
@@ -71,25 +71,19 @@ public sealed class PenButtonsDiagram : Control
         if (ShowConnectors) DrawConnectors(ctx, width);
     }
 
+    // The outline is the same at every size and scaled by the render transform, so it is built once.
+    private static readonly Geometry PenBody =
+        PenArtwork.Outline(PenDiagramGeometry.PenLength, PenDiagramGeometry.PenCenterY, PenDiagramGeometry.PenLeft);
+    private static readonly Geometry PenSeams =
+        PenArtwork.SeamLines(PenDiagramGeometry.PenLength, PenDiagramGeometry.PenCenterY, PenDiagramGeometry.PenLeft);
+
     private void DrawPen(DrawingContext ctx, IPen? outline)
     {
-        var fill = FillBrush;
-        DrawCentered(ctx, "tip", 53, 17, 11, LabelBrush, FontWeight.Normal);
-        DrawCentered(ctx, "eraser end", 782, 10, 11, LabelBrush, FontWeight.Normal);
+        DrawCentered(ctx, "tip", 22, 10, 11, LabelBrush, FontWeight.Normal);
+        DrawCentered(ctx, "eraser end", 778, 10, 11, LabelBrush, FontWeight.Normal);
 
-        ctx.DrawRectangle(fill, outline, new Rect(44, 35, 18, 10), 4, 4);                       // the nib
-        var cone = new StreamGeometry();
-        using (var c = cone.Open())
-        {
-            c.BeginFigure(new Point(62, 35), true);
-            c.LineTo(new Point(140, 26));
-            c.LineTo(new Point(140, 54));
-            c.LineTo(new Point(62, 45));
-            c.EndFigure(true);
-        }
-        ctx.DrawGeometry(fill, outline, cone);                                                  // the cone to the grip
-        ctx.DrawRectangle(fill, outline, new Rect(140, 26, 620, 28));                           // the barrel
-        ctx.DrawRectangle(fill, outline, new Rect(760, 24, 44, 32), 7, 7);                      // the eraser end
+        ctx.DrawGeometry(FillBrush, outline, PenBody);
+        if (outline is not null) ctx.DrawGeometry(null, outline, PenSeams);
     }
 
     private void DrawButtons(DrawingContext ctx)
