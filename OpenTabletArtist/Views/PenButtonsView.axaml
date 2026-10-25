@@ -1,0 +1,36 @@
+<UserControl x:Class="OpenTabletArtist.Views.PenButtonsView"
+             xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ctrl="using:OpenTabletArtist.Controls"
+             xmlns:views="using:OpenTabletArtist.Views">
+
+    <!-- The pen's buttons tab (#1015): the pen lying flat across the top with its buttons numbered from the tip,
+         and one card per button underneath. DataContext is a TabletDetailViewModel.
+
+         Side by side, an elbow line joins each button to its card, so the mapping is a line to follow. The
+         cards are equal columns, so the line meets the middle of each. When the window is too narrow for the
+         cards to sit side by side (see PenDiagramGeometry.Columns) they stack one under another and the lines
+         go, since a line to a card three screens down would only get in the way. A pen with one button gets
+         two columns' worth of room, so its card is half the width and not a slab across the page. -->
+    <StackPanel>
+        <ctrl:PenButtonsDiagram x:Name="Diagram" HorizontalAlignment="Stretch"
+                                ButtonCount="{Binding PenButtonRows.Count}"
+                                FillBrush="{DynamicResource PenDiagramFillBrush}"
+                                StrokeBrush="{DynamicResource PenDiagramStrokeBrush}"
+                                AccentBrush="{DynamicResource AccentBrush}"
+                                LabelBrush="{DynamicResource TextMutedBrush}" />
+
+        <ItemsControl x:Name="Cards" ItemsSource="{Binding PenButtonRows}">
+            <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate>
+                    <ctrl:PenButtonCardsPanel />
+                </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+            <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                    <views:PenButtonCard VerticalAlignment="Stretch" />
+                </DataTemplate>
+            </ItemsControl.ItemTemplate>
+        </ItemsControl>
+    </StackPanel>
+</UserControl>

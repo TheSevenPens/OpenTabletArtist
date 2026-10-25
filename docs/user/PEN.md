@@ -16,10 +16,10 @@ The Pen page has three tabs.
 
 ## buttons
 
-This tab only appears for a pen that has barrel buttons. Each button on the pen has a card that says what the button does now. Open its **…** menu to choose one of three things:
+This tab only appears for a pen that has barrel buttons. A picture of the pen sits across the top with its buttons numbered from the tip, and each button has a card underneath. When the window is wide enough the cards sit side by side, with a line from each button on the pen to its card; in a narrow window they stack and the lines go. Each card shows three choices side by side, with the current one highlighted:
 
 - **Default action**: the pen's own button. In Windows Ink mode this is the Barrel Switch (right-click / context menu), and your drawing software decides what it does through its own stylus settings. All the barrel buttons share this one action, so a card tells you when two buttons do the same thing.
-- **Keyboard shortcut**: press **Record**, then press the shortcut on your keyboard, or pick the keys on screen. The shortcut is held down for as long as you hold the pen button, so a modifier on its own (for example **Alt** for the eyedropper) works too.
+- **Keyboard shortcut**: opens an editor where you press **Record** and then the shortcut on your keyboard, or pick the keys on screen. The card then shows the shortcut as keys, with a **Change…** button beside it. The shortcut is held down for as long as you hold the pen button, so a modifier on its own (for example **Alt** for the eyedropper) works too. If you close the editor without saving, nothing changes.
 - **Disabled**: the button does nothing.
 
-If a button was set up somewhere else, such as in OpenTabletDriver's own window, the card says what it does now, with nothing ticked in the menu, and leaves it alone until you choose something. In Windows Ink mode a mouse click or scroll on a button gets a warning, because a click can interrupt your stroke and scrolling doesn't work. The same warning appears on ExpressKeys and wheel buttons. OpenTabletArtist never changes a button for you.
+If a button was set up somewhere else, such as in OpenTabletDriver's own window, the card says what it does now, with none of the three choices highlighted, and leaves it alone until you choose something. In Windows Ink mode a mouse click or scroll on a button gets a warning, because a click can interrupt your stroke and scrolling doesn't work. The same warning appears on ExpressKeys and wheel buttons. OpenTabletArtist never changes a button for you.

@@ -1376,8 +1376,9 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
         var buttons = new List<PenButtonRowViewModel>();
         for (int i = 0; i < bindings.PenButtons.Count; i++)
             buttons.Add(new PenButtonRowViewModel(i + 1, bindings.PenButtons[i], outputIsWindowsInk, canEdit,
-                ApplyPenButtonAsync, _editBinding));
+                ApplyPenButtonAsync, _editBinding, bindings.PenButtons.Count));
         NoteSharedBarrel(buttons, outputIsWindowsInk);
+        PenButtonRows = buttons;
 
         // Expose each switch by slot so the visual pen diagram can bind tip/eraser/buttons (#pen-switch-diagram).
         PenTipRow = tip;
@@ -1845,6 +1846,10 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
     private PenButtonRowViewModel? _penButton1Row;
     [ObservableProperty] private PenButtonRowViewModel? _penButton2Row;
     [ObservableProperty] private PenButtonRowViewModel? _penButton3Row;
+
+    /// <summary>The pen's barrel buttons in order, button 1 first (nearest the tip). The buttons tab lays out one
+    /// card per entry, so it works for a pen with one, two or three buttons alike.</summary>
+    [ObservableProperty] private IReadOnlyList<PenButtonRowViewModel> _penButtonRows = [];
 
     /// <summary>True when the pen has at least one barrel button — gates the PEN BUTTONS tab (#494), so
     /// pens with none don't show an empty tab.</summary>
