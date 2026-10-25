@@ -3,6 +3,13 @@
 One file per tag: `v0.76.0.md`. The release workflow publishes it as the top of the
 release page, with the commit list folded into a `<details>` block underneath.
 
+Every file starts with a link to the documentation site, then a blank line, so the release page
+opens with it:
+
+```
+[Documentation](https://thesevenpens.github.io/OpenTabletArtist/)
+```
+
 **Write it before tagging.** If the file is missing the release still publishes — just
 the commit list — because a missing summary must never be what fails a release after the
 build has already run. But then nobody gets told what changed.
