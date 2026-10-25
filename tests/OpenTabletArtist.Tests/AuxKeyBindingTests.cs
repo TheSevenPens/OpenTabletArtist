@@ -126,6 +126,32 @@ public class AuxKeyBindingTests
     }
 
     [Fact]
+    public void DescribeParts_KeyboardShortcut_IsOnePiecePerKey_InTheOrderDescribeJoinsThem()
+    {
+        var binding = new AuxBinding(AuxKind.Keyboard, new AuxCombo(true, true, true, "Z"),
+            AuxKeyBinding.None, AuxKeyBinding.None);
+
+        Assert.Equal(new[] { "Ctrl", "Shift", "Alt", "Z" }, AuxKeyBinding.DescribeParts(binding));
+        Assert.Equal(AuxKeyBinding.Describe(binding), string.Join(" + ", AuxKeyBinding.DescribeParts(binding)));
+    }
+
+    [Fact]
+    public void DescribeParts_ModifierOnly_HasNoKeyPiece()
+    {
+        var binding = new AuxBinding(AuxKind.Keyboard, new AuxCombo(false, false, true, AuxKeyBinding.None),
+            AuxKeyBinding.None, AuxKeyBinding.None);
+
+        Assert.Equal(new[] { "Alt" }, AuxKeyBinding.DescribeParts(binding));
+    }
+
+    [Fact]
+    public void DescribeParts_MouseClick_IsOnePiece_AndUnboundIsNone()
+    {
+        Assert.Equal(new[] { "Right click" }, AuxKeyBinding.DescribeParts(AuxKeyBinding.ReadBinding(AuxKeyBinding.MakeMouseBinding("Right"))!));
+        Assert.Empty(AuxKeyBinding.DescribeParts(AuxBinding.Unbound));
+    }
+
+    [Fact]
     public void ReadCombo_RoundTripsModifiersAndKey()
     {
         var combo = new AuxCombo(Ctrl: true, Shift: false, Alt: true, "S");

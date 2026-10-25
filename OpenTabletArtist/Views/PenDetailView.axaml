@@ -171,76 +171,12 @@
             </WrapPanel>
         </ScrollViewer>
 
-        <!-- BUTTONS — the barrel buttons beside the pen diagram. The cards run 3-2-1 top-to-bottom so they read
-             against the diagram: button 1 sits nearest the tip, at the bottom. The diagram is about 430 tall and
-             its three buttons sit at roughly 240, 275 and 310 from the top, so the three cards (about 185 tall
-             together) start 183 down to sit level with them. That offset is arithmetic on the drawing below, not
-             a measured fit: if the drawing changes, so does the number. -->
+        <!-- BUTTONS — the barrel buttons: the pen across the top with its buttons numbered from the tip, and one
+             card per button underneath, each with its three choices in view (PenButtonsView, #1015). It replaced a
+             240px column of one-line cards beside a standing pen, which left most of the page empty. -->
         <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto"
                       IsVisible="{Binding #ButtonsTab.IsChecked}">
-            <WrapPanel ItemSpacing="32" LineSpacing="20" Margin="0,12,0,0">
-
-                <StackPanel Spacing="16" VerticalAlignment="Top" Margin="0,183,0,0">
-                    <views:PenButtonCard DataContext="{Binding PenButton3Row}"
-                                         IsVisible="{Binding $parent[StackPanel].DataContext.PenButton3Row, Converter={x:Static conv:ObjectConverters.IsNotNull}}" />
-                    <views:PenButtonCard DataContext="{Binding PenButton2Row}"
-                                         IsVisible="{Binding $parent[StackPanel].DataContext.PenButton2Row, Converter={x:Static conv:ObjectConverters.IsNotNull}}" />
-                    <views:PenButtonCard DataContext="{Binding PenButton1Row}"
-                                         IsVisible="{Binding $parent[StackPanel].DataContext.PenButton1Row, Converter={x:Static conv:ObjectConverters.IsNotNull}}" />
-                </StackPanel>
-
-                <LayoutTransformControl VerticalAlignment="Top" HorizontalAlignment="Left">
-                    <LayoutTransformControl.LayoutTransform>
-                        <RotateTransform Angle="-90" />
-                    </LayoutTransformControl.LayoutTransform>
-                <Viewbox MaxWidth="440" MaxHeight="86">
-                    <!-- The button numbers below are off the type ramp on purpose: they are
-                         annotations on a drawing, sized to the boxes they sit in rather than to
-                         anything else on the page. -->
-                    <Canvas Width="400" Height="80">
-                        <Rectangle Canvas.Left="342" Canvas.Top="31" Width="26" Height="18" RadiusX="6" RadiusY="6"
-                                   Fill="{DynamicResource PenDiagramFillBrush}" Stroke="{DynamicResource PenDiagramStrokeBrush}" StrokeThickness="1.5" />
-                        <Rectangle Canvas.Left="14" Canvas.Top="36" Width="20" Height="8" RadiusX="4" RadiusY="4"
-                                   Fill="{DynamicResource PenDiagramFillBrush}" Stroke="{DynamicResource PenDiagramStrokeBrush}" StrokeThickness="1.5" />
-                        <Polygon Points="72,28 72,52 26,45 26,35" Fill="{DynamicResource PenDiagramFillBrush}"
-                                 Stroke="{DynamicResource PenDiagramStrokeBrush}" StrokeThickness="1.5" StrokeJoin="Round" />
-                        <Rectangle Canvas.Left="70" Canvas.Top="28" Width="287" Height="24"
-                                   Fill="{DynamicResource PenDiagramFillBrush}" Stroke="{DynamicResource PenDiagramStrokeBrush}" StrokeThickness="1.5" />
-                        <Rectangle Canvas.Left="97" Canvas.Top="32" Width="25" Height="16" RadiusX="6" RadiusY="6"
-                                   Fill="{DynamicResource AccentBrush}" Stroke="{DynamicResource PenDiagramStrokeBrush}" StrokeThickness="1.5"
-                                   IsVisible="{Binding PenButton1Row, Converter={x:Static conv:ObjectConverters.IsNotNull}}" />
-                        <Rectangle Canvas.Left="131" Canvas.Top="32" Width="25" Height="16" RadiusX="6" RadiusY="6"
-                                   Fill="{DynamicResource AccentBrush}" Stroke="{DynamicResource PenDiagramStrokeBrush}" StrokeThickness="1.5"
-                                   IsVisible="{Binding PenButton2Row, Converter={x:Static conv:ObjectConverters.IsNotNull}}" />
-                        <Rectangle Canvas.Left="165" Canvas.Top="32" Width="25" Height="16" RadiusX="6" RadiusY="6"
-                                   Fill="{DynamicResource AccentBrush}" Stroke="{DynamicResource PenDiagramStrokeBrush}" StrokeThickness="1.5"
-                                   IsVisible="{Binding PenButton3Row, Converter={x:Static conv:ObjectConverters.IsNotNull}}" />
-                        <!-- Button numbers, centred on each side button so the diagram maps 1:1 to the
-                             "Button N" cards on the right. Counter-rotated +90° (about the default centre
-                             RenderTransformOrigin) to stay upright against the pen's -90° stand. -->
-                        <Border Canvas.Left="97" Canvas.Top="32" Width="25" Height="16" Background="Transparent"
-                                IsVisible="{Binding PenButton1Row, Converter={x:Static conv:ObjectConverters.IsNotNull}}">
-                            <Border.RenderTransform><RotateTransform Angle="90" /></Border.RenderTransform>
-                            <TextBlock Text="1" FontSize="11" FontWeight="Bold" Foreground="White"
-                                       HorizontalAlignment="Center" VerticalAlignment="Center" />
-                        </Border>
-                        <Border Canvas.Left="131" Canvas.Top="32" Width="25" Height="16" Background="Transparent"
-                                IsVisible="{Binding PenButton2Row, Converter={x:Static conv:ObjectConverters.IsNotNull}}">
-                            <Border.RenderTransform><RotateTransform Angle="90" /></Border.RenderTransform>
-                            <TextBlock Text="2" FontSize="11" FontWeight="Bold" Foreground="White"
-                                       HorizontalAlignment="Center" VerticalAlignment="Center" />
-                        </Border>
-                        <Border Canvas.Left="165" Canvas.Top="32" Width="25" Height="16" Background="Transparent"
-                                IsVisible="{Binding PenButton3Row, Converter={x:Static conv:ObjectConverters.IsNotNull}}">
-                            <Border.RenderTransform><RotateTransform Angle="90" /></Border.RenderTransform>
-                            <TextBlock Text="3" FontSize="11" FontWeight="Bold" Foreground="White"
-                                       HorizontalAlignment="Center" VerticalAlignment="Center" />
-                        </Border>
-                    </Canvas>
-                </Viewbox>
-                </LayoutTransformControl>
-
-            </WrapPanel>
+            <views:PenButtonsView Margin="0,12,0,0" />
         </ScrollViewer>
 
         <!-- PRESSURE — the pressure curve + pressure smoothing (moved from the tablet page,

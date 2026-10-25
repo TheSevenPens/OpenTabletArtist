@@ -7,7 +7,7 @@ using OpenTabletArtist.Domain;
 namespace OpenTabletArtist.ViewModels;
 
 /// <summary>
-/// One pen barrel button on the PEN tab, as the three choices an artist thinks in: Default action, Keyboard
+/// One pen barrel button on the PEN tab's buttons tab, as the three choices an artist thinks in: Default action, Keyboard
 /// shortcut, Disabled (#1015). Tip and eraser keep <see cref="PenSwitchRowViewModel"/>.
 ///
 /// Built only from bindings OTD already ships. It never rewrites a binding it does not model: a button set
@@ -18,20 +18,25 @@ namespace OpenTabletArtist.ViewModels;
 public partial class PenButtonRowViewModel : ObservableObject
 {
     private readonly int _index;
+    private readonly int _buttonCount;
     private readonly bool _outputIsWindowsInk;
     private readonly Func<int, PluginSettingStore?, Task> _applyAsync;
     private readonly Func<AuxBinding, string, BindingEditorOptions, Task<AuxBinding?>>? _editShortcut;
     private PluginSettingStore? _store;
 
+    /// <param name="buttonCount">How many barrel buttons the pen has, so a card can say where its button is
+    /// (closest to the tip, middle, farthest). Defaults to three, the most any pen has.</param>
     public PenButtonRowViewModel(
         int index,
         PluginSettingStore? store,
         bool outputIsWindowsInk,
         bool canEdit,
         Func<int, PluginSettingStore?, Task> applyAsync,
-        Func<AuxBinding, string, BindingEditorOptions, Task<AuxBinding?>>? editShortcut)
+        Func<AuxBinding, string, BindingEditorOptions, Task<AuxBinding?>>? editShortcut,
+        int buttonCount = 3)
     {
         _index = index;
+        _buttonCount = Math.Max(buttonCount, index);
         _outputIsWindowsInk = outputIsWindowsInk;
         _applyAsync = applyAsync;
         _editShortcut = editShortcut;
@@ -41,6 +46,16 @@ public partial class PenButtonRowViewModel : ObservableObject
     }
 
     public string SectionLabel { get; }
+
+    /// <summary>The button's number, as drawn on the pen diagram and on its card.</summary>
+    public int Number => _index;
+
+    /// <summary>Where the button sits on the pen, in words: buttons are numbered from the tip. Null for a pen
+    /// with a single button, where there is nothing to tell apart.</summary>
+    public string? PositionHint => _buttonCount <= 1 ? null
+        : _index == 1 ? "closest to the tip"
+        : _index == _buttonCount ? "farthest from the tip"
+        : "middle";
 
     /// <summary>First row in a card list — kept so the pen tab can hide a leading divider, as the other rows do.</summary>
     public bool IsFirst { get; set; }
@@ -55,8 +70,8 @@ public partial class PenButtonRowViewModel : ObservableObject
     private bool _switchPossible;
     public bool CanSwitchToBarrel => _switchPossible && CanEdit;
 
-    // Which choice is saved. The card's "…" menu shows a tick against it; a binding set elsewhere (or one the
-    // card cannot model) is none of the three, so no tick.
+    // Which choice is saved. The card's three segments show it; a binding set elsewhere (or one the card
+    // cannot model) is none of the three, so none is lit.
     public bool IsDefaultAction => Action == PenButtonAction.Default;
     public bool IsShortcut => Action == PenButtonAction.Shortcut;
     public bool IsDisabled => Action == PenButtonAction.Disabled;
@@ -68,19 +83,35 @@ public partial class PenButtonRowViewModel : ObservableObject
     /// <summary>Adaptive Binding knows Buttons 1 to 3 only, so a fourth button has no Default action.</summary>
     public bool CanUseDefaultAction => PenButtonBinding.CanUseDefaultAction(_index);
 
-    /// <summary>The menu entry that opens the shortcut editor. Under mouse output the editor also offers a
-    /// mouse click, so the entry is named for both.</summary>
+    /// <summary>The segment that opens the shortcut editor. Under mouse output the editor also offers a mouse
+    /// click, so the segment is named for both.</summary>
     public string ShortcutLabel => _outputIsWindowsInk ? "Keyboard shortcut" : "Shortcut or mouse click";
 
-    /// <summary>One line saying what the button does now: "Barrel Switch", "Ctrl + Z", "Disabled", or, for a
-    /// binding set elsewhere, "Currently: …" (no choice is ticked for it).</summary>
+    /// <summary>What the button does now: "Barrel Switch", "Ctrl + Z", "Disabled", or, for a binding set
+    /// elsewhere, "Currently: …" (none of the segments is lit for it).</summary>
     [ObservableProperty] private string _stateText = "";
 
-    /// <summary>Who decides what the Default action does, shown on hover so it costs the card no height.
-    /// Only the Windows Ink Barrel Switch needs saying: your drawing software reads it through its own stylus settings.</summary>
-    [ObservableProperty] private string? _stateTooltip;
+    /// <summary>Who decides what the Default action does, under Windows Ink: your drawing software reads the
+    /// Barrel Switch through its own stylus settings. Shown on the card under the Default action; null where
+    /// there is nothing to add (mouse output, where the action is simply a mouse click).</summary>
+    [ObservableProperty] private string? _defaultDetail;
 
-    private const string DefaultActionHelp = "Interpreted natively by your drawing software, using its stylus settings.";
+    /// <summary>The saved shortcut as separate pieces, each drawn as a keycap: <c>Ctrl</c>, <c>Z</c>.</summary>
+    [ObservableProperty] private IReadOnlyList<string> _shortcutParts = [];
+
+    /// <summary>The same pieces with a "+" between them, as the card draws them: keycap, plus, keycap.</summary>
+    public IReadOnlyList<KeyPart> ShortcutKeys => ShortcutParts
+        .SelectMany((part, i) => i == 0
+            ? new[] { new KeyPart(part, false) }
+            : new[] { new KeyPart("+", true), new KeyPart(part, false) })
+        .ToList();
+
+    partial void OnShortcutPartsChanged(IReadOnlyList<string> value) => OnPropertyChanged(nameof(ShortcutKeys));
+
+    /// <summary>The note under a recorded shortcut: how long its keys stay down.</summary>
+    public string ShortcutNote => "Held while you hold the button.";
+
+    private const string DefaultActionHelp = "Right-click or context menu. Your drawing software decides what it does.";
 
     partial void OnActionChanged(PenButtonAction value)
     {
@@ -115,7 +146,8 @@ public partial class PenButtonRowViewModel : ObservableObject
             otherLabel: store?.Path is { } p ? FriendlyName(p) : "Disabled");
         var hazard = BindingSafety.Assess(store, _outputIsWindowsInk);
         StateText = Action == PenButtonAction.Other ? $"Currently: {Summary}" : Summary;
-        StateTooltip = Action == PenButtonAction.Default && _outputIsWindowsInk ? DefaultActionHelp : null;
+        DefaultDetail = Action == PenButtonAction.Default && _outputIsWindowsInk ? DefaultActionHelp : null;
+        ShortcutParts = Action == PenButtonAction.Shortcut ? AuxKeyBinding.DescribeParts(PenButtonBinding.ReadShortcut(store)) : [];
         Warning = BindingSafety.Message(hazard);
         _switchPossible = hazard == BindingHazard.MouseClickUnderWindowsInk
             && BindingSafety.IsRightClick(store) && CanUseDefaultAction;
@@ -143,20 +175,30 @@ public partial class PenButtonRowViewModel : ObservableObject
     [RelayCommand(CanExecute = nameof(CanSwitchToBarrel))]
     private Task SwitchToBarrel() => ApplyAsync(PenButtonBinding.MakeDefault(_index));
 
-    /// <summary>Open the shortcut editor (the card's "Keyboard shortcut…" entry, which also changes an existing
-    /// one). Cancel leaves everything as it was; Save writes the shortcut; Clear (which the editor reports as
+    /// <summary>Open the shortcut editor (the Keyboard shortcut segment, or Change beside a recorded shortcut).
+    /// Cancel leaves everything as it was; Save writes the shortcut; Clear (which the editor reports as
     /// Unbound) disables the button.</summary>
     [RelayCommand(CanExecute = nameof(CanEdit))]
     private async Task UseShortcut()
     {
-        if (_editShortcut == null) return;
+        if (_editShortcut == null) { RevertSelection(); return; }
 
         var current = PenButtonBinding.ReadShortcut(_store);
         var options = new BindingEditorOptions(AllowMouseAndScroll: !_outputIsWindowsInk);
         var result = await _editShortcut(current, $"Button {_index}", options);
 
-        if (result is not { } binding) return; // cancelled: nothing was changed, so nothing to put back
+        if (result is not { } binding) { RevertSelection(); return; } // cancelled
         await ApplyAsync(AuxKeyBinding.MakeBinding(binding));
+    }
+
+    /// <summary>A segment the user clicked has already drawn itself lit; put the card back to what is saved so
+    /// a cancelled choice does not look like a change. (The segments are one-way: the saved binding decides
+    /// which is lit, and a click is only a command.)</summary>
+    private void RevertSelection()
+    {
+        OnPropertyChanged(nameof(IsDefaultAction));
+        OnPropertyChanged(nameof(IsShortcut));
+        OnPropertyChanged(nameof(IsDisabled));
     }
 
     private async Task ApplyAsync(PluginSettingStore? store)
@@ -166,4 +208,10 @@ public partial class PenButtonRowViewModel : ObservableObject
         try { await _applyAsync(_index, store); }
         catch { Load(before); throw; }
     }
+}
+
+/// <summary>One piece of a recorded shortcut as the card draws it: a keycap, or the "+" between two of them.</summary>
+public sealed record KeyPart(string Text, bool IsSeparator)
+{
+    public bool IsKey => !IsSeparator;
 }

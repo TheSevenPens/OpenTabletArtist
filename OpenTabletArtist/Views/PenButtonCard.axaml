@@ -1,67 +1,160 @@
 <UserControl x:Class="OpenTabletArtist.Views.PenButtonCard"
              xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:c="using:OpenTabletArtist.Controls">
+             xmlns:c="using:OpenTabletArtist.Controls"
+             xmlns:vm="using:OpenTabletArtist.ViewModels"
+             xmlns:conv="using:Avalonia.Data.Converters">
 
-    <!-- One pen barrel button (#1015). DataContext is a PenButtonRowViewModel, bound by the pen tab to a
-         slot (Button N). Same height as the tip and eraser cards: a title, one line saying what the button
-         does now, and a "…" menu holding the three choices, built only from bindings OTD already ships:
+    <!-- One pen barrel button (#1015). DataContext is a PenButtonRowViewModel. A numbered header, the three
+         choices laid out as one bar so none is hidden behind a menu, and a detail area that changes with the
+         choice, built only from bindings OTD already ships:
            Default action     the pen's native behavior (the Barrel Switch under Windows Ink)
            Keyboard shortcut  held while the button is held
            Disabled           nothing bound
-         It is the same "…" menu the ExpressKey and wheel rows carry (#row-actions). The first version
-         stacked three radios, which made each card up to four times as tall; with five cards in the column
-         that pushed the pen's movement and pressing settings off the screen.
+         The cards used to be a one-line summary and a "…" menu, because stacked radios were four times as tall
+         in a narrow column. The buttons tab now lays the cards out across the page, so the width is there and
+         the choices can stay in view.
 
-         A button set somewhere else (OTD's own UI) has none of the three ticked: the card says what it does
-         now and, if that does not suit the output mode, why. Nothing is rewritten unless the user picks. -->
-    <c:Section Padding="12,10" Width="240" HorizontalAlignment="Left">
-        <StackPanel Spacing="6">
-            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
-                <StackPanel Grid.Column="0" Spacing="2" VerticalAlignment="Center">
+         A button set somewhere else (OTD's own UI) has none of the three lit: the card says what it does now
+         and, if that does not suit the output mode, why. Nothing is rewritten unless the user picks.
+         The segments are one-way: the saved binding decides which is lit, and a click is only a command. -->
+    <UserControl.Styles>
+        <!-- A segmented bar: three RadioButtons that read as one control. The lit one is filled with the
+             accent. Local to this card, so no other radio button in the app is touched. -->
+        <Style Selector="RadioButton.segment">
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Margin" Value="0,0,-1,0" />
+            <Setter Property="Template">
+                <ControlTemplate>
+                    <Border x:Name="Bd" Background="Transparent" Padding="10,8"
+                            BorderThickness="1" BorderBrush="{DynamicResource GlassBorderBrush}">
+                        <TextBlock x:Name="Lbl" Text="{TemplateBinding Content}" FontSize="12.5"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center"
+                                   Foreground="{DynamicResource TextSecondaryBrush}" />
+                    </Border>
+                </ControlTemplate>
+            </Setter>
+        </Style>
+        <Style Selector="RadioButton.segment:pointerover /template/ Border#Bd">
+            <Setter Property="Background" Value="{DynamicResource GlassBgHoverBrush}" />
+        </Style>
+        <Style Selector="RadioButton.segment:checked /template/ Border#Bd">
+            <Setter Property="Background" Value="{DynamicResource AccentBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
+        </Style>
+        <Style Selector="RadioButton.segment:checked /template/ TextBlock#Lbl">
+            <Setter Property="Foreground" Value="{DynamicResource TextInverseBrush}" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+        </Style>
+        <Style Selector="RadioButton.segment:disabled">
+            <Setter Property="Opacity" Value="0.5" />
+        </Style>
+
+        <!-- A keycap: one key of a recorded shortcut. -->
+        <Style Selector="Border.keycap">
+            <Setter Property="Background" Value="{DynamicResource BgSurfaceBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource GlassBorderBrush}" />
+            <Setter Property="BorderThickness" Value="1,1,1,2" />
+            <Setter Property="Padding" Value="9,3" />
+        </Style>
+        <Style Selector="Border.keycap > TextBlock">
+            <Setter Property="FontFamily" Value="{StaticResource MonoFontFamily}" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
+        </Style>
+    </UserControl.Styles>
+
+    <c:Section Padding="16" HorizontalAlignment="Stretch">
+        <StackPanel Spacing="14">
+
+            <!-- Which button: the number on the pen diagram, its name, and where it sits on the pen. -->
+            <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
+                <Panel Width="26" Height="26" VerticalAlignment="Center">
+                    <Ellipse Fill="{DynamicResource AccentBrush}" />
+                    <TextBlock Text="{Binding Number}" FontSize="13" FontWeight="Bold"
+                               Foreground="{DynamicResource TextInverseBrush}"
+                               HorizontalAlignment="Center" VerticalAlignment="Center" />
+                </Panel>
+                <StackPanel Grid.Column="1" VerticalAlignment="Center">
                     <TextBlock Text="{Binding SectionLabel}" Classes="SectionLabel" />
-                    <!-- The tooltip says who decides what the Barrel Switch does: your drawing software. -->
-                    <TextBlock Text="{Binding StateText}" TextWrapping="Wrap"
-                               Foreground="{DynamicResource TextPrimaryBrush}"
-                               ToolTip.Tip="{Binding StateTooltip}" />
+                    <TextBlock Text="{Binding PositionHint}" FontSize="12"
+                               Foreground="{DynamicResource TextMutedBrush}"
+                               IsVisible="{Binding PositionHint, Converter={x:Static conv:ObjectConverters.IsNotNull}}" />
                 </StackPanel>
-
-                <!-- Commands live on the row's own DataContext, which a flyout inherits. A tick marks the saved
-                     choice; none is ticked for a binding set elsewhere. -->
-                <c:IconButton Grid.Column="1" Icon="{StaticResource IconDotsHorizontal}"
-                              VerticalAlignment="Center"
-                              ToolTip.Tip="Choose what this button does"
-                              AutomationProperties.Name="Choose what this button does">
-                    <c:IconButton.Flyout>
-                        <MenuFlyout>
-                            <MenuItem Header="Default action" Command="{Binding UseDefaultActionCommand}"
-                                      IsVisible="{Binding CanUseDefaultAction}">
-                                <MenuItem.Icon>
-                                    <PathIcon Data="{StaticResource IconCheck}" IsVisible="{Binding IsDefaultAction}" />
-                                </MenuItem.Icon>
-                            </MenuItem>
-                            <MenuItem Header="{Binding ShortcutLabel, StringFormat='{}{0}…'}"
-                                      Command="{Binding UseShortcutCommand}">
-                                <MenuItem.Icon>
-                                    <PathIcon Data="{StaticResource IconCheck}" IsVisible="{Binding IsShortcut}" />
-                                </MenuItem.Icon>
-                            </MenuItem>
-                            <MenuItem Header="Disabled" Command="{Binding DisableCommand}">
-                                <MenuItem.Icon>
-                                    <PathIcon Data="{StaticResource IconCheck}" IsVisible="{Binding IsDisabled}" />
-                                </MenuItem.Icon>
-                            </MenuItem>
-                        </MenuFlyout>
-                    </c:IconButton.Flyout>
-                </c:IconButton>
             </Grid>
 
+            <!-- The three choices, always in view. No GroupName on purpose: the segments of one card share a
+                 parent, so they group on their own, and a shared name would make every card's segments
+                 un-light each other's (ACancelledChoice_LeavesEveryCardAsItWas). -->
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Left">
+                <RadioButton Classes="segment" Content="Default action"
+                             IsChecked="{Binding IsDefaultAction, Mode=OneWay}"
+                             Command="{Binding UseDefaultActionCommand}"
+                             IsVisible="{Binding CanUseDefaultAction}" />
+                <RadioButton Classes="segment" Content="{Binding ShortcutLabel}"
+                             IsChecked="{Binding IsShortcut, Mode=OneWay}"
+                             Command="{Binding UseShortcutCommand}" />
+                <RadioButton Classes="segment" Content="Disabled"
+                             IsChecked="{Binding IsDisabled, Mode=OneWay}"
+                             Command="{Binding DisableCommand}" />
+            </StackPanel>
+
+            <!-- What the chosen one means. The area keeps a minimum height so cards in a row line up. -->
+            <StackPanel Spacing="8" MinHeight="84">
+                <StackPanel Spacing="3" IsVisible="{Binding IsDefaultAction}">
+                    <TextBlock Text="{Binding StateText}" FontSize="17" FontWeight="SemiBold"
+                               Foreground="{DynamicResource TextPrimaryBrush}" TextWrapping="Wrap" />
+                    <TextBlock Text="{Binding DefaultDetail}" TextWrapping="Wrap"
+                               Foreground="{DynamicResource TextSecondaryBrush}"
+                               IsVisible="{Binding DefaultDetail, Converter={x:Static conv:ObjectConverters.IsNotNull}}" />
+                </StackPanel>
+
+                <StackPanel Spacing="10" IsVisible="{Binding IsShortcut}">
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <ItemsControl ItemsSource="{Binding ShortcutKeys}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate><StackPanel Orientation="Horizontal" Spacing="6" /></ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="vm:KeyPart">
+                                    <Panel>
+                                        <Border Classes="keycap" IsVisible="{Binding IsKey}">
+                                            <TextBlock Text="{Binding Text}" FontSize="13" />
+                                        </Border>
+                                        <TextBlock Text="+" VerticalAlignment="Center"
+                                                   Foreground="{DynamicResource TextMutedBrush}"
+                                                   IsVisible="{Binding IsSeparator}" />
+                                    </Panel>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                        <Button Content="Change…" Command="{Binding UseShortcutCommand}"
+                                Theme="{StaticResource GhostButton}" Padding="12,4" Margin="8,0,0,0"
+                                VerticalAlignment="Center" />
+                    </StackPanel>
+                    <TextBlock Text="{Binding ShortcutNote}" Foreground="{DynamicResource TextSecondaryBrush}"
+                               TextWrapping="Wrap" />
+                </StackPanel>
+
+                <StackPanel Spacing="3" IsVisible="{Binding IsDisabled}">
+                    <TextBlock Text="Does nothing" FontSize="17" FontWeight="SemiBold"
+                               Foreground="{DynamicResource TextSecondaryBrush}" />
+                    <TextBlock Text="The button is ignored." Foreground="{DynamicResource TextSecondaryBrush}" />
+                </StackPanel>
+
+                <!-- Set somewhere else: none of the three is lit; say what it does now. -->
+                <StackPanel Spacing="3" IsVisible="{Binding IsOther}">
+                    <TextBlock Text="{Binding StateText}" FontSize="17" FontWeight="SemiBold"
+                               Foreground="{DynamicResource TextPrimaryBrush}" TextWrapping="Wrap" />
+                </StackPanel>
+            </StackPanel>
+
             <!-- Unsuitable for the output mode: plain sentence, and the one-click fix when there is one. -->
-            <StackPanel Spacing="6" IsVisible="{Binding HasWarning}">
+            <StackPanel Spacing="8" IsVisible="{Binding HasWarning}">
                 <StackPanel Orientation="Horizontal" Spacing="8">
                     <PathIcon Data="{StaticResource IconAlert}" Width="15" Height="15" VerticalAlignment="Top"
                               Margin="0,2,0,0" Foreground="{DynamicResource WarningBrush}" />
-                    <TextBlock Text="{Binding Warning}" TextWrapping="Wrap" MaxWidth="200"
+                    <TextBlock Text="{Binding Warning}" TextWrapping="Wrap" MaxWidth="300"
                                Foreground="{DynamicResource TextPrimaryBrush}" />
                 </StackPanel>
                 <Button Content="Switch to Barrel Switch" Command="{Binding SwitchToBarrelCommand}"
@@ -73,7 +166,7 @@
             <StackPanel Orientation="Horizontal" Spacing="8" IsVisible="{Binding HasSharedBarrelHint}">
                 <PathIcon Data="{StaticResource IconInformationOutline}" Width="15" Height="15" VerticalAlignment="Top"
                           Margin="0,2,0,0" Foreground="{DynamicResource TextMutedBrush}" />
-                <TextBlock Text="{Binding SharedBarrelHint}" TextWrapping="Wrap" MaxWidth="200"
+                <TextBlock Text="{Binding SharedBarrelHint}" TextWrapping="Wrap" MaxWidth="300"
                            Foreground="{DynamicResource TextMutedBrush}" />
             </StackPanel>
         </StackPanel>

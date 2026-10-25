@@ -102,23 +102,25 @@ public class PenTabsTests
 
         Assert.Equal(3, Visible<PenButtonCard>(view).Count());
         Assert.Empty(Visible<PenSwitchCard>(view));
-        Assert.NotEmpty(Visible<LayoutTransformControl>(view));     // the pen diagram
+        Assert.NotEmpty(Visible<PenButtonsDiagram>(view));          // the pen picture
         Assert.DoesNotContain(Visible<TextBlock>(view), t => t.Text == "movement");
         window.Close();
     }
 
     [AvaloniaFact]
-    public void TheButtonCards_RunThreeTwoOne_TopToBottom()
+    public void TheButtonCards_RunOneTwoThree_FromTheTip()
     {
         var (window, view) = Page(Vm(WinInkAbsolute));
         Select(view, "ButtonsTab");
 
+        // Reading order, so it holds whether the cards sit side by side or stack at this width.
         var labels = Visible<PenButtonCard>(view)
-            .OrderBy(c => c.TranslatePoint(new Avalonia.Point(0, 0), view)!.Value.Y)
-            .Select(c => ((PenButtonRowViewModel)c.DataContext!).SectionLabel)
+            .Select(c => (Card: c, At: c.TranslatePoint(new Avalonia.Point(0, 0), view)!.Value))
+            .OrderBy(x => x.At.Y).ThenBy(x => x.At.X)
+            .Select(x => ((PenButtonRowViewModel)x.Card.DataContext!).SectionLabel)
             .ToArray();
 
-        Assert.Equal(new[] { "BUTTON 3", "BUTTON 2", "BUTTON 1" }, labels);
+        Assert.Equal(new[] { "BUTTON 1", "BUTTON 2", "BUTTON 3" }, labels);
         window.Close();
     }
 

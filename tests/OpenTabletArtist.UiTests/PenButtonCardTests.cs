@@ -7,7 +7,6 @@ using Avalonia.Input;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
 using OpenTabletDriver.Desktop.Reflection;
-using OpenTabletArtist.Controls;
 using OpenTabletArtist.Domain;
 using OpenTabletArtist.ViewModels;
 using OpenTabletArtist.Views;
@@ -15,10 +14,10 @@ using OpenTabletArtist.Views;
 namespace OpenTabletArtist.UiTests;
 
 /// <summary>
-/// The pen button card (#1015) as it is drawn: a title, one line saying what the button does, and a "…"
-/// menu with the three choices and a tick against the saved one. A mouse click under Windows Ink shows a
-/// warning with a one-click fix, nothing is rewritten by showing it, and the card is no taller than the tip
-/// and eraser cards in its ordinary states (the first version stacked radios and was up to four times as tall).
+/// The pen button card (#1015) as it is drawn: a numbered header, the three choices always in view as one
+/// segmented bar with the saved one lit, and a detail area that says what the choice means. A mouse click under
+/// Windows Ink shows a warning with a one-click fix, nothing is rewritten by showing it, and a choice that is
+/// backed out of leaves the bar as it was.
 /// </summary>
 public class PenButtonCardTests
 {
@@ -31,37 +30,36 @@ public class PenButtonCardTests
     }
 
     private static (Window Window, PenButtonCard Card, PenButtonRowViewModel Row, Spy Spy) Show(
-        PluginSettingStore? store, bool ink = true, int index = 1)
+        PluginSettingStore? store, bool ink = true, int index = 1, bool canEdit = true)
     {
         var spy = new Spy();
-        var row = new PenButtonRowViewModel(index, store, ink, canEdit: true,
+        var row = new PenButtonRowViewModel(index, store, ink, canEdit,
             applyAsync: (_, s) => { spy.Applied++; spy.Last = s; return Task.CompletedTask; },
             editShortcut: (_, _, _) => { spy.EditorOpened++; return Task.FromResult(spy.EditorResult); });
         var card = new PenButtonCard { DataContext = row, VerticalAlignment = Avalonia.Layout.VerticalAlignment.Top };
-        var window = new Window { Content = card, Width = 400, Height = 500 };
+        var window = new Window { Content = card, Width = 420, Height = 500 };
         window.Show();
-        window.Measure(new Size(400, 500));
-        window.Arrange(new Rect(0, 0, 400, 500));
+        window.Measure(new Size(420, 500));
+        window.Arrange(new Rect(0, 0, 420, 500));
         Dispatcher.UIThread.RunJobs();
         return (window, card, row, spy);
     }
 
-    private static IEnumerable<TextBlock> Texts(PenButtonCard card) => card.GetVisualDescendants().OfType<TextBlock>();
+    private static IEnumerable<TextBlock> Texts(Control root) => root.GetVisualDescendants().OfType<TextBlock>();
 
-    /// <summary>Open the "…" menu and return its entries by header. Opened the way a click opens it, so the
-    /// entries get the row as their data context.</summary>
-    private static Dictionary<string, MenuItem> OpenMenu(Window window, PenButtonCard card)
-    {
-        var button = card.GetVisualDescendants().OfType<IconButton>().Single();
-        var flyout = (MenuFlyout)button.Flyout!;
-        flyout.ShowAt(button);
-        Dispatcher.UIThread.RunJobs();
-        return flyout.Items.OfType<MenuItem>().ToDictionary(m => (string)m.Header!);
-    }
+    private static bool Shown(Control root, string text) =>
+        Texts(root).Any(t => t.Text == text && t.IsEffectivelyVisible);
 
-    private static bool Ticked(MenuItem item) => item.Icon is Control { IsVisible: true };
+    /// <summary>The segments of the choice bar, left to right, by their label.</summary>
+    internal static Dictionary<string, RadioButton> Segments(Control root) =>
+        root.GetVisualDescendants().OfType<RadioButton>().Where(r => r.Classes.Contains("segment"))
+            .Where(r => r.Content is string)
+            .ToDictionary(r => (string)r.Content!);
 
-    private static void Click(Window window, Control control)
+    internal static string[] Lit(Control root) =>
+        Segments(root).Where(s => s.Value.IsChecked == true && s.Value.IsEffectivelyVisible).Select(s => s.Key).ToArray();
+
+    internal static void Click(Window window, Control control)
     {
         var center = control.TranslatePoint(new Point(control.Bounds.Width / 2, control.Bounds.Height / 2), window)!.Value;
         window.MouseDown(center, MouseButton.Left);
@@ -69,85 +67,119 @@ public class PenButtonCardTests
         Dispatcher.UIThread.RunJobs();
     }
 
-    private static Button? ButtonNamed(PenButtonCard card, string content) =>
-        card.GetVisualDescendants().OfType<Button>().FirstOrDefault(b => (b.Content as string) == content);
+    private static Button? ButtonNamed(Control root, string content) =>
+        root.GetVisualDescendants().OfType<Button>().FirstOrDefault(b => (b.Content as string) == content);
 
     // ── What the card says ─────────────────────────────────────────
 
     [AvaloniaFact]
-    public void DefaultAction_SaysBarrelSwitch_AndTicksDefaultAction()
+    public void TheCard_NamesItsButton_AndWhereItSits()
+    {
+        var (window, card, _, _) = Show(null, index: 2);
+
+        Assert.True(Shown(card, "BUTTON 2"));
+        Assert.True(Shown(card, "2"));                          // the number on the pen diagram
+        Assert.True(Shown(card, "middle"));                     // button 2 of a pen's three
+        window.Close();
+    }
+
+    [AvaloniaFact]
+    public void DefaultAction_SaysBarrelSwitch_AndLightsOnlyDefaultAction()
     {
         var (window, card, _, _) = Show(PenButtonBinding.MakeDefault(1));
-        var menu = OpenMenu(window, card);
 
-        Assert.Contains(Texts(card), t => t.Text == "Barrel Switch");
-        Assert.True(Ticked(menu["Default action"]));
-        Assert.False(Ticked(menu["Keyboard shortcut…"]));
-        Assert.False(Ticked(menu["Disabled"]));
+        Assert.True(Shown(card, "Barrel Switch"));
+        Assert.Equal(new[] { "Default action" }, Lit(card));
         window.Close();
     }
 
     [AvaloniaFact]
-    public void DefaultAction_TellsOnHoverThatYourDrawingSoftwareDecides()
+    public void DefaultAction_SaysOutLoud_ThatYourDrawingSoftwareDecides()
     {
         var (window, card, _, _) = Show(PenButtonBinding.MakeDefault(1));
 
-        var line = Texts(card).Single(t => t.Text == "Barrel Switch");
-
-        Assert.Contains("drawing software", (string)ToolTip.GetTip(line)!);
+        Assert.Contains(Texts(card), t => t.IsEffectivelyVisible && t.Text?.Contains("drawing software") == true);
         window.Close();
     }
 
     [AvaloniaFact]
-    public void NoBinding_SaysDisabled_AndTicksDisabled()
-    {
-        var (window, card, _, _) = Show(null);
-        var menu = OpenMenu(window, card);
-
-        Assert.Contains(Texts(card), t => t.Text == "Disabled");
-        Assert.True(Ticked(menu["Disabled"]));
-        Assert.False(Ticked(menu["Default action"]));
-        window.Close();
-    }
-
-    [AvaloniaFact]
-    public void TheMenu_NamesTheThreeChoices()
+    public void NoBinding_SaysDoesNothing_AndLightsDisabled()
     {
         var (window, card, _, _) = Show(null);
 
-        Assert.Equal(new[] { "Default action", "Keyboard shortcut…", "Disabled" }, OpenMenu(window, card).Keys.ToArray());
+        Assert.True(Shown(card, "Does nothing"));
+        Assert.Equal(new[] { "Disabled" }, Lit(card));
         window.Close();
     }
 
     [AvaloniaFact]
-    public void AFourthButton_HasNoDefaultActionEntry()
+    public void AShortcut_IsDrawnAsKeycaps_WithAChangeButton_AndHowLongItIsHeld()
+    {
+        var (window, card, _, _) = Show(AuxKeyBinding.MakeBinding(new AuxCombo(true, false, false, "Z")));
+
+        var caps = card.GetVisualDescendants().OfType<Border>()
+            .Where(b => b.Classes.Contains("keycap") && b.IsEffectivelyVisible)
+            .Select(b => ((TextBlock)b.Child!).Text).ToArray();
+        Assert.Equal(new[] { "Ctrl", "Z" }, caps);
+        Assert.True(ButtonNamed(card, "Change…")!.IsEffectivelyVisible);
+        Assert.True(Shown(card, "Held while you hold the button."));
+        Assert.Equal(new[] { "Keyboard shortcut" }, Lit(card));
+        window.Close();
+    }
+
+    [AvaloniaFact]
+    public void TheDetailForTheOtherChoices_IsNotShown()
+    {
+        var (window, card, _, _) = Show(PenButtonBinding.MakeDefault(1));
+
+        Assert.False(Shown(card, "Does nothing"));
+        Assert.False(Shown(card, "Held while you hold the button."));
+        Assert.True(ButtonNamed(card, "Change…") is not { IsEffectivelyVisible: true });
+        window.Close();
+    }
+
+    // ── The three choices are always in view ───────────────────────
+
+    [AvaloniaFact]
+    public void TheThreeChoices_AreInViewAtOnce_NotBehindAMenu()
+    {
+        var (window, card, _, _) = Show(null);
+
+        Assert.Equal(new[] { "Default action", "Keyboard shortcut", "Disabled" }, Segments(card).Keys.ToArray());
+        Assert.All(Segments(card).Values, s => Assert.True(s.IsEffectivelyVisible));
+        Assert.Empty(card.GetVisualDescendants().OfType<MenuFlyoutPresenter>());
+        window.Close();
+    }
+
+    [AvaloniaFact]
+    public void AFourthButton_HasNoDefaultActionSegment()
     {
         var (window, card, _, _) = Show(null, index: 4);
 
-        Assert.False(OpenMenu(window, card)["Default action"].IsVisible);
+        Assert.False(Segments(card)["Default action"].IsEffectivelyVisible);
+        Assert.True(Segments(card)["Keyboard shortcut"].IsEffectivelyVisible);
         window.Close();
     }
 
     [AvaloniaFact]
-    public void UnderMouseOutput_TheShortcutEntryIsNamedForClicksToo()
+    public void UnderMouseOutput_TheShortcutSegmentIsNamedForClicksToo()
     {
         var (window, card, _, _) = Show(null, ink: false);
 
-        Assert.Contains("Shortcut or mouse click…", OpenMenu(window, card).Keys);
+        Assert.Contains("Shortcut or mouse click", Segments(card).Keys);
         window.Close();
     }
 
     // ── A binding set somewhere else ───────────────────────────────
 
     [AvaloniaFact]
-    public void ARightClickUnderWindowsInk_TicksNothing_SaysWhatItIs_AndWarnsWithAFix()
+    public void ARightClickUnderWindowsInk_LightsNothing_SaysWhatItIs_AndWarnsWithAFix()
     {
         var (window, card, _, spy) = Show(AuxKeyBinding.MakeMouseBinding("Right"));
-        var menu = OpenMenu(window, card);
 
-        Assert.All(menu.Values, m => Assert.False(Ticked(m)));
-        Assert.Contains(Texts(card), t => t.Text == "Currently: Right click");
-        Assert.Contains(Texts(card), t => t.Text == BindingSafety.Message(BindingHazard.MouseClickUnderWindowsInk));
+        Assert.Empty(Lit(card));
+        Assert.True(Shown(card, "Currently: Right click"));
+        Assert.True(Shown(card, BindingSafety.Message(BindingHazard.MouseClickUnderWindowsInk)!));
         var fix = ButtonNamed(card, "Switch to Barrel Switch");
         Assert.NotNull(fix);
         Assert.True(fix!.IsEffectivelyVisible);
@@ -160,7 +192,7 @@ public class PenButtonCardTests
     {
         var (window, card, _, _) = Show(AuxKeyBinding.MakeMouseBinding("Middle"));
 
-        Assert.Contains(Texts(card), t => t.Text == BindingSafety.Message(BindingHazard.MouseClickUnderWindowsInk));
+        Assert.True(Shown(card, BindingSafety.Message(BindingHazard.MouseClickUnderWindowsInk)!));
         Assert.True(ButtonNamed(card, "Switch to Barrel Switch") is not { IsEffectivelyVisible: true });
         window.Close();
     }
@@ -174,82 +206,98 @@ public class PenButtonCardTests
 
         Assert.Equal(1, spy.Applied);
         Assert.Equal(PenButtonAction.Default, PenButtonBinding.Classify(spy.Last, 1, outputIsWindowsInk: true));
-        Assert.Contains(Texts(card), t => t.Text == "Barrel Switch");
+        Assert.True(Shown(card, "Barrel Switch"));
+        Assert.Equal(new[] { "Default action" }, Lit(card));
         Assert.False(row.HasWarning);
         window.Close();
     }
 
-    // ── Choosing from the menu ─────────────────────────────────────
+    // ── Choosing ───────────────────────────────────────────────────
 
     [AvaloniaFact]
-    public void ChoosingDisabled_WritesNothingBound_AndMovesTheTick()
+    public void ClickingDisabled_WritesNothingBound_AndLightsIt()
     {
         var (window, card, _, spy) = Show(PenButtonBinding.MakeDefault(1));
-        var menu = OpenMenu(window, card);
 
-        menu["Disabled"].Command!.Execute(null);
-        Dispatcher.UIThread.RunJobs();
+        Click(window, Segments(card)["Disabled"]);
 
         Assert.Equal(1, spy.Applied);
         Assert.Null(spy.Last);
-        Assert.Contains(Texts(card), t => t.Text == "Disabled");
-        Assert.True(Ticked(menu["Disabled"]));
-        Assert.False(Ticked(menu["Default action"]));
+        Assert.True(Shown(card, "Does nothing"));
+        Assert.Equal(new[] { "Disabled" }, Lit(card));
         window.Close();
     }
 
     [AvaloniaFact]
-    public void BackingOutOfTheShortcutEditor_ChangesNothing()
+    public void ClickingDefaultAction_WritesTheAdaptiveBinding_AndLightsIt()
+    {
+        var (window, card, _, spy) = Show(null);
+
+        Click(window, Segments(card)["Default action"]);
+
+        Assert.Equal(1, spy.Applied);
+        Assert.Equal(PenButtonAction.Default, PenButtonBinding.Classify(spy.Last, 1, outputIsWindowsInk: true));
+        Assert.Equal(new[] { "Default action" }, Lit(card));
+        window.Close();
+    }
+
+    [AvaloniaFact]
+    public void BackingOutOfTheShortcutEditor_PutsTheBarBack_AndChangesNothing()
     {
         var (window, card, _, spy) = Show(PenButtonBinding.MakeDefault(1));
         spy.EditorResult = null;                // the user cancels the editor
-        var menu = OpenMenu(window, card);
 
-        menu["Keyboard shortcut…"].Command!.Execute(null);
-        Dispatcher.UIThread.RunJobs();
+        Click(window, Segments(card)["Keyboard shortcut"]);
 
         Assert.Equal(1, spy.EditorOpened);
         Assert.Equal(0, spy.Applied);
-        Assert.Contains(Texts(card), t => t.Text == "Barrel Switch");
-        Assert.True(Ticked(menu["Default action"]));
-        Assert.False(Ticked(menu["Keyboard shortcut…"]));
+        Assert.True(Shown(card, "Barrel Switch"));
+        // The segment drew itself lit when clicked; backing out must not leave it that way.
+        Assert.Equal(new[] { "Default action" }, Lit(card));
         window.Close();
     }
 
     [AvaloniaFact]
-    public void ChoosingAShortcut_ShowsItAndTicksIt()
+    public void ChoosingAShortcut_ShowsItsKeys_AndLightsTheSegment()
     {
         var (window, card, _, spy) = Show(null);
         spy.EditorResult = new AuxBinding(AuxKind.Keyboard, new AuxCombo(true, false, false, "Z"),
             AuxKeyBinding.None, AuxKeyBinding.None);
-        var menu = OpenMenu(window, card);
 
-        menu["Keyboard shortcut…"].Command!.Execute(null);
-        Dispatcher.UIThread.RunJobs();
+        Click(window, Segments(card)["Keyboard shortcut"]);
 
         Assert.Equal(1, spy.Applied);
-        Assert.Contains(Texts(card), t => t.Text == "Ctrl + Z");
-        Assert.True(Ticked(menu["Keyboard shortcut…"]));
+        Assert.True(Shown(card, "Z"));
+        Assert.Equal(new[] { "Keyboard shortcut" }, Lit(card));
         window.Close();
     }
 
     [AvaloniaFact]
-    public void WhenTheHostCannotEdit_TheMenuEntriesAreDisabled()
+    public void Change_ReopensTheEditor_AndReplacesTheShortcut()
     {
-        var row = new PenButtonRowViewModel(1, PenButtonBinding.MakeDefault(1), true, canEdit: false,
-            (_, _) => Task.CompletedTask, (_, _, _) => Task.FromResult<AuxBinding?>(null));
-        var card = new PenButtonCard { DataContext = row };
-        var window = new Window { Content = card, Width = 400, Height = 500 };
-        window.Show();
-        Dispatcher.UIThread.RunJobs();
+        var (window, card, _, spy) = Show(AuxKeyBinding.MakeBinding(new AuxCombo(true, false, false, "Z")));
+        spy.EditorResult = new AuxBinding(AuxKind.Keyboard, new AuxCombo(false, true, false, "X"),
+            AuxKeyBinding.None, AuxKeyBinding.None);
 
-        var menu = OpenMenu(window, card);
+        Click(window, ButtonNamed(card, "Change…")!);
 
-        Assert.All(menu.Values, m => Assert.False(m.Command!.CanExecute(null)));
+        Assert.Equal(1, spy.EditorOpened);
+        Assert.Equal(1, spy.Applied);
+        Assert.True(Shown(card, "X"));
+        Assert.False(Shown(card, "Z"));
         window.Close();
     }
 
-    // ── Hint and size ──────────────────────────────────────────────
+    [AvaloniaFact]
+    public void WhenTheHostCannotEdit_TheChoicesAreGreyedOut()
+    {
+        var (window, card, _, _) = Show(PenButtonBinding.MakeDefault(1), canEdit: false);
+
+        Assert.All(Segments(card).Values, s => Assert.False(s.IsEffectivelyEnabled));
+        window.Close();
+    }
+
+    // ── Hint ───────────────────────────────────────────────────────
 
     [AvaloniaFact]
     public void TheSharedBarrelHint_ShowsWhenSet()
@@ -262,75 +310,5 @@ public class PenButtonCardTests
 
         Assert.Contains(Texts(card), t => t.Text?.Contains("same thing") == true && t.IsEffectivelyVisible);
         window.Close();
-    }
-
-    private static double HeightOf(Control card)
-    {
-        var host = new StackPanel { VerticalAlignment = Avalonia.Layout.VerticalAlignment.Top };
-        host.Children.Add(card);
-        var window = new Window { Content = host, Width = 600, Height = 1200 };
-        window.Show();
-        window.Measure(new Size(600, 1200));
-        window.Arrange(new Rect(0, 0, 600, 1200));
-        Dispatcher.UIThread.RunJobs();
-        var h = card.Bounds.Height;
-        window.Close();
-        return h;
-    }
-
-    private static PenButtonCard CardFor(PluginSettingStore? store, int index = 1) =>
-        new()
-        {
-            DataContext = new PenButtonRowViewModel(index, store, true, true, (_, _) => Task.CompletedTask,
-            (_, _, _) => Task.FromResult<AuxBinding?>(null))
-        };
-
-    [AvaloniaFact]
-    public void AButtonCard_IsAboutAsTallAsTheTipCard_InItsOrdinaryStates()
-    {
-        // The reason the card is a menu and not radios (#1015 review): three Default action cards used to
-        // make the switches column about 850 px, taller than the window. In its ordinary states a button card
-        // must stay close to the 55 px a tip or eraser card takes.
-        var tip = HeightOf(new PenSwitchCard
-        {
-            DataContext = new PenSwitchRowViewModel(
-            PenSwitchKind.Tip, 1, PenSwitchBinding.MakeAdaptiveBinding(PenSwitchKind.Tip), true, (_, _, _) => Task.CompletedTask)
-        });
-
-        foreach (var (name, store) in new (string, PluginSettingStore?)[]
-                 {
-                     ("default action", PenButtonBinding.MakeDefault(1)),
-                     ("disabled", null),
-                     ("shortcut", AuxKeyBinding.MakeKeyBinding("B")),
-                 })
-        {
-            var h = HeightOf(CardFor(store));
-            Assert.True(h <= tip + 25, $"{name}: {h:0} px against {tip:0} px for a tip card");
-        }
-    }
-
-    [AvaloniaFact]
-    public void TheWholeSwitchesColumn_FitsAComfortableWindow()
-    {
-        // Tip, eraser and three buttons all on the Barrel Switch (the tallest ordinary case, with the hint).
-        var tip = new PenSwitchRowViewModel(PenSwitchKind.Tip, 1, PenSwitchBinding.MakeAdaptiveBinding(PenSwitchKind.Tip), true, (_, _, _) => Task.CompletedTask);
-        var eraser = new PenSwitchRowViewModel(PenSwitchKind.Eraser, 1, PenSwitchBinding.MakeAdaptiveBinding(PenSwitchKind.Eraser), true, (_, _, _) => Task.CompletedTask);
-        var buttons = Enumerable.Range(1, 3).Select(i => new PenButtonRowViewModel(i, PenButtonBinding.MakeDefault(i), true, true,
-            (_, _) => Task.CompletedTask, (_, _, _) => Task.FromResult<AuxBinding?>(null))).ToList();
-        TabletDetailViewModel.NoteSharedBarrel(buttons, true);
-
-        var column = new StackPanel { Spacing = 16, VerticalAlignment = Avalonia.Layout.VerticalAlignment.Top };
-        column.Children.Add(new PenSwitchCard { DataContext = tip });
-        column.Children.Add(new PenSwitchCard { DataContext = eraser });
-        foreach (var b in buttons) column.Children.Add(new PenButtonCard { DataContext = b });
-        var window = new Window { Content = column, Width = 600, Height = 2000 };
-        window.Show();
-        window.Measure(new Size(600, 2000));
-        window.Arrange(new Rect(0, 0, 600, 2000));
-        Dispatcher.UIThread.RunJobs();
-
-        var height = column.Bounds.Height;
-        window.Close();
-        Assert.True(height <= 700, $"the switches column is {height:0} px tall");
     }
 }

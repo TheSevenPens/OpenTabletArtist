@@ -230,15 +230,28 @@ public static class AuxKeyBinding
 
     private static bool IsBoundValue(string v) => !string.IsNullOrEmpty(v) && v != None;
 
-    private static string DescribeCombo(AuxCombo c)
+    private static string DescribeCombo(AuxCombo c) => string.Join(" + ", ComboParts(c));
+
+    private static List<string> ComboParts(AuxCombo c)
     {
         var parts = new List<string>();
         if (c.Ctrl) parts.Add("Ctrl");
         if (c.Shift) parts.Add("Shift");
         if (c.Alt) parts.Add("Alt");
         if (c.HasKey) parts.Add(KeyDisplay(c.Key));
-        return string.Join(" + ", parts);
+        return parts;
     }
+
+    /// <summary>The same description as <see cref="Describe"/>, split into the pieces a card draws as separate
+    /// keycaps: <c>["Ctrl", "Z"]</c> for a keyboard shortcut, one piece for a mouse click or scroll, none when
+    /// nothing is bound.</summary>
+    public static IReadOnlyList<string> DescribeParts(AuxBinding binding) => binding.Kind switch
+    {
+        AuxKind.Keyboard => binding.Combo.IsBound ? ComboParts(binding.Combo) : [],
+        AuxKind.Mouse => IsBoundValue(binding.MouseButton) ? [DescribeMouse(binding.MouseButton)] : [],
+        AuxKind.Scroll => IsBoundValue(binding.Scroll) ? [$"Scroll {binding.Scroll.ToLowerInvariant()}"] : [],
+        _ => [],
+    };
 
     /// <summary>The friendly display name for a stored key value (e.g. "D0" → "0"), from the picker list.</summary>
     private static string KeyDisplay(string value) => Options.FirstOrDefault(o => o.Value == value)?.Display ?? value;

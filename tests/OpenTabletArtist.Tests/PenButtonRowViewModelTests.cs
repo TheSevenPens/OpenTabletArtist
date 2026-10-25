@@ -1,3 +1,4 @@
+using System.Linq;
 using OpenTabletDriver.Desktop.Reflection;
 using OpenTabletArtist.Domain;
 using OpenTabletArtist.ViewModels;
@@ -56,19 +57,19 @@ public class PenButtonRowViewModelTests
 
         Assert.True(row.IsDefaultAction);
         Assert.Equal("Barrel Switch", row.StateText);
-        // Who decides what it does goes on hover, so the card stays one line tall.
-        Assert.Contains("drawing software", row.StateTooltip);
+        // Who decides what it does is written under it, now that the card has the room.
+        Assert.Contains("drawing software", row.DefaultDetail);
     }
 
     [Fact]
-    public void Adaptive_UnderMouseOutput_NamesTheMouseButtonAndHasNoInkTooltip()
+    public void Adaptive_UnderMouseOutput_NamesTheMouseButtonAndHasNoInkDetail()
     {
         var one = Row(new Recorder(), PenButtonBinding.MakeDefault(1), MouseOutput, index: 1);
         var two = Row(new Recorder(), PenButtonBinding.MakeDefault(2), MouseOutput, index: 2);
 
         Assert.Equal("Right click", one.StateText);
         Assert.Equal("Middle click", two.StateText);
-        Assert.Null(one.StateTooltip);
+        Assert.Null(one.DefaultDetail);
     }
 
     [Fact]
@@ -79,7 +80,69 @@ public class PenButtonRowViewModelTests
         Assert.True(row.IsShortcut);
         Assert.Equal("Ctrl + Z", row.StateText);
         Assert.Equal("Keyboard shortcut", row.ShortcutLabel);
-        Assert.Null(row.StateTooltip);
+        Assert.Null(row.DefaultDetail);
+    }
+
+    [Fact]
+    public void KeyboardBinding_IsSplitIntoKeycaps_WithAPlusBetweenThem()
+    {
+        var row = Row(new Recorder(), AuxKeyBinding.MakeBinding(new AuxCombo(true, true, false, "Z")));
+
+        Assert.Equal(new[] { "Ctrl", "Shift", "Z" }, row.ShortcutParts);
+        Assert.Equal(new[] { "Ctrl", "+", "Shift", "+", "Z" }, row.ShortcutKeys.Select(k => k.Text));
+        Assert.Equal(new[] { true, false, true, false, true }, row.ShortcutKeys.Select(k => k.IsKey));
+    }
+
+    [Fact]
+    public void ShortcutKeys_AreEmpty_UnlessTheButtonIsAShortcut()
+    {
+        Assert.Empty(Row(new Recorder(), PenButtonBinding.MakeDefault(1)).ShortcutKeys);
+        Assert.Empty(Row(new Recorder(), null).ShortcutKeys);
+        Assert.Empty(Row(new Recorder(), AuxKeyBinding.MakeMouseBinding("Right")).ShortcutKeys); // set elsewhere
+    }
+
+    [Fact]
+    public async Task ShortcutKeys_FollowTheNewShortcut_AfterTheEditor()
+    {
+        var r = new Recorder { EditorResult = Shortcut(true, false, false, "Z") };
+        var row = Row(r, null);
+        var raised = new List<string?>();
+        row.PropertyChanged += (_, e) => raised.Add(e.PropertyName);
+
+        await row.UseShortcutCommand.ExecuteAsync(null);
+
+        Assert.Equal(new[] { "Ctrl", "+", "Z" }, row.ShortcutKeys.Select(k => k.Text));
+        Assert.Contains(nameof(PenButtonRowViewModel.ShortcutKeys), raised);
+    }
+
+    [Fact]
+    public void TheDefaultActionDetail_IsOnlyForTheDefaultAction_UnderWindowsInk()
+    {
+        Assert.Null(Row(new Recorder(), null).DefaultDetail);
+        Assert.Null(Row(new Recorder(), AuxKeyBinding.MakeKeyBinding("B")).DefaultDetail);
+        Assert.NotNull(Row(new Recorder(), PenButtonBinding.MakeDefault(1)).DefaultDetail);
+    }
+
+    // ── Which button, and where ────────────────────────────────────
+
+    [Theory]
+    [InlineData(3, 1, "closest to the tip")]
+    [InlineData(3, 2, "middle")]
+    [InlineData(3, 3, "farthest from the tip")]
+    [InlineData(2, 1, "closest to the tip")]
+    [InlineData(2, 2, "farthest from the tip")]
+    public void PositionHint_SaysWhereTheButtonSitsOnThePen(int count, int index, string hint)
+    {
+        var row = new PenButtonRowViewModel(index, null, Ink, true, new Recorder().Apply, null, count);
+
+        Assert.Equal(hint, row.PositionHint);
+        Assert.Equal(index, row.Number);
+    }
+
+    [Fact]
+    public void APenWithOneButton_HasNothingToTellApart()
+    {
+        Assert.Null(new PenButtonRowViewModel(1, null, Ink, true, new Recorder().Apply, null, 1).PositionHint);
     }
 
     [Fact]
