@@ -3,19 +3,15 @@ name: build
 on:
   push:
     branches: [ master ]
-    # Documentation is checked and published by docs.yml on its own cadence.
+    # The user docs live on GitBook; docs.yml only publishes the old site's redirects.
     paths-ignore:
       - 'docs/**'
       - 'README.md'
-      - 'mkdocs.yml'
-      - 'scripts/docs/**'
       - '.github/workflows/docs.yml'
   pull_request:
     paths-ignore:
       - 'docs/**'
       - 'README.md'
-      - 'mkdocs.yml'
-      - 'scripts/docs/**'
       - '.github/workflows/docs.yml'
 
 jobs:

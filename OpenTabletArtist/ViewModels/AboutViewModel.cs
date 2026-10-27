@@ -34,15 +34,16 @@ public partial class AboutViewModel : ObservableObject
     /// <summary>GitHub releases page (downloads + release notes).</summary>
     public string ReleasesUrl => $"{RepoUrl}/releases";
 
-    /// <summary>The user documentation: the site published from <c>docs/user/</c>. Builds before this pointed at
+    /// <summary>The user documentation: the GitBook site synced from TheSevenPens/OpenTabletArtistDocs. Earlier
+    /// builds pointed at the GitHub Pages site (which now redirects here) and, before that, at
     /// <c>docs/user/USERMANUAL.md</c> on GitHub, which is kept as a compatibility stub that leads here.</summary>
-    public string UserManualUrl => "https://thesevenpens.github.io/OpenTabletArtist/";
+    public string UserManualUrl => "https://docs.sevenpens.com/opentabletartist";
 
     /// <summary>The manual's "Getting help" page — where to ask, and what to include when you do. Replaces
     /// the Help card that used to sit on Home (#568): the guidance outgrew a paragraph, and a page can say
     /// what to include in a post without turning the column into an essay. The Discord link lives there
     /// now, along with the reason it is the first stop rather than the OpenTabletDriver forums.</summary>
-    public string HelpUrl => "https://thesevenpens.github.io/OpenTabletArtist/HELP/";
+    public string HelpUrl => "https://docs.sevenpens.com/opentabletartist/get-help/help";
 
     /// <summary>App version, read from the assembly so it never drifts (the release workflow stamps
     /// the tag version at build). Moved here from the sidebar footer so version info lives on About.</summary>

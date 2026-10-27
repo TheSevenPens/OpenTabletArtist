@@ -4,6 +4,6 @@ An alternative experience for  for [OpenTabletDriver](https://opentabletdriver.n
 
 ## Try it now
 
-**[Read the documentation](https://thesevenpens.github.io/OpenTabletArtist/)**
+**[Read the documentation](https://docs.sevenpens.com/opentabletartist)**
 for setup, user guides, and troubleshooting.
 
