@@ -17,7 +17,7 @@ public class AboutViewModelTests
     public void UserManualUrl_IsTheDocumentationSite()
     {
         var vm = new AboutViewModel();
-        Assert.Equal("https://thesevenpens.github.io/OpenTabletArtist/", vm.UserManualUrl);
+        Assert.Equal("https://docs.sevenpens.com/opentabletartist", vm.UserManualUrl);
         Assert.True(vm.OpenUrlCommand.CanExecute(vm.UserManualUrl));
     }
 

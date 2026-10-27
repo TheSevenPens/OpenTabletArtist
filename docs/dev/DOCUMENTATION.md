@@ -1,106 +1,43 @@
 # Maintaining the documentation site
 
-The [published documentation](https://thesevenpens.github.io/OpenTabletArtist/)
-is built only from the Markdown files in `docs/user/`. Edit those files directly;
-there is no second copy of the user guide to maintain. Documentation can be revised
-and published independently of an application release.
+The [user documentation](https://docs.sevenpens.com/opentabletartist) is a GitBook
+site, like the [OpenTabletDriver docs](https://docs.sevenpens.com/opentabletdriver).
+Its pages live in the [OpenTabletArtistDocs](https://github.com/TheSevenPens/OpenTabletArtistDocs)
+repository, which GitBook Git Sync keeps in step with the GitBook space in both
+directions. Edit pages in the GitBook editor, or edit the Markdown in that repository;
+either way the other side follows. Documentation is revised and published
+independently of an application release.
 
 ## Audience and location
 
-| Location | Audience | Published to GitHub Pages? |
+| Location | Audience | Published? |
 | --- | --- | --- |
-| `docs/user/` | People installing, using, or troubleshooting OTA | Yes |
+| OpenTabletArtistDocs repo / GitBook | People installing, using, or troubleshooting OTA | Yes, on GitBook |
 | `docs/dev/` | Contributors building, testing, or maintaining OTA | No |
 | `docs/design/` | Contributors investigating and designing changes | No |
 | `docs/release-notes/` | Release-note sources and release preparation | No |
 | `docs/README.md` | Repository index for both audiences | No |
 | `docs/THIRD_PARTY_NOTICES.md` | Third-party attribution and licenses | No |
 
-The site's home page is About OTA, in `docs/user/index.md`. The `docs_dir` setting in
-`mkdocs.yml` defines the publication boundary: files outside `docs/user/` are
-absent from the generated site and its search index. Keep contributor material
-outside that folder. Advanced features that help people use OTA still belong in
-the user documentation.
+Keep contributor material in this repository. Advanced features that help people
+use OTA still belong in the user documentation.
 
-`docs/user/USERMANUAL.md` is a compatibility link for existing app releases. Its former
-quick start and manual content has been removed. It points to the documentation home
-and is excluded from the published site and search index through `exclude_docs`.
+## Links the app depends on
 
-## Publishing
+`AboutViewModel` links to the documentation home (`UserManualUrl`) and the
+Getting help page (`HelpUrl`, the `help.md` page). Renaming or moving either page in
+GitBook breaks those links in every released build, so add a GitBook redirect
+if you do.
 
-The `documentation` GitHub Actions workflow builds the site when `docs/user/`,
-`mkdocs.yml`, `scripts/docs/`, or the documentation workflow itself changes.
-Pull requests build and
-check links without publishing. Changes on `master` publish to GitHub Pages after
-the documentation build succeeds. The workflow can also be run manually from
-the repository's Actions tab.
+## Old URLs
 
-The application's `build` workflow skips changes confined to `docs/`, the root
-`README.md`, and those documentation configuration and dependency files. Editing
-developer or design notes alone triggers neither workflow. A change that also
-touches application code or its build workflow still runs the Windows, Linux,
-and macOS checks. Documentation deployment does not wait for those checks.
-These are GitHub Actions [path filters](https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax#onpushpull_requestpull_request_targetpathspaths-ignore)
-on both push and pull-request events.
+The user guide used to be an MkDocs site at
+`https://thesevenpens.github.io/OpenTabletArtist/`, and older app builds and
+release notes still link there. `docs/site-redirects/` holds one small HTML page
+per former URL that sends the reader to the matching GitBook page (and a
+`404.html` that sends anything else to the home page). The `documentation`
+workflow publishes that folder to GitHub Pages when it changes on `master`.
+Keep it published; it is not built from anything.
 
-GitHub Pages uses **GitHub Actions** as its publishing source, with the
-`github-pages` deployment environment. There is no generated-site branch and no
-personal access token in the workflow. The build has read-only repository access;
-only the deployment job can publish Pages.
-
-## Preview locally
-
-Use Python 3.12 and an isolated environment. On Windows:
-
-```powershell
-python -m venv .venv-docs
-.venv-docs\Scripts\python -m pip install -r scripts/docs/requirements.txt
-.venv-docs\Scripts\python -m mkdocs serve
-```
-
-On macOS or Linux:
-
-```bash
-python3 -m venv .venv-docs
-.venv-docs/bin/python -m pip install -r scripts/docs/requirements.txt
-.venv-docs/bin/python -m mkdocs serve
-```
-
-Open the local URL printed by MkDocs. To run the same check as CI, replace
-`serve` with `build --strict`. Generated files in `site/` and the local Python
-environment are ignored by Git.
-
-## Pages and links
-
-The left navigation stays visible with its sections expanded at every screen
-width. `docs/user/stylesheets/navigation.css` adapts Material's smaller-screen
-drawer into a sidebar; check desktop, narrow-window, and phone layouts when
-updating the theme. Navigation links still come from `mkdocs.yml`.
-
-- `docs/user/index.md` is the site's About OTA landing page; `docs/README.md` stays in the repo.
-- `docs/user/OVERVIEW/index.html` redirects the former About OTA URL to the landing page.
-- `mkdocs.yml` defines the sidebar. Add new user guides there so readers can find them.
-- Link to other documentation using relative Markdown paths, such as
-  `[Pen](PEN.md)`. MkDocs converts these to site URLs, while GitHub keeps
-  them readable in the repository.
-- Keep links to building, contributing, design notes, and site maintenance in
-  the repository documentation. User guides should link to user-facing help.
-- The install guide links to GitHub Releases for downloads. Release-note preparation
-  instructions and third-party notices stay in the repo.
-- A strict build checks that user guides appear in the sidebar, plus document
-  links and heading anchors. It does not verify
-  the availability of external websites.
-
-## Dependencies
-
-The site uses MkDocs and Material for MkDocs. `scripts/docs/requirements.in`
-contains the direct requirements; `scripts/docs/requirements.txt` pins the full
-resolved dependency set for local builds and CI.
-
-To update the lock file with [uv](https://docs.astral.sh/uv/):
-
-```bash
-uv pip compile --universal --python-version 3.12 scripts/docs/requirements.in --output-file scripts/docs/requirements.txt
-```
-
-Preview and run a strict build before committing an updated lock file.
+`docs/user/USERMANUAL.md` is an even older compatibility link: the first app
+releases opened that file on GitHub. It points to the documentation home.

@@ -1,19 +1,12 @@
 # OpenTabletArtist documentation
 
-The documentation has two audiences. **[User documentation](user/index.md)** is
-published to [GitHub Pages](https://thesevenpens.github.io/OpenTabletArtist/).
+The documentation has two audiences. **User documentation** — what OTA is, how to install
+and use it, and troubleshooting — is at **[docs.sevenpens.com/opentabletartist](https://docs.sevenpens.com/opentabletartist)**,
+edited in GitBook and synced with [OpenTabletArtistDocs](https://github.com/TheSevenPens/OpenTabletArtistDocs).
 Developer guides, design notes, and release-note source files stay in this repository.
 
-Start with the **[Overview](user/index.md)** for what OpenTabletArtist is and who it's for.
-
-New to OTA? Follow the **[install guide](user/INSTALL.md)**. For a problem with your setup,
-start with **[Troubleshooting](user/TROUBLESHOOTING.md)**.
-
-## Using the app
-
-- **[Install guide](user/INSTALL.md)** — download, run, and set up on Windows.
-- Per-page guides: [Home](user/HOME.md) · [Tablet](user/TABLET.md) · [Pen](user/PEN.md) · [Scribble](user/SCRIBBLE.md) · [Settings](user/SETTINGS.md) · [Advanced](user/ADVANCED.md)
-- [Troubleshooting](user/TROUBLESHOOTING.md)
+New to OTA? Follow the **[install guide](https://docs.sevenpens.com/opentabletartist/install)**. For a problem
+with your setup, start with **[Troubleshooting](https://docs.sevenpens.com/opentabletartist/troubleshooting)**.
 
 ## Building and contributing
 
