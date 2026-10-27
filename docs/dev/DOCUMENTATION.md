@@ -25,9 +25,10 @@ use OTA still belong in the user documentation.
 ## Links the app depends on
 
 `AboutViewModel` links to the documentation home (`UserManualUrl`) and the
-Getting help page (`HelpUrl`, the `help.md` page). Renaming or moving either page in
+Getting help page (`HelpUrl`, `get-help/help`). Renaming or moving either page in
 GitBook breaks those links in every released build, so add a GitBook redirect
-if you do.
+if you do. Page URLs include the `SUMMARY.md` group heading (`get-started/`,
+`use-ota/`, `get-help/`), so renaming a group moves every page under it.
 
 ## Old URLs
 

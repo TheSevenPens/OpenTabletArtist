@@ -5,8 +5,8 @@ and use it, and troubleshooting — is at **[docs.sevenpens.com/opentabletartist
 edited in GitBook and synced with [OpenTabletArtistDocs](https://github.com/TheSevenPens/OpenTabletArtistDocs).
 Developer guides, design notes, and release-note source files stay in this repository.
 
-New to OTA? Follow the **[install guide](https://docs.sevenpens.com/opentabletartist/install)**. For a problem
-with your setup, start with **[Troubleshooting](https://docs.sevenpens.com/opentabletartist/troubleshooting)**.
+New to OTA? Follow the **[install guide](https://docs.sevenpens.com/opentabletartist/get-started/install)**. For a problem
+with your setup, start with **[Troubleshooting](https://docs.sevenpens.com/opentabletartist/get-help/troubleshooting)**.
 
 ## Building and contributing
 

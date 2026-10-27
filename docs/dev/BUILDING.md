@@ -1,6 +1,6 @@
 # Building OpenTabletArtist from source
 
-For end users, download a prebuilt release instead — see the [install guide](https://docs.sevenpens.com/opentabletartist/install). This doc is
+For end users, download a prebuilt release instead — see the [install guide](https://docs.sevenpens.com/opentabletartist/get-started/install). This doc is
 for building and running from source.
 
 ## Prerequisites
