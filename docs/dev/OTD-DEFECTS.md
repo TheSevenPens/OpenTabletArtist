@@ -198,6 +198,25 @@ swallowing it, and falls back to the `.bak` when the main file is unreadable.
 
 ---
 
+## Re-checked against v0.6.8 (2026-10-28)
+
+The pin moved to `v0.6.8` (commit `f22e74e`). Re-reading both items against it:
+
+- **Item 1 is mostly fixed upstream.** `AbsoluteModeSettings.Tablet` and `.Display` are now `required`
+  members, so a default-constructed profile can no longer leave them null, and the check in
+  `OpenTabletDriver.UX/MainForm.cs` (now line 578) became
+  `p.AbsoluteModeSettings?.Tablet.Width + p.AbsoluteModeSettings?.Tablet.Height == 0`. A null
+  `AbsoluteModeSettings` no longer throws there. What is left is a `Tablet` that is null on a non-null
+  `AbsoluteModeSettings`, which the required member now rules out for anything built in code, though not for a
+  settings file that omits it. OTA's own sanitizer is still worth keeping for that file case.
+- **Item 2 is unchanged.** `Settings.Serialize` (now `Settings.cs:106`) still deletes the file before writing
+  and still reports success when the write fails. The `Recover` helper next to it was removed, which does not
+  affect this.
+
+Line references above are against `v0.6.8`; the rest of this file still cites `736003e`.
+
+---
+
 ## Before this goes anywhere
 
 1. Re-check every line reference against whatever OTD commit is current at the time, not `736003e`.

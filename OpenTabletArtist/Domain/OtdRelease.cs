@@ -37,9 +37,10 @@ public static class OtdRelease
     /// </summary>
     public static readonly System.Version Version = System.Version.Parse(AssetVersion.Split('-')[0] + ".0");
 
-    /// <summary>OTD publishes one macOS artifact, and it is x64 only — on Apple Silicon the daemon runs
-    /// under Rosetta 2. OTA itself stays native arm64; they are separate processes over RPC, so the
-    /// mixed architecture is fine.</summary>
+    /// <summary>The macOS artifact OTA installs, which is the x64 one: on Apple Silicon the daemon runs under
+    /// Rosetta 2. OTA itself stays native arm64; they are separate processes over RPC, so the mixed
+    /// architecture is fine. OpenTabletDriver has published a native <c>osx-arm64</c> artifact since 0.6.8
+    /// (before that, x64 only); moving to it is open until it has been tried on a real Apple Silicon Mac.</summary>
     public const string MacAssetName = $"OpenTabletDriver-{AssetVersion}_osx-x64.tar.gz";
 
     /// <summary>The app bundle the tarball unpacks to, and the name it is installed under.</summary>
