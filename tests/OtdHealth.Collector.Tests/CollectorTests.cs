@@ -284,7 +284,7 @@ public class CollectorTests
         var file = System.IO.Path.Combine(directory, "metadata.json");
         File.WriteAllText(file, "broken");
         Assert.ThrowsAny<Newtonsoft.Json.JsonException>(() => FileProbes.WindowsInk(files.Path, "0.6.7.0"));
-        File.WriteAllText(file, """{"Name":"Windows Ink","SupportedDriverVersion":"0.6.7.0"}""");
+        File.WriteAllText(file, """{"Name":"Windows Ink","Owner":"o","Description":"d","PluginVersion":"1.0.0","SupportedDriverVersion":"0.6.7.0"}""");
         Assert.Equal(new InkObservation(true, false), FileProbes.WindowsInk(files.Path, "0.6.7.0"));
         Assert.Throws<ProbeUnavailableException>(() => FileProbes.WindowsInk("", "0.6.7.0"));
     }

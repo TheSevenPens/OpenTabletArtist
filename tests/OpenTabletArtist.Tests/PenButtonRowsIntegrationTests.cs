@@ -19,8 +19,7 @@ public class PenButtonRowsIntegrationTests
 
     private static Settings SettingsFor(string outputMode, params PluginSettingStore?[] penButtons)
     {
-        var profile = new Profile { Tablet = "T" };
-        profile.OutputMode = new PluginSettingStore(outputMode) { Path = outputMode };
+        var profile = new Profile { Tablet = "T", OutputMode = new PluginSettingStore(outputMode) { Path = outputMode } };
         profile.BindingSettings.PenButtons = new PluginSettingStoreCollection();
         foreach (var b in penButtons) profile.BindingSettings.PenButtons.Add(b!);
         return new Settings { Profiles = new ProfileCollection { profile } };

@@ -74,12 +74,10 @@ jobs:
               sys.exit(1)
           PYEOF
 
-      - name: Set up .NET (daemon targets net8.0, app targets net10.0)
+      - name: Set up .NET (daemon and app both target net10.0)
         uses: actions/setup-dotnet@v6
         with:
-          dotnet-version: |
-            8.0.x
-            10.0.x
+          dotnet-version: 10.0.x
 
       # Builds the whole solution: the OTD daemon (from the submodule) + the app + tests.
       - name: Build

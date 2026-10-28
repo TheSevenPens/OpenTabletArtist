@@ -53,13 +53,13 @@ public class DotnetRuntimeTests
 
     /// <summary>
     /// The correction that matters, and the one most likely to be got wrong: .NET's default roll-forward
-    /// moves forward <em>within</em> a major version. A net8.0 app is not satisfied by .NET 9 or 10, so a
+    /// moves forward <em>within</em> a major version. A net10.0 app is not satisfied by .NET 9 or 11, so a
     /// machine kept scrupulously up to date can fail this while looking perfectly healthy.
     /// </summary>
     [Fact]
     public void ANewerMajorDoesNotSatisfyTheDaemon()
     {
-        var installed = new[] { new Version(9, 0, 0), new Version(10, 0, 1) };
+        var installed = new[] { new Version(DotnetRuntime.DaemonMajor + 1, 0, 0), new Version(DotnetRuntime.DaemonMajor + 2, 0, 1) };
 
         Assert.False(DotnetRuntime.Satisfies(installed, DotnetRuntime.DaemonMajor));
     }
@@ -67,21 +67,23 @@ public class DotnetRuntimeTests
     [Fact]
     public void AnOlderMajorDoesNotSatisfyItEither()
     {
-        Assert.False(DotnetRuntime.Satisfies([new Version(6, 0, 36)], DotnetRuntime.DaemonMajor));
+        // 8.x is the case that matters: it is what the previous OpenTabletDriver release needed.
+        Assert.False(DotnetRuntime.Satisfies(
+            [new Version(6, 0, 36), new Version(8, 0, 14), new Version(9, 0, 0)], DotnetRuntime.DaemonMajor));
     }
 
     [Fact]
     public void AnyPatchOfTheRightMajorSatisfiesIt()
     {
-        // Roll-forward does cover patch and minor within the major, so 8.0.0 is as good as 8.0.29.
-        Assert.True(DotnetRuntime.Satisfies([new Version(8, 0, 0)], DotnetRuntime.DaemonMajor));
-        Assert.True(DotnetRuntime.Satisfies([new Version(8, 0, 29)], DotnetRuntime.DaemonMajor));
+        // Roll-forward does cover patch and minor within the major, so 10.0.0 is as good as 10.0.29.
+        Assert.True(DotnetRuntime.Satisfies([new Version(DotnetRuntime.DaemonMajor, 0, 0)], DotnetRuntime.DaemonMajor));
+        Assert.True(DotnetRuntime.Satisfies([new Version(DotnetRuntime.DaemonMajor, 0, 29)], DotnetRuntime.DaemonMajor));
     }
 
     [Fact]
     public void TheRightMajorAlongsideOthersIsEnough()
     {
-        var installed = new[] { new Version(6, 0, 36), new Version(8, 0, 14), new Version(10, 0, 0) };
+        var installed = new[] { new Version(6, 0, 36), new Version(8, 0, 14), new Version(DotnetRuntime.DaemonMajor, 0, 0) };
 
         Assert.True(DotnetRuntime.Satisfies(installed, DotnetRuntime.DaemonMajor));
     }
@@ -144,6 +146,7 @@ public class DotnetRuntimeTests
             var installed = DotnetRuntime.Installed([root]);
 
             Assert.Contains(new Version(8, 0, 14), installed);
+            Assert.Contains(new Version(10, 0, 0), installed);
             Assert.True(DotnetRuntime.Satisfies(installed, DotnetRuntime.DaemonMajor));
         }
         finally
@@ -159,7 +162,7 @@ public class DotnetRuntimeTests
         var shared = Path.Combine(root, "shared", DotnetRuntime.SharedFramework);
         try
         {
-            Directory.CreateDirectory(Path.Combine(shared, "10.0.0"));
+            Directory.CreateDirectory(Path.Combine(shared, "8.0.14"));
 
             Assert.False(DotnetRuntime.Satisfies(DotnetRuntime.Installed([root]), DotnetRuntime.DaemonMajor));
         }

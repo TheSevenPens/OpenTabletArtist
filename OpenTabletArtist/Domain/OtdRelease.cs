@@ -15,29 +15,32 @@ namespace OpenTabletArtist.Domain;
 /// </summary>
 public static class OtdRelease
 {
-    /// <summary>The git tag of the pinned release. Note the tag is <c>v0.6.7</c> while the assemblies
-    /// inside report <c>0.6.7.0</c> (a .NET four-part version); both name the same release.</summary>
-    public const string Tag = "v0.6.7";
+    /// <summary>The git tag of the pinned release. Note the tag is <c>v0.6.8</c> while the assemblies
+    /// inside report <c>0.6.8.0</c> (a .NET four-part version); both name the same release.</summary>
+    public const string Tag = "v0.6.8";
 
-    /// <summary>The version as it appears in the release asset's file name.</summary>
-    public const string AssetVersion = "0.6.7";
+    /// <summary>The version as it appears in the release asset's file name — including any prerelease
+    /// suffix, which <see cref="System.Version"/> cannot carry.</summary>
+    public const string AssetVersion = "0.6.8";
 
     /// <summary>
     /// The pinned release as a four-part <see cref="System.Version"/> — the shape the OTD assemblies
-    /// report (<c>0.6.7.0</c>), so comparisons against plugin manifests and daemon versions are unchanged.
+    /// report (<c>0.6.8.0</c>), so comparisons against plugin manifests and daemon versions are unchanged.
+    /// The prerelease suffix is dropped: the assemblies do not carry it, and <c>Version.Parse</c> rejects it.
     ///
     /// <b>Read this, never a linked OTD assembly's version.</b> Publishing the app passes
     /// <c>-p:Version=&lt;OTA version&gt;</c>, and MSBuild applies that to every project in the graph —
     /// including the OTD submodule projects OTA references. So in a release build
     /// <c>typeof(AppInfo).Assembly.GetName().Version</c> reports <em>OTA's</em> version, not OTD's, and
-    /// every comparison built on it is wrong. Dev builds pass no version and keep 0.6.7.0, which is why
+    /// every comparison built on it is wrong. Dev builds pass no version and keep 0.6.8.0, which is why
     /// this never showed up locally.
     /// </summary>
-    public static readonly System.Version Version = System.Version.Parse(AssetVersion + ".0");
+    public static readonly System.Version Version = System.Version.Parse(AssetVersion.Split('-')[0] + ".0");
 
-    /// <summary>OTD publishes one macOS artifact, and it is x64 only — on Apple Silicon the daemon runs
-    /// under Rosetta 2. OTA itself stays native arm64; they are separate processes over RPC, so the
-    /// mixed architecture is fine.</summary>
+    /// <summary>The macOS artifact OTA installs, which is the x64 one: on Apple Silicon the daemon runs under
+    /// Rosetta 2. OTA itself stays native arm64; they are separate processes over RPC, so the mixed
+    /// architecture is fine. OpenTabletDriver has published a native <c>osx-arm64</c> artifact since 0.6.8
+    /// (before that, x64 only); moving to it is open until it has been tried on a real Apple Silicon Mac.</summary>
     public const string MacAssetName = $"OpenTabletDriver-{AssetVersion}_osx-x64.tar.gz";
 
     /// <summary>The app bundle the tarball unpacks to, and the name it is installed under.</summary>

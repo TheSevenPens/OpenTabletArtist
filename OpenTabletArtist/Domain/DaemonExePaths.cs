@@ -90,7 +90,7 @@ public static class DaemonExePaths
             yield return Path.GetFullPath(Path.Combine(
                 baseDir, "..", "..", "..", "..",
                 "external", "OpenTabletDriver", "OpenTabletDriver.Daemon",
-                "bin", config, "net8.0", DaemonExeName));
+                "bin", config, "net10.0", DaemonExeName));
     }
 
     /// <summary>

@@ -3,13 +3,13 @@
   Verifies the missing-.NET-runtime recovery on a clean Windows machine (#786, D2).
 
 .DESCRIPTION
-  OpenTabletDriver's official Windows release is framework-dependent, so a machine without the .NET 8
+  OpenTabletDriver's official Windows release is framework-dependent, so a machine without the .NET 10
   runtime gets a daemon that exits before printing anything. OTA is supposed to notice, explain, and
   offer to install the runtime.
 
   None of that can be tested in CI: a GitHub runner has the .NET SDK, so it always has the runtime.
   Every defect found on this path so far was found by reading the code, not by running it -- #796 alone
-  fixed three faults that are invisible until someone without .NET 8 presses the button. This script is
+  fixed three faults that are invisible until someone without .NET 10 presses the button. This script is
   what closes that gap.
 
   It does the parts a machine can do (preconditions, daemon exit code, evidence capture) and walks you
@@ -51,7 +51,7 @@ function Record($name, $verdict, $detail) {
 New-Item -ItemType Directory -Force $OutputPath | Out-Null
 
 # --- 1. Preconditions ---------------------------------------------------------------------
-# A machine that already has .NET 8 cannot test any of this, and would report a cheerful pass for the
+# A machine that already has .NET 10 cannot test any of this, and would report a cheerful pass for the
 # wrong reason. Refuse rather than produce a meaningless report.
 
 Write-Step 'Checking this really is a clean machine'
@@ -90,14 +90,14 @@ $sharedRoots = @(
 
 $installed = @()
 foreach ($r in $sharedRoots) { $installed += (Get-ChildItem $r -Directory | Select-Object -Expand Name) }
-$net8 = $installed | Where-Object { $_ -match '^8\.' }
+$net10 = $installed | Where-Object { $_ -match '^10\.' }
 
-if ($net8) {
-    Write-Bad "This machine already has .NET 8 ($($net8 -join ', '))."
-    Write-Bad 'The recovery path cannot be exercised here. Use a VM with no .NET 8 runtime.'
-    throw 'Preconditions not met: .NET 8 is present.'
+if ($net10) {
+    Write-Bad "This machine already has .NET 10 ($($net10 -join ', '))."
+    Write-Bad 'The recovery path cannot be exercised here. Use a VM with no .NET 10 runtime.'
+    throw 'Preconditions not met: .NET 10 is present.'
 }
-Record 'No .NET 8 runtime present' 'PASS' "installed runtimes: $(if ($installed) { $installed -join ', ' } else { 'none' })"
+Record 'No .NET 10 runtime present' 'PASS' "installed runtimes: $(if ($installed) { $installed -join ', ' } else { 'none' })"
 
 # --- 2. The daemon fails the way OTA expects ----------------------------------------------
 # OTA's detection keys off the host's exit code. If this machine produces a different one, the offer
@@ -142,14 +142,14 @@ function Ask($name, $question, $why) {
 }
 
 Ask 'Offer appears' `
-    'Does the Daemon page offer to install the .NET 8 runtime?' `
+    'Does the Daemon page offer to install the .NET 10 runtime?' `
     'the offer is derived from the disk; if it is missing, detection is wrong on this machine'
 
 Ask 'Failure is explained' `
-    'Does the error text name the .NET 8 runtime as the cause (not just "exited immediately")?' `
+    'Does the error text name the .NET 10 runtime as the cause (not just "exited immediately")?' `
     'the launch-failure path should recognise the host exit code, not guess'
 
-Write-Host "`n    Press Install .NET 8, and CANCEL the UAC prompt when it appears." -ForegroundColor Yellow
+Write-Host "`n    Press Install .NET 10, and CANCEL the UAC prompt when it appears." -ForegroundColor Yellow
 
 Ask 'UAC names Microsoft' `
     'Did the elevation prompt show Microsoft as a verified publisher?' `
@@ -159,7 +159,7 @@ Ask 'Cancelling is silent' `
     'After cancelling: no error message, and the offer still there?' `
     '#796 -- every launch failure used to be read as consent; cancelling must not look like a fault'
 
-Write-Host "`n    Press Install .NET 8 again, and ACCEPT the prompt. While it installs:" -ForegroundColor Yellow
+Write-Host "`n    Press Install .NET 10 again, and ACCEPT the prompt. While it installs:" -ForegroundColor Yellow
 Write-Host '    drag the window, switch tabs, resize it.' -ForegroundColor Yellow
 
 Ask 'App stays responsive' `

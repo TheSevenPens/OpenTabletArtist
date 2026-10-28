@@ -189,7 +189,7 @@ public class DaemonRefreshTests
         // Real settings, so a reload has something to read and can be seen to have read it.
         var daemon = new FakeDaemonTransport
         {
-            Settings = new Settings { Profiles = new ProfileCollection { new Profile { Tablet = "T" } } },
+            Settings = new Settings { Profiles = new ProfileCollection { new Profile { OutputMode = Tests.TestOtd.Output(), Tablet = "T" } } },
         };
         var store = new MemorySettingsFileStore();
         var lifecycle = new FakeLifecycle();

@@ -68,7 +68,7 @@ Set-StrictMode -Version Latest
 $repo      = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 $solution  = Join-Path $repo 'OpenTabletArtist.slnx'
 $daemonDir = Join-Path $repo 'external/OpenTabletDriver/OpenTabletDriver.Daemon'
-$daemonExe = Join-Path $daemonDir "bin/$Configuration/net8.0/OpenTabletDriver.Daemon.exe"
+$daemonExe = Join-Path $daemonDir "bin/$Configuration/net10.0/OpenTabletDriver.Daemon.exe"
 $testProj  = Join-Path $repo 'tests/OpenTabletArtist.Tests/OpenTabletArtist.Tests.csproj'
 
 # Processes that hold build outputs open (OTD DLLs / the app exe).

@@ -25,7 +25,7 @@ public class SettingsCodecTests
     private static Settings SettingsFor(string tablet, bool locked) => new()
     {
         LockUsableAreaDisplay = locked,
-        Profiles = new ProfileCollection { new Profile { Tablet = tablet } },
+        Profiles = new ProfileCollection { new Profile { OutputMode = TestOtd.Output(), Tablet = tablet } },
     };
 
     private static string Encode(Settings settings)

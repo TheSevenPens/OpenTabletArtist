@@ -33,9 +33,10 @@ public class RotationSelectionTests
 {
     private static Settings Mapped(string tablet)
     {
-        var settings = new Settings { Profiles = new ProfileCollection { new Profile { Tablet = tablet } } };
+        var settings = new Settings { Profiles = new ProfileCollection { new Profile { OutputMode = TestOtd.Output(), Tablet = tablet } } };
         settings.Profiles.First().AbsoluteModeSettings = new AbsoluteModeSettings
         {
+            Display = new AreaSettings(),
             Tablet = new AreaSettings { Width = 269, Height = 168, X = 134.5f, Y = 84 },
         };
         return settings;

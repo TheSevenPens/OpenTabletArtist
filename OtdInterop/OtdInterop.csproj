@@ -34,8 +34,8 @@
     and the daemon protocol. Deliberately NOT a copy of OTA's dependency list: no Avalonia, no
     SkiaSharp, no MVVM toolkit. If something here needs one of those, it does not belong here.
 
-    The submodule targets net8.0; referencing it from net10.0 is the allowed direction, and OTA has
-    done exactly this since before the split.
+    The submodule targeted net8.0 up to OpenTabletDriver 0.6.7 and targets net10.0 from 0.6.8; the old
+    mismatch was the allowed direction (net10.0 referencing net8.0), and OTA did exactly that before the split.
   -->
   <ItemGroup>
     <ProjectReference Include="..\external\OpenTabletDriver\OpenTabletDriver.Desktop\OpenTabletDriver.Desktop.csproj" />
@@ -55,8 +55,8 @@
   -->
   <ItemGroup>
     <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
-    <PackageReference Include="StreamJsonRpc" Version="2.25.29" />
-    <PackageReference Include="MessagePack" Version="2.5.305" />
+    <PackageReference Include="StreamJsonRpc" Version="2.26.150" />
+    <PackageReference Include="MessagePack" Version="2.5.307" />
   </ItemGroup>
 
   <!-- Test-only seams. The production application cannot reach the raw settings writer. -->

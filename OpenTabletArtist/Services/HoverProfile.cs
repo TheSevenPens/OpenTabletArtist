@@ -31,7 +31,7 @@ public static class HoverProfile
 
     public static HoverData? ReadProfile(Profile? profile)
     {
-        var store = profile?.Filters?.FirstOrDefault(f => f.Path == FilterTypeName);
+        var store = profile?.Filters?.FirstOrDefault(f => f?.Path == FilterTypeName);
         if (store == null) return null;
 
         int max = store.Settings?.FirstOrDefault(s => s.Property == MaxDistanceProperty) is { HasValue: true } s
@@ -49,7 +49,7 @@ public static class HoverProfile
         var profile = settings?.Profiles?.FirstOrDefault(p => p.Tablet == tabletName);
         if (profile?.Filters == null) return;
 
-        var store = profile.Filters.FirstOrDefault(f => f.Path == FilterTypeName);
+        var store = profile.Filters.FirstOrDefault(f => f?.Path == FilterTypeName);
         if (store == null)
         {
             store = NewStore();

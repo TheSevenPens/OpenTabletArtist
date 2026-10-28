@@ -133,7 +133,8 @@ public sealed partial class DeveloperViewModel : ObservableObject
         }
         catch
         {
-            profile = new Profile { Tablet = name };
+            // OutputMode is a required member as of OpenTabletDriver 0.6.8.
+            profile = new Profile { Tablet = name, OutputMode = new PluginSettingStore(typeof(OpenTabletDriver.Desktop.Output.AbsoluteMode)) };
         }
 
         // Profile.GetDefaults runs outside the daemon here, where the virtual-screen service is absent, so it
@@ -148,7 +149,7 @@ public sealed partial class DeveloperViewModel : ObservableObject
     /// The user re-maps it properly from the tablet's page; this just keeps it well-formed for OTA and OTD.</summary>
     private static void FillValidAreas(Profile profile, DigitizerSpecifications? digitizer)
     {
-        var abs = profile.AbsoluteModeSettings ??= new AbsoluteModeSettings();
+        var abs = profile.AbsoluteModeSettings ??= new AbsoluteModeSettings { Tablet = new AreaSettings(), Display = new AreaSettings() };
         abs.Tablet ??= new AreaSettings();
         abs.Display ??= new AreaSettings();
 
@@ -308,8 +309,8 @@ public sealed partial class DeveloperViewModel : ObservableObject
         { ConfigErrorStatus = "Couldn't solve a calibration from the simulated taps — try again."; return; }
 
         var fingerprint = CalibrationProfile.Fingerprint(input, output, display.Number);
-        var data = new CalibrationProfile.CalibrationData(m, Enabled: true, Fingerprint: fingerprint)
-            with { Report = BuildSimulatedReport(display, targetsDesktop, measuredRaw, digi, input, output, rng) };
+        var report = BuildSimulatedReport(display, targetsDesktop, measuredRaw, digi, input, output, rng);
+        var data = new CalibrationProfile.CalibrationData(m, Enabled: true, Fingerprint: fingerprint) with { Report = report };
 
         CalibrationProfile.Write(settings, tabletName, data);
         await _settings!.ApplySettingsAsync(settings);

@@ -34,7 +34,7 @@ public class CalibrationViewModelTests
 
     private static (CalibrationViewModel vm, Settings settings, Action<int> applyCount) NewVm()
     {
-        var settings = new Settings { Profiles = new ProfileCollection { new Profile { Tablet = "T" } } };
+        var settings = new Settings { Profiles = new ProfileCollection { new Profile { OutputMode = TestOtd.Output(), Tablet = "T" } } };
         int applies = 0;
         var ctx = new CalibrationViewModel.Context(
             "T", Digi, Input, Output, Display, settings,
@@ -46,7 +46,7 @@ public class CalibrationViewModelTests
     private static CalibrationViewModel Refused(out int attempts)
     {
         var count = 0;
-        var settings = new Settings { Profiles = new ProfileCollection { new Profile { Tablet = "T" } } };
+        var settings = new Settings { Profiles = new ProfileCollection { new Profile { OutputMode = TestOtd.Output(), Tablet = "T" } } };
         var ctx = new CalibrationViewModel.Context(
             "T", Digi, Input, Output, Display, settings,
             _ => { count++; return Task.FromResult(SettingsApplyOutcome.ChangedElsewhere); },
@@ -203,7 +203,7 @@ public class CalibrationViewModelTests
     {
         // #486: every capture density now fits a least-squares affine (the 9 taps just make it more
         // robust). Grid capture still records all 9 nodes, but the written model is Affine, not Grid.
-        var settings = new Settings { Profiles = new ProfileCollection { new Profile { Tablet = "T" } } };
+        var settings = new Settings { Profiles = new ProfileCollection { new Profile { OutputMode = TestOtd.Output(), Tablet = "T" } } };
         var ctx = new CalibrationViewModel.Context(
             "T", Digi, Input, Output, Display, settings,
             _ => Applied, new NoopDebugSession(),
@@ -313,7 +313,7 @@ public class CalibrationViewModelTests
         // output area is centered on the display's desktop position so the mapping is consistent.
         var display = new DisplayInfo(Number: 1, Name: "", Width: 1920, Height: 1080, X: 0, Y: 2160, IsPrimary: false);
         var output = new MappingArea(960, 2700, 1920, 1080);   // center (960, 2160+540)
-        var settings = new Settings { Profiles = new ProfileCollection { new Profile { Tablet = "T" } } };
+        var settings = new Settings { Profiles = new ProfileCollection { new Profile { OutputMode = TestOtd.Output(), Tablet = "T" } } };
         var ctx = new CalibrationViewModel.Context("T", Digi, Input, output, display, settings,
             _ => Applied, new NoopDebugSession());
         var vm = new CalibrationViewModel(ctx);
@@ -352,7 +352,7 @@ public class CalibrationViewModelTests
         // off the raw DisplayInfo origin (0,1080).
         var display = new DisplayInfo(Number: 2, Name: "", Width: 960, Height: 540, X: 0, Y: 1080, IsPrimary: false);
         var output = new MappingArea(2400, 1350, 960, 540);
-        var settings = new Settings { Profiles = new ProfileCollection { new Profile { Tablet = "T" } } };
+        var settings = new Settings { Profiles = new ProfileCollection { new Profile { OutputMode = TestOtd.Output(), Tablet = "T" } } };
         var ctx = new CalibrationViewModel.Context("T", Digi, Input, output, display, settings,
             _ => Applied, new NoopDebugSession());
         var vm = new CalibrationViewModel(ctx);

@@ -11,7 +11,7 @@ namespace OpenTabletArtist.Tests;
 public class CalibrationProfileTests
 {
     private static Settings SettingsFor(string tablet) =>
-        new() { Profiles = new ProfileCollection { new Profile { Tablet = tablet } } };
+        new() { Profiles = new ProfileCollection { new Profile { OutputMode = TestOtd.Output(), Tablet = tablet } } };
 
     private static Matrix3x2 Sample => new(1.02f, 0.01f, -0.01f, 0.98f, 0.03f, -0.04f);
 
@@ -104,7 +104,7 @@ public class CalibrationProfileTests
         CalibrationProfile.Write(settings, "Tab", Sample, enable: true, fingerprint: "fp");
         CalibrationProfile.Clear(settings, "Tab");
         Assert.Null(CalibrationProfile.Read(settings, "Tab"));
-        Assert.DoesNotContain(settings.Profiles.First().Filters, f => f.Path == CalibrationProfile.FilterTypeName);
+        Assert.DoesNotContain(settings.Profiles.First().Filters!, f => f!.Path == CalibrationProfile.FilterTypeName);
     }
 
     [Fact]
@@ -114,7 +114,7 @@ public class CalibrationProfileTests
         PressureCurveProfile.Write(settings, "Tab", PenDynamicsSettings.Default, enable: true);
         CalibrationProfile.Write(settings, "Tab", Sample, enable: true, fingerprint: "fp");
 
-        var paths = settings.Profiles.First().Filters.Select(f => f.Path).ToList();
+        var paths = settings.Profiles.First().Filters!.Select(f => f!.Path).ToList();
         Assert.True(paths.IndexOf(CalibrationProfile.FilterTypeName) < paths.IndexOf(PressureCurveProfile.FilterTypeName));
     }
 
@@ -125,7 +125,7 @@ public class CalibrationProfileTests
         CalibrationProfile.Write(settings, "Tab", Sample, enable: true, fingerprint: "fp");
         PressureCurveProfile.Write(settings, "Tab", PenDynamicsSettings.Default, enable: true);
 
-        var paths = settings.Profiles.First().Filters.Select(f => f.Path).ToList();
+        var paths = settings.Profiles.First().Filters!.Select(f => f!.Path).ToList();
         Assert.True(paths.IndexOf(CalibrationProfile.FilterTypeName) < paths.IndexOf(PressureCurveProfile.FilterTypeName));
     }
 

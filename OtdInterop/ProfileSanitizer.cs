@@ -33,7 +33,9 @@ public static class ProfileSanitizer
             var abs = profile.AbsoluteModeSettings;
             if (abs == null)
             {
-                abs = new AbsoluteModeSettings();
+                // Display and Tablet are required members as of OpenTabletDriver 0.6.8; the null checks
+                // below still cover a settings.json that deserializes with either missing.
+                abs = new AbsoluteModeSettings { Display = new AreaSettings(), Tablet = new AreaSettings() };
                 profile.AbsoluteModeSettings = abs;
                 changed = true;
             }

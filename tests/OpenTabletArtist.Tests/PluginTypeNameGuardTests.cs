@@ -71,14 +71,14 @@ public class PluginTypeNameGuardTests
     {
         for (var dir = new DirectoryInfo(AppContext.BaseDirectory); dir != null; dir = dir.Parent)
         {
-            // Shared output root: the plugin's net8.0 folder sits beside the test binary's net10.0 one.
-            var sibling = Path.Combine(dir.FullName, "net8.0", PluginDll);
+            // Shared output root: the plugin's net10.0 folder sits beside the test binary's.
+            var sibling = Path.Combine(dir.FullName, "net10.0", PluginDll);
             if (File.Exists(sibling)) return sibling;
 
             foreach (var cfg in new[] { "Debug", "Release" })
             {
                 var candidate = Path.Combine(dir.FullName, "plugins", "OpenTabletArtist.Dynamics",
-                    "bin", cfg, "net8.0", PluginDll);
+                    "bin", cfg, "net10.0", PluginDll);
                 if (File.Exists(candidate)) return candidate;
             }
         }

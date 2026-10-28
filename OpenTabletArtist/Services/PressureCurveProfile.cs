@@ -60,7 +60,7 @@ public static class PressureCurveProfile
         var profile = settings?.Profiles?.FirstOrDefault(p => p.Tablet == tabletName);
         if (profile == null) return;
 
-        var store = profile.Filters?.FirstOrDefault(f => f.Path == FilterTypeName);
+        var store = profile.Filters?.FirstOrDefault(f => f?.Path == FilterTypeName);
         if (store == null)
         {
             store = NewStore();
@@ -95,7 +95,7 @@ public static class PressureCurveProfile
         foreach (var profile in settings.Profiles)
         {
             if (profile.Filters == null) continue;
-            var store = profile.Filters.FirstOrDefault(f => f.Path == FilterTypeName);
+            var store = profile.Filters.FirstOrDefault(f => f?.Path == FilterTypeName);
             if (store == null)
             {
                 store = NewStore();
@@ -115,10 +115,10 @@ public static class PressureCurveProfile
     private static PluginSettingStore? FindStore(Settings? settings, string tabletName) =>
         FindStore(settings?.Profiles?.FirstOrDefault(p => p.Tablet == tabletName)?.Filters);
 
-    private static PluginSettingStore? FindStore(System.Collections.Generic.IEnumerable<PluginSettingStore>? filters) =>
-        filters?.FirstOrDefault(f => f.Path == FilterTypeName);
+    private static PluginSettingStore? FindStore(System.Collections.Generic.IEnumerable<PluginSettingStore?>? filters) =>
+        filters?.FirstOrDefault(f => f?.Path == FilterTypeName);
 
-    // The app doesn't have the plugin Type (it's a separate net8 assembly), and PluginSettingStore's
+    // The app doesn't have the plugin Type (it's a separate net10 assembly), and PluginSettingStore's
     // only public ctors take a Type/instance — so build an empty store via its JSON constructor and
     // fill the fields. The daemon (which has the plugin) constructs the real filter from Path + Settings.
     private static PluginSettingStore NewStore()

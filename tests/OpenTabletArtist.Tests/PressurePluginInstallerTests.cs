@@ -24,7 +24,7 @@ public class PressurePluginInstallerTests
     {
         var candidates = PressurePluginPaths.SourceCandidates(Path.Combine("C:", "repo", "OpenTabletArtist", "bin", "Debug", "net10.0")).ToList();
         Assert.Equal(3, candidates.Count);
-        Assert.Contains(candidates, c => c.Contains(Path.Combine("plugins", "OpenTabletArtist.Dynamics")) && c.Contains(Path.Combine("bin", "Debug", "net8.0")));
+        Assert.Contains(candidates, c => c.Contains(Path.Combine("plugins", "OpenTabletArtist.Dynamics")) && c.Contains(Path.Combine("bin", "Debug", "net10.0")));
     }
 
     [Fact]

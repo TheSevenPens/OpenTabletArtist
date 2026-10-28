@@ -33,7 +33,7 @@ public class TestViewModelTests
 
     private static Profile ProfileWithDynamics(string tablet, PenDynamicsSettings dyn, bool enabled)
     {
-        var settings = new Settings { Profiles = new ProfileCollection { new Profile { Tablet = tablet } } };
+        var settings = new Settings { Profiles = new ProfileCollection { new Profile { OutputMode = TestOtd.Output(), Tablet = tablet } } };
         PressureCurveProfile.Write(settings, tablet, dyn, enable: enabled);
         return settings.Profiles.First();
     }
@@ -61,7 +61,7 @@ public class TestViewModelTests
     {
         var data = new FakeDeviceData
         {
-            Profiles = new List<ProfileItem> { new(new Profile { Tablet = "Wacom CTL-472" }, IsDetected: true, LastSeen: null) }
+            Profiles = new List<ProfileItem> { new(new Profile { OutputMode = TestOtd.Output(), Tablet = "Wacom CTL-472" }, IsDetected: true, LastSeen: null) }
         };
         using var vm = NewVm(data);
 
@@ -105,7 +105,7 @@ public class TestViewModelTests
     {
         var data = new FakeDeviceData
         {
-            Profiles = new List<ProfileItem> { new(new Profile { Tablet = "Paired-Only" }, IsDetected: false, LastSeen: null) }
+            Profiles = new List<ProfileItem> { new(new Profile { OutputMode = TestOtd.Output(), Tablet = "Paired-Only" }, IsDetected: false, LastSeen: null) }
         };
         using var vm = NewVm(data);
 
@@ -195,8 +195,8 @@ public class TestViewModelTests
         {
             Profiles = new List<ProfileItem>
             {
-                new(new Profile { Tablet = "Wacom PTH-660" }, IsDetected: true, LastSeen: null),
-                new(new Profile { Tablet = "XP-Pen Deco L" }, IsDetected: true, LastSeen: null),
+                new(new Profile { OutputMode = TestOtd.Output(), Tablet = "Wacom PTH-660" }, IsDetected: true, LastSeen: null),
+                new(new Profile { OutputMode = TestOtd.Output(), Tablet = "XP-Pen Deco L" }, IsDetected: true, LastSeen: null),
             },
             ActiveTabletName = "Wacom PTH-660",
         };

@@ -58,11 +58,11 @@ public class DynamicsFilter : IPositionedPipelineElement<IDeviceReport>
 
     public PipelinePosition Position => PipelinePosition.PreTransform;
 
-    public event Action<IDeviceReport>? Emit;
+    public event Action<IDeviceReport?>? Emit;
 
     private readonly PenDynamicsProcessor _processor = new();
 
-    public void Consume(IDeviceReport value)
+    public void Consume(IDeviceReport? value)
     {
         _processor.Settings = new PenDynamicsSettings(
             new PressureCurveSettings(

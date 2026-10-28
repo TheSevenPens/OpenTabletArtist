@@ -18,7 +18,7 @@ namespace OpenTabletArtist.UiTests;
 public class ViewBindingTests
 {
     private static Settings SettingsWith(string tablet) =>
-        new() { Profiles = new ProfileCollection { new Profile { Tablet = tablet } } };
+        new() { Profiles = new ProfileCollection { new Profile { OutputMode = Tests.TestOtd.Output(), Tablet = tablet } } };
 
     /// <summary>
     /// The tablet editor is the largest view in the app and the one the redesign will disturb most —

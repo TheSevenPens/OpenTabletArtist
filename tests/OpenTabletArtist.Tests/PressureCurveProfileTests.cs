@@ -11,7 +11,7 @@ namespace OpenTabletArtist.Tests;
 public class PressureCurveProfileTests
 {
     private static Settings SettingsFor(string tablet) =>
-        new() { Profiles = new ProfileCollection { new Profile { Tablet = tablet } } };
+        new() { Profiles = new ProfileCollection { new Profile { OutputMode = TestOtd.Output(), Tablet = tablet } } };
 
     private static PenDynamicsSettings Dyn(
         double softness = 0, double inMin = 0, double inMax = 1, double outMin = 0, double outMax = 1,
@@ -61,7 +61,7 @@ public class PressureCurveProfileTests
         PressureCurveProfile.Write(settings, "Tab", PenDynamicsSettings.Default, enable: true);
         PressureCurveProfile.Write(settings, "Tab", Dyn(softness: 0.5, posSmooth: 0.2), enable: true);
 
-        Assert.Single(profile.Filters, f => f.Path == PressureCurveProfile.FilterTypeName);
+        Assert.Single(profile.Filters!, f => f!.Path == PressureCurveProfile.FilterTypeName);
         var d = PressureCurveProfile.Read(settings, "Tab")!.Value.Dynamics;
         Assert.Equal(0.5, d.Curve.Softness, 5);
         Assert.Equal(0.2, d.PositionSmoothing, 5);
@@ -73,8 +73,8 @@ public class PressureCurveProfileTests
         // A store written by the v0.2.0 schema (no smoothing keys) should read back as defaults.
         var settings = SettingsFor("Tab");
         PressureCurveProfile.Write(settings, "Tab", PenDynamicsSettings.Default, enable: true);
-        var store = settings.Profiles.First().Filters.First(f => f.Path == PressureCurveProfile.FilterTypeName);
-        var trimmed = store.Settings.Where(s => s.Property is not ("SmoothAfterCurve" or "PressureSmoothing" or "PositionSmoothing")).ToList();
+        var store = settings.Profiles.First().Filters!.First(f => f!.Path == PressureCurveProfile.FilterTypeName);
+        var trimmed = store!.Settings!.Where(s => s.Property is not ("SmoothAfterCurve" or "PressureSmoothing" or "PositionSmoothing")).ToList();
         store.Settings = new System.Collections.ObjectModel.ObservableCollection<PluginSetting>(trimmed);
 
         var d = PressureCurveProfile.Read(settings, "Tab")!.Value.Dynamics;
@@ -107,7 +107,7 @@ public class PressureCurveProfileTests
     public void ReadProfile_NullOrNoFilter_ReturnsNull()
     {
         Assert.Null(PressureCurveProfile.ReadProfile(null));
-        Assert.Null(PressureCurveProfile.ReadProfile(new Profile { Tablet = "Tab" }));
+        Assert.Null(PressureCurveProfile.ReadProfile(new Profile { OutputMode = TestOtd.Output(), Tablet = "Tab" }));
     }
 
     [Fact]
@@ -162,6 +162,6 @@ public class PressureCurveProfileTests
         PressureCurveProfile.Write(settings, "Tab", Dyn(softness: 0.4), enable: true);
 
         Assert.False(PressureCurveProfile.EnsureEnabled(settings)); // idempotent, no churn
-        Assert.Single(settings.Profiles.First().Filters, f => f.Path == PressureCurveProfile.FilterTypeName);
+        Assert.Single(settings.Profiles.First().Filters!, f => f!.Path == PressureCurveProfile.FilterTypeName);
     }
 }

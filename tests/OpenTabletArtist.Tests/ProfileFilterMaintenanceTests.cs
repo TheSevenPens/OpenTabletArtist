@@ -21,14 +21,14 @@ public class ProfileFilterMaintenanceTests
 
     private static Settings WithFilters(params string[] filterPaths)
     {
-        var profile = new Profile { Tablet = "T" };
+        var profile = new Profile { OutputMode = TestOtd.Output(), Tablet = "T" };
         foreach (var p in filterPaths)
             profile.Filters.Add(StoreAt(p));
         return new Settings { Profiles = new ProfileCollection { profile } };
     }
 
     private static string[] Paths(Settings s) =>
-        s.Profiles.First().Filters.Select(f => f.Path).ToArray();
+        s.Profiles.First().Filters!.Select(f => f!.Path!).ToArray();
 
     // The reported bug (#…): a pre-rename OtdArtist.* DynamicsFilter lingers beside the current
     // OpenTabletArtist one, so the Filters tab shows "DynamicsFilter" twice. Cleanup drops the orphan.
@@ -139,33 +139,33 @@ public class ProfileFilterMaintenanceTests
             PressureCurveProfile.FilterTypeName,               // approved (Pen Dynamics)
             CalibrationProfile.FilterTypeName,                 // approved
             "OpenTabletDriver.Filters.Noise.NoiseReduction");  // third-party → Unknown
-        foreach (var f in settings.Profiles.First().Filters) f.Enable = true;
+        foreach (var f in settings.Profiles.First().Filters!) f!.Enable = true;
 
         var changed = ProfileFilterMaintenance.DisableUnapprovedFilters(settings);
 
         var filters = settings.Profiles.First().Filters;
         Assert.True(changed);
         Assert.Equal(3, filters.Count); // disabled, not removed
-        Assert.True(filters.First(f => f.Path == PressureCurveProfile.FilterTypeName).Enable);
-        Assert.True(filters.First(f => f.Path == CalibrationProfile.FilterTypeName).Enable);
-        Assert.False(filters.First(f => f.Path == "OpenTabletDriver.Filters.Noise.NoiseReduction").Enable);
+        Assert.True(filters.First(f => f!.Path == PressureCurveProfile.FilterTypeName)!.Enable);
+        Assert.True(filters.First(f => f!.Path == CalibrationProfile.FilterTypeName)!.Enable);
+        Assert.False(filters.First(f => f!.Path == "OpenTabletDriver.Filters.Noise.NoiseReduction")!.Enable);
     }
 
     [Fact]
     public void DisableUnapproved_NoChange_WhenOnlyApprovedFiltersEnabled()
     {
         var settings = WithFilters(PressureCurveProfile.FilterTypeName, CalibrationProfile.FilterTypeName);
-        foreach (var f in settings.Profiles.First().Filters) f.Enable = true;
+        foreach (var f in settings.Profiles.First().Filters!) f!.Enable = true;
 
         Assert.False(ProfileFilterMaintenance.DisableUnapprovedFilters(settings));
-        Assert.All(settings.Profiles.First().Filters, f => Assert.True(f.Enable));
+        Assert.All(settings.Profiles.First().Filters!, f => Assert.True(f!.Enable));
     }
 
     [Fact]
     public void DisableUnapproved_LeavesAnAlreadyDisabledThirdPartyFilter_Untouched()
     {
         var settings = WithFilters("OpenTabletDriver.Filters.Noise.NoiseReduction");
-        settings.Profiles.First().Filters.First().Enable = false; // already off
+        settings.Profiles.First().Filters!.First()!.Enable = false; // already off
 
         Assert.False(ProfileFilterMaintenance.DisableUnapprovedFilters(settings)); // nothing to change
     }

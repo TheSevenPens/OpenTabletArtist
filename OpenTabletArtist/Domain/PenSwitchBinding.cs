@@ -124,7 +124,7 @@ public static class PenSwitchBinding
 
     private static bool IsAdaptive(PluginSettingStore store, PenSwitchKind kind, int penButtonIndex)
     {
-        if (!store.Path.Equals(AdaptiveBindingPath, StringComparison.Ordinal)) return false;
+        if (!string.Equals(store.Path, AdaptiveBindingPath, StringComparison.Ordinal)) return false;
         var binding = GetSettingValue(store, "Binding");
         return kind switch
         {
@@ -137,7 +137,7 @@ public static class PenSwitchBinding
 
     private static bool IsLegacy(PluginSettingStore store, PenSwitchKind kind)
     {
-        if (!store.Path.Equals(WindowsInkButtonHandlerPath, StringComparison.Ordinal)) return false;
+        if (!string.Equals(store.Path, WindowsInkButtonHandlerPath, StringComparison.Ordinal)) return false;
         var button = GetSettingValue(store, "Button");
         return kind switch
         {
@@ -165,10 +165,12 @@ public static class PenSwitchBinding
 
     private static string FormatOtherBindingName(PluginSettingStore store, Func<string?, string?>? friendlyName)
     {
-        var name = friendlyName?.Invoke(store.Path)
-            ?? KnownPluginNames.GetValueOrDefault(store.Path)
-            ?? store.Path.Split('.').LastOrDefault()
-            ?? store.Path;
+        // GetBindingLabel has already turned a missing Path into "None"; OTD 0.6.8 marks it nullable.
+        var path = store.Path ?? "";
+        var name = friendlyName?.Invoke(path)
+            ?? KnownPluginNames.GetValueOrDefault(path)
+            ?? path.Split('.').LastOrDefault()
+            ?? path;
 
         var button = GetSettingValue(store, "Button");
         if (!string.IsNullOrEmpty(button))

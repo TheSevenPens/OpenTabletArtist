@@ -16,7 +16,7 @@ public class SettingsWorkspaceTests
     {
         var settings = new Settings
         {
-            Profiles = new ProfileCollection { new Profile { Tablet = "A" }, new Profile { Tablet = "B" } }
+            Profiles = new ProfileCollection { new Profile { OutputMode = TestOtd.Output(), Tablet = "A" }, new Profile { OutputMode = TestOtd.Output(), Tablet = "B" } }
         };
         ProfileSanitizer.EnsureValidAbsoluteAreas(settings);
         return settings;
@@ -40,7 +40,7 @@ public class SettingsWorkspaceTests
 
         // What the driver does to itself when a new tablet arrives.
         var withNewTablet = Document();
-        withNewTablet.Profiles.Add(new Profile { Tablet = "A tablet OTD had not seen" });
+        withNewTablet.Profiles.Add(new Profile { OutputMode = TestOtd.Output(), Tablet = "A tablet OTD had not seen" });
         ProfileSanitizer.EnsureValidAbsoluteAreas(withNewTablet);
         daemon.Settings = withNewTablet;
 
@@ -80,7 +80,7 @@ public class SettingsWorkspaceTests
         Assert.True(workspace.HasUnsavedChanges, "applied but not saved");
 
         var theirs = SettingsCodec.Clone(daemon.Settings!);
-        theirs.Profiles.Add(new Profile { Tablet = "New" });
+        theirs.Profiles.Add(new Profile { OutputMode = TestOtd.Output(), Tablet = "New" });
         ProfileSanitizer.EnsureValidAbsoluteAreas(theirs);
         daemon.Settings = theirs;
 
@@ -356,7 +356,7 @@ public class SettingsWorkspaceTests
         var edit = workspace.Current!;
         edit.Profiles[0].BindingSettings.DisablePressure = true;
         Assert.True((await workspace.ApplyAsync(edit)).IsLive);
-        Assert.Equal(!owned, daemon.Settings!.Profiles[0].Filters[0].Enable);
+        Assert.Equal(!owned, daemon.Settings!.Profiles[0].Filters![0]!.Enable);
         Assert.Equal(0, store.Attempts);
     }
 

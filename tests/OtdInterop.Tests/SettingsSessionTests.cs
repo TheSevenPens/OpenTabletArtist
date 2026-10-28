@@ -12,6 +12,10 @@ namespace OtdInterop.Tests;
 
 public class SettingsSessionTests
 {
+    // OutputMode is a required member of Profile as of OpenTabletDriver 0.6.8.
+    private static OpenTabletDriver.Desktop.Reflection.PluginSettingStore AbsoluteOutput() =>
+        new(typeof(OpenTabletDriver.Desktop.Output.AbsoluteMode));
+
     internal static Settings Document(float width = 100) => new()
     {
         Profiles = new ProfileCollection
@@ -19,6 +23,7 @@ public class SettingsSessionTests
             new Profile
             {
                 Tablet = "T",
+                OutputMode = AbsoluteOutput(),
                 AbsoluteModeSettings = new AbsoluteModeSettings
                 {
                     Tablet = new AreaSettings { Width = width, Height = 50, X = 50, Y = 25 },
@@ -206,8 +211,8 @@ public class SettingsSessionTests
         daemon.Settings!.Profiles[0].AbsoluteModeSettings = null!;
         await session.ReloadAsync();
         Assert.True((await session.SaveAsync()).IsSaved);
-        Assert.NotNull(daemon.Settings.Profiles[0].AbsoluteModeSettings.Display);
-        Assert.NotNull(store.Saved!.Profiles[0].AbsoluteModeSettings.Tablet);
+        Assert.NotNull(daemon.Settings.Profiles[0].AbsoluteModeSettings!.Display);
+        Assert.NotNull(store.Saved!.Profiles[0].AbsoluteModeSettings!.Tablet);
     }
 
     [Fact]
@@ -218,7 +223,7 @@ public class SettingsSessionTests
         store.Saved = Document(160);
         Assert.True((await session.RestoreSavedAsync()).IsRestored);
         Assert.False(session.HasUnsavedChanges);
-        Assert.Equal(160, session.GetCurrent()!.Settings.Profiles[0].AbsoluteModeSettings.Tablet.Width);
+        Assert.Equal(160, session.GetCurrent()!.Settings.Profiles[0].AbsoluteModeSettings!.Tablet.Width);
         Assert.Equal(0, store.Attempts);
     }
 
@@ -241,12 +246,12 @@ public class SettingsSessionTests
         Assert.False(session.HasUnsavedChanges);
         var outcome = await session.ApplyAsync(Document(120));
         Assert.True(outcome.IsLive);
-        Assert.Equal(120, daemon.Settings!.Profiles[0].AbsoluteModeSettings.Tablet.Width);
+        Assert.Equal(120, daemon.Settings!.Profiles[0].AbsoluteModeSettings!.Tablet.Width);
         Assert.Equal(0, store.Attempts);
         Assert.True(session.HasUnsavedChanges);
         Assert.True((await session.SaveAsync()).IsSaved);
         Assert.Equal(1, store.Attempts);
-        Assert.Equal(120, store.Saved!.Profiles[0].AbsoluteModeSettings.Tablet.Width);
+        Assert.Equal(120, store.Saved!.Profiles[0].AbsoluteModeSettings!.Tablet.Width);
         Assert.False(session.HasUnsavedChanges);
     }
 
@@ -267,7 +272,7 @@ public class SettingsSessionTests
         Assert.True((await first).IsLive);
         Assert.True((await second).IsLive);
         Assert.Equal("T", daemon.Settings!.Profiles[0].Tablet);
-        Assert.Equal(140, daemon.Settings.Profiles[0].AbsoluteModeSettings.Tablet.Width);
+        Assert.Equal(140, daemon.Settings.Profiles[0].AbsoluteModeSettings!.Tablet.Width);
     }
 
     [Fact]
@@ -284,7 +289,7 @@ public class SettingsSessionTests
         release.SetResult(true);
         await apply;
         Assert.True((await save).IsSaved);
-        Assert.Equal(120, store.Saved!.Profiles[0].AbsoluteModeSettings.Tablet.Width);
+        Assert.Equal(120, store.Saved!.Profiles[0].AbsoluteModeSettings!.Tablet.Width);
     }
 
     [Theory]
@@ -313,8 +318,8 @@ public class SettingsSessionTests
         using var lifetime = session;
         daemon.Settings = Document(160);
         Assert.Equal(SettingsReloadStatus.Paused, (await session.RefreshAsync()).Status);
-        Assert.Equal(100, session.GetCurrent()!.Settings.Profiles[0].AbsoluteModeSettings.Tablet.Width);
-        Assert.Equal(160, (await session.ReloadAsync()).Adopted!.Settings.Profiles[0].AbsoluteModeSettings.Tablet.Width);
+        Assert.Equal(100, session.GetCurrent()!.Settings.Profiles[0].AbsoluteModeSettings!.Tablet.Width);
+        Assert.Equal(160, (await session.ReloadAsync()).Adopted!.Settings.Profiles[0].AbsoluteModeSettings!.Tablet.Width);
     }
 
     [Fact]
@@ -399,7 +404,7 @@ public class SettingsSessionTests
 
         // What OTD does to itself when a tablet it has not seen is attached.
         var withNewTablet = Document();
-        withNewTablet.Profiles.Add(new Profile { Tablet = "A tablet OTD had not seen" });
+        withNewTablet.Profiles.Add(new Profile { Tablet = "A tablet OTD had not seen", OutputMode = AbsoluteOutput() });
         daemon.Settings = withNewTablet;
 
         Assert.Equal(SettingsApplyStatus.ChangedElsewhere, (await session.ApplyAsync(Document(120))).Status);
@@ -417,7 +422,7 @@ public class SettingsSessionTests
         // driver's new profile on the next write, and asserting that here would be pinning a mistake
         // the app does not make.
         var edited = session.GetCurrent()!.Settings;
-        edited.Profiles[0].AbsoluteModeSettings.Tablet.Width = 120;
+        edited.Profiles[0].AbsoluteModeSettings!.Tablet.Width = 120;
 
         Assert.True((await session.ApplyAsync(edited)).IsLive);
         Assert.Equal(2, session.GetCurrent()!.Settings.Profiles.Count);
@@ -510,7 +515,7 @@ public class SettingsSessionTests
         Assert.True((await session.RestoreSavedAsync()).IsRestored);
         Assert.False(session.HasUnsavedChanges);
         Assert.Equal(0, store.Attempts);
-        Assert.Equal(100, daemon.Settings!.Profiles[0].AbsoluteModeSettings.Tablet.Width);
+        Assert.Equal(100, daemon.Settings!.Profiles[0].AbsoluteModeSettings!.Tablet.Width);
     }
 
     // --- The saved file as the daemon loads it (DaemonLoadNormalizer) ---
@@ -531,6 +536,7 @@ public class SettingsSessionTests
                 Wheels = Enumerable.Range(0, wheels)
                     .Select(_ => new WheelSpecifications { RelativeWheelSteps = 24, ButtonCount = 0 }).ToList(),
             },
+            DigitizerIdentifiers = [],
         }, []) }));
 
     /// <summary>What the daemon holds after loading <paramref name="saved"/> with <paramref name="tablets"/> attached.</summary>
