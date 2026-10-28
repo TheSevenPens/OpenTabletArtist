@@ -91,7 +91,8 @@ public class PenTabsTests
         Assert.Contains("eraser", headings);
         Assert.DoesNotContain("tip and eraser", headings);      // two sections now, one for each
         Assert.Contains("movement", headings);
-        Assert.Contains("pen input", headings);
+        Assert.Contains("tilt", headings);
+        Assert.DoesNotContain("pen input", headings);
         if (OperatingSystem.IsWindows()) Assert.Contains("pressing", headings);
         window.Close();
     }
@@ -123,16 +124,16 @@ public class PenTabsTests
     }
 
     [AvaloniaFact]
-    public void TheEraserSection_HoldsOnlyTheEraserCard_BeforeThePenInputSwitches()
+    public void TheEraserSection_HoldsOnlyTheEraserCard_BeforeTheTiltSection()
     {
         var (window, view) = Page(Vm(WinInkAbsolute));
 
         double eraserHeading = Top(view, Heading(view, "eraser"));
         double eraserCard = Top(view, Card(view, "ERASER"));
-        double penInput = Top(view, Heading(view, "pen input"));
+        double tilt = Top(view, Heading(view, "tilt"));
 
         Assert.True(eraserHeading < eraserCard);
-        Assert.True(eraserCard < penInput, "the pen-input switches come after the eraser");
+        Assert.True(eraserCard < tilt, "the tilt section comes after the eraser");
         window.Close();
     }
 

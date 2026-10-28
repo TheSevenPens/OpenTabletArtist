@@ -63,7 +63,7 @@
 
         <!-- BASICS — how the pen moves and presses, and the tip and eraser. Two columns:
                1  the tip (with its "Disable pen tip" switch, which edits the very binding the tip card
-                  describes), the eraser, then the pen-input opt-outs
+                  describes), the eraser, then tilt
                2  how the pen moves, then how it presses
 
              Column 2 is the star one: the smoothing slider needs a definite width to render its track,
@@ -92,7 +92,7 @@
 
                     <c:Section VerticalAlignment="Top">
                         <StackPanel Spacing="10">
-                            <TextBlock Text="pen input" Classes="Display section" />
+                            <TextBlock Text="tilt" Classes="Display section" />
                             <!-- Tilt reaches the pointer only when the pen presses normally (Windows Ink). When it
                                  presses like a mouse the output takes none, so the switch changes nothing: it is
                                  greyed out, with the reason beneath, rather than left looking live (#1015
