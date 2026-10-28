@@ -160,9 +160,9 @@ internal static class HealthIssuePresenter
         if (findings.Any(f => f.Code == HealthCheckCodes.TabletPenTipDisabled))
             links.Add(new HealthLink("Pen tip is disabled", "Pen › basics", RemediationArea.TabletPenInputs, tablet));
         if (findings.Any(f => f.Code == HealthCheckCodes.TabletPressureDisabled))
-            links.Add(new HealthLink("Pressure sensitivity is off", "Pen › basics", RemediationArea.TabletPenInputs, tablet));
+            links.Add(new HealthLink("Pressure sensitivity is off", "Pen › pressure", RemediationArea.TabletPenPressure, tablet));
         if (findings.Any(f => f.Code == HealthCheckCodes.TabletTiltDisabled))
-            links.Add(new HealthLink("Tilt is disabled", "Pen › pressure", RemediationArea.TabletPenTilt, tablet));
+            links.Add(new HealthLink("Tilt is disabled", "Pen › basics", RemediationArea.TabletPenTilt, tablet));
 
         return new HealthIssue($"tablet.penBehavior:{tablet}", Severity(findings.Max(f => f.Severity)),
             $"{tablet}: pen isn't set up for drawing",

@@ -178,14 +178,17 @@ public partial class DashboardViewModel : ObservableObject, IDisposable
         // Daemon page, and routing those through the tablet deep-link would open a tablet named "".
         if (link.Area == RemediationArea.Daemon) { Daemon.OpenDaemonPageCommand.Execute(null); return; }
 
-        var tab = link.Area switch
-        {
-            RemediationArea.TabletPenInputs => TabletDetailTab.PenInputs,
-            RemediationArea.TabletPenTilt => TabletDetailTab.PenDynamics,
-            _ => TabletDetailTab.PenBehavior, // TabletPenBehavior → Movement
-        };
-        (_navigateToPen ?? _navigateToTablet)(link.TabletName, tab);
+        (_navigateToPen ?? _navigateToTablet)(link.TabletName, PenTabFor(link.Area));
     }
+
+    /// <summary>The Pen-page tab that owns the setting a review link is about: the tip and tilt switches are on
+    /// basics, the pressure switch on the pressure tab.</summary>
+    internal static TabletDetailTab PenTabFor(RemediationArea area) => area switch
+    {
+        RemediationArea.TabletPenInputs or RemediationArea.TabletPenTilt => TabletDetailTab.PenInputs,   // basics
+        RemediationArea.TabletPenPressure => TabletDetailTab.PenDynamics,                                // pressure
+        _ => TabletDetailTab.PenBehavior, // TabletPenBehavior → Movement
+    };
 
     /// <summary>Hidden developer affordance: right-clicking a synthetic ("developer-induced") card on Home
     /// clears whichever Developer-tab flag produced it. Ignored for real warnings, so they can't be

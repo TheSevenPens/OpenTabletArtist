@@ -6,7 +6,8 @@
     <!-- The pressure-dynamics content — two columns: the curve editor + smoothing with the live readouts
          and gauge under it, and the paint preview (two canvases, raw and processed pressure). Hosted by the PEN page's "pressure" pivot
          (#pen-dynamics-move). DataContext is a TabletDetailViewModel, inherited from the host. (Disable
-         tilt and position smoothing → Pen › basics.) -->
+         tilt and position smoothing → Pen › basics; Disable pressure sensitivity is at the top of the curve
+         card below.) -->
     <StackPanel IsEnabled="{Binding CanEditPressure}">
         <!-- Three definite-width blocks in a WrapPanel (#691). The widths are definite so the smoothing
              slider's star-sized track has something to divide; wrapping is what keeps 360+16+260+16+170
@@ -20,9 +21,17 @@
                  and pressure smoothing. No card heading — the "pressure" pivot already names the tab. -->
             <ctrl:Section Width="360" VerticalAlignment="Top" Margin="0,2,0,10">
                 <StackPanel>
+                    <!-- Disable pressure sensitivity (#494): a flat on/off contact that drops pressure entirely,
+                         which leaves the curve below inert. It is on this tab, with the curve it overrides. Under
+                         a pen that presses like a mouse the output takes no pressure at all, so the switch changes
+                         nothing: it is greyed out, and the note under it says why. Its saved value is untouched,
+                         so it comes back as it was (#1015 follow-up). -->
+                    <ctrl:ToggleSetting Label="Disable pressure sensitivity" InlineDescription="True"
+                                        IsChecked="{Binding DisablePressure}"
+                                        IsEnabled="{Binding PressureAndTiltAvailable}" Margin="0,0,0,10" />
+
                     <!-- #469: when pressure sensitivity is disabled the output stage drops pressure, so this
-                         curve has no effect. Flag it here so the tab isn't silently inert. (The toggle lives
-                         on the Pen page's Inputs tab, #494.) -->
+                         curve has no effect. Flag it here so the tab isn't silently inert. -->
                     <Border Background="{DynamicResource WarningMutedBrush}" BorderBrush="{DynamicResource WarningBrush}"
                             BorderThickness="1" CornerRadius="0" Padding="10,7" Margin="0,0,0,8"
                             IsVisible="{Binding PressureDisabledNote}">

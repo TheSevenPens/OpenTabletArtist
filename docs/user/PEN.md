@@ -4,13 +4,15 @@ The Pen page has three tabs.
 
 ## basics
 
-- Check that the pen tip and eraser are working normally.
+- Check that the pen tip is working normally, and turn it off with **Disable pen tip** if you want. The tip has a section of its own.
+- Check that the eraser is working normally. The eraser has its own section too.
 - Choose how the pen moves (like a drawing tablet, or like a mouse) and how much its position is smoothed.
-- Choose how the pen presses: normally, with pressure and tilt, or like a mouse. While it presses like a mouse the **Disable pressure sensitivity** and **Disable tilt** switches are greyed out, because a mouse takes neither.
-- Turn the pen tip, pressure sensitivity, and tilt off.
+- Choose how the pen presses: normally, with pressure and tilt, or like a mouse. While it presses like a mouse the **Disable tilt** switch here and the **Disable pressure sensitivity** switch on the pressure tab are greyed out, because a mouse takes neither.
+- Turn tilt off.
 
 ## pressure
 
+- Turn pressure sensitivity off with **Disable pressure sensitivity**, at the top of the tab, next to the curve it overrides.
 - Adjust the pressure curve and pressure smoothing.
 - Test them with a drawing preview and live readouts.
 
