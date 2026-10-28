@@ -33,7 +33,4 @@ Thumbs.db
 # Design-canvas working files (seeded artifact + its .dc.html sources)
 .design/
 
-# Documentation site and local Python environment
-site/
-.venv-docs/
 __pycache__/

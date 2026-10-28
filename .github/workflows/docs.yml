@@ -1,18 +1,15 @@
 name: documentation
 
+# The user documentation lives on GitBook (https://docs.sevenpens.com/opentabletartist),
+# synced from TheSevenPens/OpenTabletArtistDocs. This workflow only keeps the old
+# GitHub Pages URLs alive: every page of the former MkDocs site redirects to its
+# GitBook counterpart, because released app builds still link there.
+
 on:
   push:
     branches: [master]
     paths:
-      - 'docs/user/**'
-      - 'mkdocs.yml'
-      - 'scripts/docs/**'
-      - '.github/workflows/docs.yml'
-  pull_request:
-    paths:
-      - 'docs/user/**'
-      - 'mkdocs.yml'
-      - 'scripts/docs/**'
+      - 'docs/site-redirects/**'
       - '.github/workflows/docs.yml'
   workflow_dispatch:
 
@@ -28,22 +25,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-python@v7
-        with:
-          python-version: '3.12'
-          cache: pip
-          cache-dependency-path: scripts/docs/requirements.txt
-      - name: Install documentation dependencies
-        run: python -m pip install -r scripts/docs/requirements.txt
-      - name: Build and check documentation links
-        run: python -m mkdocs build --strict
-      - name: Upload site
+      - name: Upload redirects
         uses: actions/upload-pages-artifact@v5
         with:
-          path: site
+          path: docs/site-redirects
 
   deploy:
-    if: github.ref == 'refs/heads/master' && github.event_name != 'pull_request'
     needs: build
     runs-on: ubuntu-latest
     permissions:
@@ -55,6 +42,6 @@ jobs:
     steps:
       - name: Configure Pages
         uses: actions/configure-pages@v6
-      - name: Publish documentation
+      - name: Publish redirects
         id: deployment
         uses: actions/deploy-pages@v5

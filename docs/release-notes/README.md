@@ -7,7 +7,7 @@ Every file starts with a link to the documentation site, then a blank line, so t
 opens with it:
 
 ```
-[Documentation](https://thesevenpens.github.io/OpenTabletArtist/)
+[Documentation](https://docs.sevenpens.com/opentabletartist)
 ```
 
 **Write it before tagging.** If the file is missing the release still publishes — just
