@@ -78,8 +78,9 @@ public partial class PenDetailView : UserControl, ITabbedContent
     }
 
     // The pen page carries the pen deep-links (#artist-pen-health): the pen-behaviour "Fix" (output mode)
-    // and the tip/pressure health links both land on BASICS, which holds the movement and pressing choices
-    // AND the pen-input opt-outs. Tilt still goes to pressure. Nothing deep-links to the buttons tab.
+    // and the tip and tilt health links land on BASICS, which holds the movement and pressing choices, the
+    // tip and the tilt switch. The pressure link goes to the PRESSURE tab, where the pressure switch is.
+    // Nothing deep-links to the buttons tab (DashboardViewModel.PenTabFor decides which link goes where).
     private void SelectTab(TabletDetailTab tab)
     {
         switch (tab)

@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.Linq;
 using OpenTabletArtist.Domain;
 using OpenTabletArtist.Domain.Health;
+using OpenTabletArtist.ViewModels;
 using Xunit;
 
 namespace OpenTabletArtist.Tests;
@@ -350,7 +351,7 @@ public class HealthEvaluatorTests
         var issue = Assert.Single(HealthEvaluator.Evaluate(input));
         Assert.Equal("tablet.penBehavior:Tablet A", issue.Id);
         Assert.Equal(2, issue.Links!.Count);
-        Assert.Contains(issue.Links!, l => l.Area == RemediationArea.TabletPenInputs);   // pressure
+        Assert.Contains(issue.Links!, l => l.Area == RemediationArea.TabletPenPressure);  // pressure
         Assert.Contains(issue.Links!, l => l.Area == RemediationArea.TabletPenTilt);      // tilt
         Assert.DoesNotContain(issue.Links!, l => l.Area == RemediationArea.TabletPenBehavior);
     }
@@ -370,6 +371,34 @@ public class HealthEvaluatorTests
         Assert.Equal("tablet.penBehavior:Tablet A", issue.Id);
         var link = Assert.Single(issue.Links!);
         Assert.Equal(RemediationArea.TabletPenTilt, link.Area);
+    }
+
+    [Fact]
+    public void ArtistBundle_EachLinkNamesThePenTabThatHoldsItsSwitch()
+    {
+        var input = Healthy() with
+        {
+            Tablets = new List<TabletHealthInput>
+            {
+                new("Tablet A", Detected: true, OutputModeIsWinInk: true,
+                    PenTipDisabled: true, PressureDisabled: true, TiltDisabled: true),
+            },
+        };
+        var links = Assert.Single(HealthEvaluator.Evaluate(input)).Links!;
+
+        Assert.Equal("Pen › basics", links.Single(l => l.Area == RemediationArea.TabletPenInputs).Destination);        // the tip
+        Assert.Equal("Pen › pressure", links.Single(l => l.Area == RemediationArea.TabletPenPressure).Destination);    // pressure
+        Assert.Equal("Pen › basics", links.Single(l => l.Area == RemediationArea.TabletPenTilt).Destination);          // tilt
+    }
+
+    [Theory]
+    [InlineData(RemediationArea.TabletPenInputs, TabletDetailTab.PenInputs)]        // basics
+    [InlineData(RemediationArea.TabletPenTilt, TabletDetailTab.PenInputs)]          // basics
+    [InlineData(RemediationArea.TabletPenPressure, TabletDetailTab.PenDynamics)]    // pressure
+    [InlineData(RemediationArea.TabletPenBehavior, TabletDetailTab.PenBehavior)]
+    public void AHealthLink_OpensThePenTabThatHoldsItsSwitch(RemediationArea area, TabletDetailTab tab)
+    {
+        Assert.Equal(tab, DashboardViewModel.PenTabFor(area));
     }
 
     [Fact]

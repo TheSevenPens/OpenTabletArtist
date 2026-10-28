@@ -40,7 +40,7 @@
                 <!-- Pivots — the pen's sub-sections. RadioButtons switched by ElementName; content gates on
                      #XTab.IsChecked. Three, named for what they hold:
                        basics    how the pen moves and presses, and the tip and eraser
-                       pressure  the pressure curve and smoothing
+                       pressure  the pressure switch, curve and smoothing
                        buttons   the barrel buttons and the pen diagram
                      "buttons" is last so the first two sit where they always have, and it is hidden on a pen
                      with no barrel buttons. It was split back out of "basics" (which held the buttons, the
@@ -62,8 +62,8 @@
         </Border>
 
         <!-- BASICS — how the pen moves and presses, and the tip and eraser. Two columns:
-               1  the tip and eraser, then the pen-input opt-outs (they sit together because "Disable pen
-                  tip" edits the very binding the tip card describes)
+               1  the tip (with its "Disable pen tip" switch, which edits the very binding the tip card
+                  describes), the eraser, then tilt
                2  how the pen moves, then how it presses
 
              Column 2 is the star one: the smoothing slider needs a definite width to render its track,
@@ -72,37 +72,38 @@
                       IsVisible="{Binding #MovementTab.IsChecked}">
             <WrapPanel ItemSpacing="32" LineSpacing="20" Margin="0,12,0,0">
 
-                <!-- 1 — tip and eraser, then the input opt-outs. -->
+                <!-- 1 — the tip, the eraser, then the input opt-outs. Each of the tip and eraser is a section of
+                     its own. "Disable pen tip" sits in the tip's section because it edits the very binding the
+                     tip card describes. -->
                 <StackPanel Width="240" Spacing="20" VerticalAlignment="Top">
                     <StackPanel>
-                        <TextBlock Text="tip and eraser" Classes="Display section" />
+                        <TextBlock Text="tip" Classes="Display section" />
                         <StackPanel Spacing="16" Margin="0,12,0,0">
                             <views:PenSwitchCard DataContext="{Binding PenTipRow}" />
-                            <views:PenSwitchCard DataContext="{Binding PenEraserRow}" />
+                            <ctrl:ToggleSetting Label="Disable pen tip" InlineDescription="True"
+                                                IsChecked="{Binding DisablePenTip}" />
                         </StackPanel>
+                    </StackPanel>
+
+                    <StackPanel>
+                        <TextBlock Text="eraser" Classes="Display section" />
+                        <views:PenSwitchCard DataContext="{Binding PenEraserRow}" Margin="0,12,0,0" />
                     </StackPanel>
 
                     <c:Section VerticalAlignment="Top">
                         <StackPanel Spacing="10">
-                            <TextBlock Text="pen input" Classes="Display section" />
-                            <ctrl:ToggleSetting Label="Disable pen tip" InlineDescription="True"
-                                                IsChecked="{Binding DisablePenTip}" />
-                            <!-- Pressure and tilt reach the pointer only when the pen presses normally (Windows Ink).
-                                 When it presses like a mouse the output takes neither, so these two change nothing:
-                                 they are greyed out, with the reason beneath, rather than left looking live (#1015
-                                 follow-up). Their saved values are untouched, so they come back as they were. -->
+                            <TextBlock Text="tilt" Classes="Display section" />
+                            <!-- Tilt reaches the pointer only when the pen presses normally (Windows Ink). When it
+                                 presses like a mouse the output takes none, so the switch changes nothing: it is
+                                 greyed out, with the reason beneath, rather than left looking live (#1015
+                                 follow-up). Its saved value is untouched, so it comes back as it was. The
+                                 pressure switch is the same on the pressure tab. -->
                             <StackPanel Spacing="10" IsEnabled="{Binding PressureAndTiltAvailable}">
-                                <!-- Disable pressure sensitivity (#494): a flat on/off contact that drops
-                                     pressure entirely (the Pen Dynamics curve is then inert). Moved here from
-                                     the Dynamics tab. -->
-                                <ctrl:ToggleSetting Label="Disable pressure sensitivity" InlineDescription="True"
-                                                    IsChecked="{Binding DisablePressure}" />
-                                <!-- Disable tilt (#494): apps receive no tilt from this tablet. Moved here from
-                                     the Dynamics tab so all pen-input opt-outs live together. -->
+                                <!-- Disable tilt (#494): apps receive no tilt from this tablet. -->
                                 <ctrl:ToggleSetting Label="Disable tilt" InlineDescription="True"
                                                     IsChecked="{Binding DisableTilt}" />
                             </StackPanel>
-                            <TextBlock Text="Pressure and tilt are off while the pen presses like a mouse."
+                            <TextBlock Text="Tilt is off while the pen presses like a mouse."
                                        TextWrapping="Wrap" Foreground="{DynamicResource TextMutedBrush}"
                                        IsVisible="{Binding PressesLikeMouse}" />
                             <!-- Drag bindings hidden for now (#492); the binding + apply wiring stays. -->
