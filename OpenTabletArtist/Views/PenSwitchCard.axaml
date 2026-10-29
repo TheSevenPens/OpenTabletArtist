@@ -4,9 +4,10 @@
              xmlns:c="using:OpenTabletArtist.Controls">
 
     <!-- The pen tip and the eraser: two choices, Default action and Disabled, as one bar (the same segments as a
-         barrel button's card), and a line saying what the lit one means. DataContext is a PenSwitchRowViewModel,
-         which supplies the words, so one card serves both. It replaced a "Working normally" card with, for the
-         tip, a separate "Disable pen tip" switch under it, which said one thing in two places.
+         barrel button's card). The bar says it all, so nothing is written under it, except for a switch set
+         somewhere else, which neither choice describes. DataContext is a PenSwitchRowViewModel, so one card
+         serves both. It replaced a "Working normally" card with, for the tip, a separate "Disable pen tip"
+         switch under it, which said one thing in two places.
 
          There is no Toggle: the tip and the eraser end each press on touch and release on lift, so a toggle
          would flip on every stroke.
@@ -23,20 +24,6 @@
                 <RadioButton Classes="segment" Content="Disabled"
                              IsChecked="{Binding IsDisabled, Mode=OneWay}"
                              Command="{Binding DisableCommand}" />
-            </StackPanel>
-
-            <StackPanel Spacing="3" IsVisible="{Binding IsRecommended}">
-                <TextBlock Text="{Binding DefaultTitle}" FontSize="17" FontWeight="SemiBold"
-                           Foreground="{DynamicResource TextPrimaryBrush}" />
-                <TextBlock Text="{Binding DefaultDetail}" TextWrapping="Wrap"
-                           Foreground="{DynamicResource TextSecondaryBrush}" />
-            </StackPanel>
-
-            <StackPanel Spacing="3" IsVisible="{Binding IsDisabled}">
-                <TextBlock Text="Does nothing" FontSize="17" FontWeight="SemiBold"
-                           Foreground="{DynamicResource TextSecondaryBrush}" />
-                <TextBlock Text="{Binding DisabledDetail}" TextWrapping="Wrap"
-                           Foreground="{DynamicResource TextSecondaryBrush}" />
             </StackPanel>
 
             <!-- Set somewhere else: neither is lit. -->

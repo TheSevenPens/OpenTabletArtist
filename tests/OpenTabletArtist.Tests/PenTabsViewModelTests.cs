@@ -150,16 +150,6 @@ public class PenTabsViewModelTests
         Assert.True(row.SetAutoCommand.CanExecute(null));
     }
 
-    [Theory]
-    [InlineData(PenSwitchKind.Tip, "Draws")]
-    [InlineData(PenSwitchKind.Eraser, "Erases")]
-    public void TheCardsWords_FollowWhichSwitchItIs(PenSwitchKind kind, string title)
-    {
-        var row = Row(kind, PenSwitchBinding.MakeAdaptiveBinding(kind));
-
-        Assert.Equal(title, row.DefaultTitle);
-    }
-
     [Fact]
     public void TipOnAnotherBinding_IsStillChangedToACustomAction()
     {

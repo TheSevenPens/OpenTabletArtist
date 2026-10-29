@@ -179,18 +179,6 @@
                                              IsChecked="{Binding DisableTilt, Mode=OneWay}"
                                              Command="{Binding TurnTiltOffCommand}" />
                             </StackPanel>
-                            <StackPanel Spacing="3" IsVisible="{Binding TiltEnabled}">
-                                <TextBlock Text="Sent to apps" FontSize="17" FontWeight="SemiBold"
-                                           Foreground="{DynamicResource TextPrimaryBrush}" />
-                                <TextBlock Text="Apps receive the angle the pen is held at." TextWrapping="Wrap"
-                                           Foreground="{DynamicResource TextSecondaryBrush}" />
-                            </StackPanel>
-                            <StackPanel Spacing="3" IsVisible="{Binding DisableTilt}">
-                                <TextBlock Text="Not sent" FontSize="17" FontWeight="SemiBold"
-                                           Foreground="{DynamicResource TextSecondaryBrush}" />
-                                <TextBlock Text="Apps receive no tilt from this tablet." TextWrapping="Wrap"
-                                           Foreground="{DynamicResource TextSecondaryBrush}" />
-                            </StackPanel>
                         </StackPanel>
                         <TextBlock Text="Tilt is off while the pen presses like a mouse."
                                    TextWrapping="Wrap" Foreground="{DynamicResource TextMutedBrush}"

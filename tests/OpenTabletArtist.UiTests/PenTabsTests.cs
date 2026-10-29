@@ -135,6 +135,34 @@ public class PenTabsTests
         window.Close();
     }
 
+    // The Enabled | Disabled and Default action | Disabled bars say what they do by their names: nothing is
+    // written under them, apart from the notice for a setting made elsewhere.
+    private static readonly string[] Captions =
+    {
+        "Draws", "Erases", "Does nothing", "Sent to apps", "Not sent",
+        "Touching the tablet with the pen draws.", "Touching the tablet with the eraser end erases.",
+        "Apps receive the angle the pen is held at.", "Apps receive no tilt from this tablet.",
+        "Apps receive how hard you press.", "Strokes are flat, with no pressure.",
+    };
+
+    [AvaloniaTheory]
+    [InlineData("MovementTab", false)]
+    [InlineData("DynamicsTab", false)]
+    [InlineData("TiltTab", false)]
+    [InlineData("MovementTab", true)]
+    [InlineData("DynamicsTab", true)]
+    [InlineData("TiltTab", true)]
+    public void TheBars_HaveNoCaptionUnderThem_WhicheverChoiceIsLit(string tab, bool disabled)
+    {
+        var vm = Vm(WinInkAbsolute, tipBound: !disabled);
+        if (disabled) { vm.DisableTilt = true; vm.DisablePressure = true; }
+        var (window, view) = Page(vm);
+        Select(view, tab);
+
+        Assert.DoesNotContain(Visible<TextBlock>(view), t => Captions.Contains(t.Text));
+        window.Close();
+    }
+
     [AvaloniaFact]
     public void TheTiltChoice_StartsAtTheLeftEdgeOfItsHeading()
     {
@@ -177,7 +205,6 @@ public class PenTabsTests
 
         Assert.Equal(new[] { "Default action", "Disabled" }, PenButtonCardTests.Segments(eraser).Keys.ToArray());
         Assert.Equal(new[] { "Default action" }, PenButtonCardTests.Lit(eraser));
-        Assert.Contains(Visible<TextBlock>(eraser), t => t.Text == "Erases");
         window.Close();
     }
 
@@ -192,7 +219,6 @@ public class PenTabsTests
         Assert.True(vm.PenEraserRow!.IsDisabled);
         Assert.True(vm.PenTipRow!.IsRecommended);
         Assert.Equal(new[] { "Disabled" }, PenButtonCardTests.Lit(Card(view, "ERASER")));
-        Assert.Contains(Visible<TextBlock>(Card(view, "ERASER")), t => t.Text == "Does nothing");
 
         PenButtonCardTests.Click(window, PenButtonCardTests.Segments(Card(view, "ERASER"))["Default action"]);
 
@@ -381,7 +407,6 @@ public class PenTabsTests
 
         Assert.True(vm.DisableTilt);
         Assert.Equal(new[] { "Disabled" }, TiltSegments(view).Where(x => x.Value.IsChecked == true).Select(x => x.Key).ToArray());
-        Assert.Contains(Visible<TextBlock>(view), t => t.Text == "Apps receive no tilt from this tablet.");
 
         PenButtonCardTests.Click(window, TiltSegments(view)["Enabled"]);
 
@@ -572,14 +597,13 @@ public class PenTabsTests
     // ── The tip card ───────────────────────────────────────────────
 
     [AvaloniaFact]
-    public void ADisabledTip_LightsDisabled_AndSaysItDoesNothing()
+    public void ADisabledTip_LightsDisabled_WithoutCallingItACustomAction()
     {
         var (window, view) = Page(Vm(WinInkAbsolute, tipBound: false));
 
         var tip = Card(view, "PEN TIP");
 
         Assert.Equal(new[] { "Disabled" }, PenButtonCardTests.Lit(tip));
-        Assert.Contains(Visible<TextBlock>(tip), t => t.Text == "Does nothing");
         Assert.DoesNotContain(Visible<TextBlock>(tip), t => t.Text?.Contains("custom action") == true);
         window.Close();
     }

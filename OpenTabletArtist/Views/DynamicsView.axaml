@@ -37,18 +37,6 @@
                                          IsChecked="{Binding DisablePressure, Mode=OneWay}"
                                          Command="{Binding TurnPressureOffCommand}" />
                         </StackPanel>
-                        <StackPanel Spacing="3" IsVisible="{Binding PressureEnabled}">
-                            <TextBlock Text="Sent to apps" FontSize="17" FontWeight="SemiBold"
-                                       Foreground="{DynamicResource TextPrimaryBrush}" />
-                            <TextBlock Text="Apps receive how hard you press." TextWrapping="Wrap"
-                                       Foreground="{DynamicResource TextSecondaryBrush}" />
-                        </StackPanel>
-                        <StackPanel Spacing="3" IsVisible="{Binding DisablePressure}">
-                            <TextBlock Text="Not sent" FontSize="17" FontWeight="SemiBold"
-                                       Foreground="{DynamicResource TextSecondaryBrush}" />
-                            <TextBlock Text="Strokes are flat, with no pressure." TextWrapping="Wrap"
-                                       Foreground="{DynamicResource TextSecondaryBrush}" />
-                        </StackPanel>
                     </StackPanel>
 
                     <!-- #469: when pressure sensitivity is disabled the output stage drops pressure, so this
