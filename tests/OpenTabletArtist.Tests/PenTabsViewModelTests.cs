@@ -91,33 +91,73 @@ public class PenTabsViewModelTests
         Assert.True(vm.DisablePressure);        // greyed out, not cleared: it comes back as it was
     }
 
-    // ── The tip card ───────────────────────────────────────────────
+    // ── The tip and eraser card ───────────────────────────────────────────────
 
     private static PenSwitchRowViewModel Row(PenSwitchKind kind, PluginSettingStore? store, bool canEdit = true) =>
         new(kind, 1, store, canEdit, (_, _, _) => Task.CompletedTask);
 
     [Fact]
-    public void TipWithNothingBound_IsDisabled_WithNoFix()
+    public void TipWithNothingBound_IsDisabled_WithNoFix_ButDefaultActionPutsItBack()
     {
         var row = Row(PenSwitchKind.Tip, null);
 
         Assert.True(row.IsDisabled);
         Assert.False(row.IsRecommended);
         Assert.False(row.IsNotRecommended);     // not "changed to a custom action"
-        Assert.False(row.ShowUseAdaptive);      // the Disable pen tip toggle is the way back
-        Assert.False(row.SetAutoCommand.CanExecute(null));
+        Assert.True(row.SetAutoCommand.CanExecute(null));
     }
 
     [Fact]
-    public void EraserWithNothingBound_KeepsItsFix()
+    public async Task TheTipsDisableCommand_ClearsTheBinding_ThroughTheDelegate()
     {
-        // Only the tip has a toggle beside it, so an unbound eraser still needs the Fix.
+        var disabled = 0;
+        var row = new PenSwitchRowViewModel(PenSwitchKind.Tip, 1, PenSwitchBinding.MakeAdaptiveBinding(PenSwitchKind.Tip),
+            true, (_, _, _) => Task.CompletedTask, () => { disabled++; return Task.CompletedTask; });
+
+        Assert.True(row.DisableCommand.CanExecute(null));
+        await row.DisableCommand.ExecuteAsync(null);
+
+        Assert.Equal(1, disabled);
+    }
+
+    [Fact]
+    public async Task TheErasersDisableCommand_ClearsTheBinding_ThroughTheDelegate()
+    {
+        var disabled = 0;
+        var row = new PenSwitchRowViewModel(PenSwitchKind.Eraser, 1, PenSwitchBinding.MakeAdaptiveBinding(PenSwitchKind.Eraser),
+            true, (_, _, _) => Task.CompletedTask, () => { disabled++; return Task.CompletedTask; });
+
+        await row.DisableCommand.ExecuteAsync(null);
+
+        Assert.Equal(1, disabled);
+    }
+
+    [Fact]
+    public void ARowGivenNothingToDisableWith_OffersNoDisable()
+    {
+        var row = Row(PenSwitchKind.Eraser, PenSwitchBinding.MakeAdaptiveBinding(PenSwitchKind.Eraser));
+
+        Assert.False(row.DisableCommand.CanExecute(null));
+    }
+
+    [Fact]
+    public void EraserWithNothingBound_IsDisabled_ButDefaultActionPutsItBack()
+    {
         var row = Row(PenSwitchKind.Eraser, null);
 
-        Assert.False(row.IsDisabled);
-        Assert.True(row.IsNotRecommended);
-        Assert.True(row.ShowUseAdaptive);
+        Assert.True(row.IsDisabled);
+        Assert.False(row.IsNotRecommended);
         Assert.True(row.SetAutoCommand.CanExecute(null));
+    }
+
+    [Theory]
+    [InlineData(PenSwitchKind.Tip, "Draws")]
+    [InlineData(PenSwitchKind.Eraser, "Erases")]
+    public void TheCardsWords_FollowWhichSwitchItIs(PenSwitchKind kind, string title)
+    {
+        var row = Row(kind, PenSwitchBinding.MakeAdaptiveBinding(kind));
+
+        Assert.Equal(title, row.DefaultTitle);
     }
 
     [Fact]
@@ -129,7 +169,6 @@ public class PenTabsViewModelTests
 
         Assert.False(row.IsDisabled);
         Assert.True(row.IsNotRecommended);
-        Assert.True(row.ShowUseAdaptive);
     }
 
     [Fact]
@@ -148,6 +187,95 @@ public class PenTabsViewModelTests
         var row = Row(PenSwitchKind.Tip, null, canEdit: false);
 
         Assert.True(row.IsDisabled);
-        Assert.False(row.ShowUseAdaptive);
+        Assert.False(row.SetAutoCommand.CanExecute(null));
+        Assert.False(row.DisableCommand.CanExecute(null));
+    }
+
+    // ── Live tilt, for the tilt tab's diagrams ─────────────────────
+
+    private static PenSample Sample(double tiltX, double tiltY, bool hasTilt = true) =>
+        new(0.5, 0.5, 0, 0, 0, tiltX, tiltY, 0, false, HasTilt: hasTilt);
+
+    [Fact]
+    public void BeforeAnyReport_ThereIsNoLiveTilt()
+    {
+        var vm = Open(WinInkAbsolute);
+
+        Assert.Null(vm.LiveAzimuth);
+        Assert.Null(vm.LiveAltitude);
+        Assert.Equal("—", vm.LiveAzimuthText);
+        Assert.Equal("—", vm.LiveAltitudeText);
+    }
+
+    [Fact]
+    public void AReportWithTilt_SetsTheAzimuthAndAltitude_AsTheTiltMathDoes()
+    {
+        var vm = Open(WinInkAbsolute);
+
+        vm.SetLiveTilt(Sample(30, 30));
+
+        Assert.Equal(TiltMath.Azimuth(30, 30), vm.LiveAzimuth!.Value, 3);
+        Assert.Equal(TiltMath.Altitude(30, 30), vm.LiveAltitude!.Value, 3);
+        Assert.Equal("45°", vm.LiveAzimuthText);
+        Assert.Equal("51°", vm.LiveAltitudeText);
+    }
+
+    [Theory]
+    [InlineData(false)]     // hovering
+    [InlineData(true)]      // touching
+    public void ThePenStream_FeedsTheLiveTilt_WhetherThePenHoversOrTouches(bool touching)
+    {
+        var vm = Open(WinInkAbsolute);
+
+        vm.OnPenSample(new PenSample(0.5, 0.5, 0, 0, touching ? 0.4 : 0, 30, 30, 0, touching, HasTilt: true));
+
+        Assert.Equal("45°", vm.LiveAzimuthText);
+    }
+
+    [Fact]
+    public void AnUprightPen_ReadsNinetyDegreesAltitude()
+    {
+        var vm = Open(WinInkAbsolute);
+
+        vm.SetLiveTilt(Sample(0, 0));
+
+        Assert.Equal("90°", vm.LiveAltitudeText);
+    }
+
+    [Fact]
+    public void AReportWithoutTilt_ClearsTheLiveTilt_RatherThanReadingItAsUpright()
+    {
+        var vm = Open(WinInkAbsolute);
+        vm.SetLiveTilt(Sample(30, 0));
+
+        vm.SetLiveTilt(Sample(0, 0, hasTilt: false));
+
+        Assert.Null(vm.LiveAzimuth);
+        Assert.Null(vm.LiveAltitude);
+    }
+
+    [Fact]
+    public void StoppingTheLiveStream_ClearsTheLiveTilt()
+    {
+        var vm = Open(WinInkAbsolute);
+        vm.SetLiveTilt(Sample(30, 0));
+
+        vm.StopLiveInput();
+
+        Assert.Null(vm.LiveAzimuth);
+        Assert.Null(vm.LiveAltitude);
+    }
+
+    [Fact]
+    public void TheLiveTilt_IsAnnouncedToTheTextsThatShowIt()
+    {
+        var vm = Open(WinInkAbsolute);
+        var raised = new List<string?>();
+        vm.PropertyChanged += (_, e) => raised.Add(e.PropertyName);
+
+        vm.SetLiveTilt(Sample(30, 0));
+
+        Assert.Contains(nameof(TabletDetailViewModel.LiveAzimuthText), raised);
+        Assert.Contains(nameof(TabletDetailViewModel.LiveAltitudeText), raised);
     }
 }

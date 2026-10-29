@@ -185,7 +185,8 @@ public partial class DashboardViewModel : ObservableObject, IDisposable
     /// basics, the pressure switch on the pressure tab.</summary>
     internal static TabletDetailTab PenTabFor(RemediationArea area) => area switch
     {
-        RemediationArea.TabletPenInputs or RemediationArea.TabletPenTilt => TabletDetailTab.PenInputs,   // basics
+        RemediationArea.TabletPenInputs => TabletDetailTab.PenInputs,                                   // basics
+        RemediationArea.TabletPenTilt => TabletDetailTab.PenTilt,                                       // tilt
         RemediationArea.TabletPenPressure => TabletDetailTab.PenDynamics,                                // pressure
         _ => TabletDetailTab.PenBehavior, // TabletPenBehavior → Movement
     };

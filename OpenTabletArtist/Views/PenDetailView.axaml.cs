@@ -31,9 +31,10 @@ public partial class PenDetailView : UserControl, ITabbedContent
         if (Vm != null) Vm.TabRequested += OnTabRequested;
         if (Vm?.ConsumePendingTab() is { } pending) SelectTab(pending);
 
-        // Live pen-pressure stream feeds the pressure dot + live bar on the Dynamics pivot; run it only
-        // while that pivot is selected (#102).
+        // Live pen-pressure stream feeds the pressure dot + live bar on the Dynamics pivot, and the tilt tab's
+        // two diagrams; run it only while one of those pivots is selected (#102).
         DynamicsTab.IsCheckedChanged += OnDynamicsTabChanged;
+        TiltTab.IsCheckedChanged += OnDynamicsTabChanged;
         ButtonsTab.PropertyChanged += OnButtonsTabPropertyChanged;
         LeaveButtonsTabIfHidden();
         UpdateLiveInput(); // start now if we opened on the dynamics pivot
@@ -44,6 +45,7 @@ public partial class PenDetailView : UserControl, ITabbedContent
         base.OnDetachedFromVisualTree(e);
         if (Vm != null) Vm.TabRequested -= OnTabRequested;
         DynamicsTab.IsCheckedChanged -= OnDynamicsTabChanged;
+        TiltTab.IsCheckedChanged -= OnDynamicsTabChanged;
         ButtonsTab.PropertyChanged -= OnButtonsTabPropertyChanged;
         Vm?.StopLiveInput();
     }
@@ -66,7 +68,7 @@ public partial class PenDetailView : UserControl, ITabbedContent
     private void UpdateLiveInput()
     {
         if (Vm is not { } vm) return;
-        if (DynamicsTab.IsChecked == true) vm.StartLiveInput();
+        if (DynamicsTab.IsChecked == true || TiltTab.IsChecked == true) vm.StartLiveInput();
         else vm.StopLiveInput();
     }
 
@@ -78,8 +80,8 @@ public partial class PenDetailView : UserControl, ITabbedContent
     }
 
     // The pen page carries the pen deep-links (#artist-pen-health): the pen-behaviour "Fix" (output mode)
-    // and the tip and tilt health links land on BASICS, which holds the movement and pressing choices, the
-    // tip and the tilt switch. The pressure link goes to the PRESSURE tab, where the pressure switch is.
+    // and the tip health link land on BASICS, which holds the movement and pressing choices and the tip. The
+    // pressure link goes to the PRESSURE tab, where the pressure switch is, and the tilt link to the TILT tab.
     // Nothing deep-links to the buttons tab (DashboardViewModel.PenTabFor decides which link goes where).
     private void SelectTab(TabletDetailTab tab)
     {
@@ -88,6 +90,7 @@ public partial class PenDetailView : UserControl, ITabbedContent
             case TabletDetailTab.PenBehavior:
             case TabletDetailTab.PenInputs: MovementTab.IsChecked = true; break;
             case TabletDetailTab.PenDynamics: DynamicsTab.IsChecked = true; break;
+            case TabletDetailTab.PenTilt: TiltTab.IsChecked = true; break;
         }
     }
 }

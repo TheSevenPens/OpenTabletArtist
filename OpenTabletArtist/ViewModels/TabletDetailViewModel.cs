@@ -28,6 +28,7 @@ public enum TabletDetailTab
     // Pen-page pivots targeted by the artist-pen-behavior health links (#artist-pen-health).
     PenInputs,
     PenDynamics,
+    PenTilt,
 }
 
 /// <summary>One row of the Calibration tab's positional report (#460): the target it was captured for
@@ -1113,16 +1114,13 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
     // ── Pen input toggles (#469): per-profile BindingSettings flags applied on change ────────────────
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(PressureDisabledNote))]
+    [NotifyPropertyChangedFor(nameof(PressureEnabled))]
     private bool _disablePressure;
-    [ObservableProperty] private bool _disableTilt;
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(TiltEnabled))]
+    private bool _disableTilt;
     [ObservableProperty] private bool _dragBindingsEnabled;
-    [ObservableProperty] private bool _disablePenTip;
     private bool _skipPenInputPersist;
-
-    /// <summary>Backup slot (per tablet, persisted) for the tip binding stashed while the tip is
-    /// disabled, so turning the tip back on restores exactly what was there — mirrors the aux master
-    /// toggle's stash (#493).</summary>
-    private string TipBackupKey => $"TipBackup:{_profile.Tablet}";
 
     /// <summary>Shown on the Pressure Dynamics tab when pressure is disabled — the curve then has no
     /// effect, because the output stage drops pressure entirely (#469).</summary>
@@ -1134,11 +1132,25 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
         _ = ApplySettingsChange(p => p.BindingSettings.DisablePressure = value);
     }
 
+    /// <summary>The pressure tab's Enabled choice: the other side of <see cref="DisablePressure"/>.</summary>
+    public bool PressureEnabled => !DisablePressure;
+
+    // The pressure tab's two segments; always executable, for the reason given on the tilt ones.
+    [RelayCommand] private void TurnPressureOn() => DisablePressure = false;
+    [RelayCommand] private void TurnPressureOff() => DisablePressure = true;
+
     partial void OnDisableTiltChanged(bool value)
     {
         if (_skipPenInputPersist) return;
         _ = ApplySettingsChange(p => p.BindingSettings.DisableTilt = value);
     }
+
+    /// <summary>The tilt tab's Enabled choice: the other side of <see cref="DisableTilt"/>.</summary>
+    public bool TiltEnabled => !DisableTilt;
+
+    // The tilt tab's two segments. Always executable, so the lit one is never drawn greyed out (see PenSwitchCard).
+    [RelayCommand] private void TurnTiltOn() => DisableTilt = false;
+    [RelayCommand] private void TurnTiltOff() => DisableTilt = true;
 
     partial void OnDragBindingsEnabledChanged(bool value)
     {
@@ -1146,38 +1158,16 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
         _ = ApplySettingsChange(p => p.BindingSettings.EnableDragBindings = value);
     }
 
-    partial void OnDisablePenTipChanged(bool value)
-    {
-        if (_skipPenInputPersist) return;
-        _ = SetPenTipDisabledAsync(value);
-    }
-
     /// <summary>Disable the pen tip by clearing its binding — OTD has no "disable tip" flag; the tip is
-    /// a binding (<c>BindingSettings.TipButton</c>), so "off" means no binding. The prior binding is
-    /// stashed so turning the tip back on restores exactly what was there, falling back to the Adaptive
-    /// (Tip) default if there's no usable stash (#493).</summary>
-    private async Task SetPenTipDisabledAsync(bool disabled)
-    {
-        if (_applyAction == null) return;
-        if (disabled)
-        {
-            AppSettings.Set(TipBackupKey, JsonConvert.SerializeObject(_profile.BindingSettings.TipButton));
-            await ApplySettingsChange(p => p.BindingSettings.TipButton = null);
-        }
-        else
-        {
-            var backup = AppSettings.Get(TipBackupKey);
-            PluginSettingStore? restored = null;
-            if (!string.IsNullOrEmpty(backup))
-            {
-                try { restored = JsonConvert.DeserializeObject<PluginSettingStore>(backup); }
-                catch { /* corrupt stash — fall back to the default below */ }
-            }
-            restored ??= PenSwitchBinding.MakeAdaptiveBinding(PenSwitchKind.Tip);
-            await ApplySettingsChange(p => p.BindingSettings.TipButton = restored);
-            AppSettings.Set(TipBackupKey, "");
-        }
-    }
+    /// a binding (<c>BindingSettings.TipButton</c>), so "off" means no binding (#493). The tip card's Default
+    /// action writes the Adaptive (Tip) binding back; the binding that was there before is not kept, since
+    /// "Default action" has to mean the default.</summary>
+    private Task DisablePenTipAsync() =>
+        _applyAction == null ? Task.CompletedTask : ApplySettingsChange(p => p.BindingSettings.TipButton = null);
+
+    /// <summary>Disable the eraser the same way: no binding. Its Default action writes Adaptive (Eraser) back.</summary>
+    private Task DisablePenEraserAsync() =>
+        _applyAction == null ? Task.CompletedTask : ApplySettingsChange(p => p.BindingSettings.EraserButton = null);
 
     private void RefreshFromProfile()
     {
@@ -1215,9 +1205,6 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
         DisablePressure = bindings.DisablePressure;
         DisableTilt = bindings.DisableTilt;
         DragBindingsEnabled = bindings.EnableDragBindings;
-        // The tip is disabled when it has no binding (#493). Derived from the profile so it stays in
-        // sync when the tip binding is edited directly on the pen-switch card.
-        DisablePenTip = bindings.TipButton?.Path == null;
         _skipPenInputPersist = false;
         OnPropertyChanged(nameof(PressureDisabledNote));
 
@@ -1372,8 +1359,10 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
         var bindings = _profile.BindingSettings;
         var canEdit = _applyAction != null;
         var outputIsWindowsInk = IsWindowsInkOutput;
-        var tip = new PenSwitchRowViewModel(PenSwitchKind.Tip, 1, bindings.TipButton, canEdit, ApplyPenSwitchBindingAsync);
-        var eraser = new PenSwitchRowViewModel(PenSwitchKind.Eraser, 1, bindings.EraserButton, canEdit, ApplyPenSwitchBindingAsync);
+        var tip = new PenSwitchRowViewModel(PenSwitchKind.Tip, 1, bindings.TipButton, canEdit, ApplyPenSwitchBindingAsync,
+            DisablePenTipAsync);
+        var eraser = new PenSwitchRowViewModel(PenSwitchKind.Eraser, 1, bindings.EraserButton, canEdit, ApplyPenSwitchBindingAsync,
+            DisablePenEraserAsync);
         tip.IsFirst = true; // suppresses the leading divider in the merged card
 
         // Barrel buttons are the three choices of #1015 (Default action / Keyboard shortcut / Disabled).
@@ -1990,6 +1979,35 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
     [ObservableProperty] private double? _livePenX;
     [ObservableProperty] private double? _livePenY;
 
+    /// <summary>The pen's live tilt, for the tilt tab's two diagrams: the direction it leans (0° toward +X,
+    /// increasing toward +Y) and its angle above the tablet (90° upright). Null until a report carries tilt, and
+    /// after the stream stops. It is what the tablet reports, before the output stage, so it moves whether or not
+    /// tilt is sent to apps.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(LiveAzimuthText))]
+    private double? _liveAzimuth;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(LiveAltitudeText))]
+    private double? _liveAltitude;
+
+    public string LiveAzimuthText => LiveAzimuth is { } v ? $"{v:0}°" : "—";
+    public string LiveAltitudeText => LiveAltitude is { } v ? $"{v:0}°" : "—";
+
+    internal void SetLiveTilt(PenSample s)
+    {
+        if (s.HasTilt)
+        {
+            LiveAzimuth = TiltMath.Azimuth((float)s.TiltX, (float)s.TiltY);
+            LiveAltitude = TiltMath.Altitude((float)s.TiltX, (float)s.TiltY);
+        }
+        else
+        {
+            LiveAzimuth = null;
+            LiveAltitude = null;
+        }
+    }
+
     /// <summary>With more than one tablet connected, the daemon debug stream interleaves all of them;
     /// only show this profile's tablet (same rule as Diagnostics #190).</summary>
     private bool AcceptDeviceReportForThisTablet(JObject data)
@@ -2044,10 +2062,11 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
             : null;
 
     // DeviceReportSample normalizes to 0..1; feed both the pressure dot and the active-area map.
-    private void OnPenSample(PenSample s)
+    internal void OnPenSample(PenSample s)
     {
         LivePenX = s.X;
         LivePenY = s.Y;
+        SetLiveTilt(s);
         if (s.IsDown)
         {
             double raw = Clamp01(s.Pressure);
@@ -2101,6 +2120,8 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
         _liveProcessor.ResetPressure();
         LivePenX = null;
         LivePenY = null;
+        LiveAzimuth = null;
+        LiveAltitude = null;
         foreach (var b in AuxButtons) b.IsPressed = false;
         foreach (var w in Wheels) w.ClearLiveState();
         _ = _penInput?.StopAsync();

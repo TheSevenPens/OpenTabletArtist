@@ -3,41 +3,49 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:c="using:OpenTabletArtist.Controls">
 
-    <!-- One switch on the Pen Switches tab. DataContext is a PenSwitchRowViewModel, bound by the tab to
-         a slot (Tip / Eraser / Button N). Same data/commands as the old list rows, laid out as a compact
-         card that the rows layout flows into WrapPanels (tip + eraser, then the buttons). -->
-    <!-- Adaptive is the only supported binding for pen switches — under Windows Ink (which OTA's output
-         modes use) other binding types silently don't work (#495). Simplified to two plain-language states
-         (#pen-inputs-simplify): when it's on the recommended default, one calm "Working normally" line; when
-         it's drifted onto something else, a plain sentence + the current binding + a single "Fix". No plugin
-         jargon and no colored badges (the check mark carries "good", per the app's #593 convention). -->
-    <c:Section Padding="12,10" Width="240" HorizontalAlignment="Left">
-        <StackPanel Spacing="6">
-            <TextBlock Text="{Binding SectionLabel}" Classes="SectionLabel" />
+    <!-- The pen tip and the eraser: two choices, Default action and Disabled, as one bar (the same segments as a
+         barrel button's card), and a line saying what the lit one means. DataContext is a PenSwitchRowViewModel,
+         which supplies the words, so one card serves both. It replaced a "Working normally" card with, for the
+         tip, a separate "Disable pen tip" switch under it, which said one thing in two places.
 
-            <!-- Working (recommended default) — one quiet confirmation line. -->
-            <StackPanel Orientation="Horizontal" Spacing="8" IsVisible="{Binding IsRecommended}">
-                <PathIcon Data="{StaticResource IconCheckCircle}" Width="15" Height="15"
-                          Foreground="{DynamicResource TextPrimaryBrush}" VerticalAlignment="Center" />
-                <TextBlock Text="Working normally" VerticalAlignment="Center"
-                           Foreground="{DynamicResource TextPrimaryBrush}" />
+         There is no Toggle: the tip and the eraser end each press on touch and release on lift, so a toggle
+         would flip on every stroke.
+
+         A switch set somewhere else (OTD's own UI) has neither lit: the card says what it does now, and that it
+         may not work. Nothing is rewritten unless the user picks. The segments are one-way: the saved binding
+         decides which is lit, and a click is only a command. No GroupName, for the reason on PenButtonCard. -->
+    <c:Section Padding="12,10" Width="240" HorizontalAlignment="Left">
+        <StackPanel Spacing="12">
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Left">
+                <RadioButton Classes="segment" Content="Default action"
+                             IsChecked="{Binding IsRecommended, Mode=OneWay}"
+                             Command="{Binding SetAutoCommand}" />
+                <RadioButton Classes="segment" Content="Disabled"
+                             IsChecked="{Binding IsDisabled, Mode=OneWay}"
+                             Command="{Binding DisableCommand}" />
             </StackPanel>
 
-            <!-- The tip, switched off by the "Disable pen tip" toggle beside it: say so, with no fix (the toggle
-                 is the way back). -->
-            <TextBlock Text="Disabled" IsVisible="{Binding IsDisabled}"
-                       Foreground="{DynamicResource TextPrimaryBrush}" />
+            <StackPanel Spacing="3" IsVisible="{Binding IsRecommended}">
+                <TextBlock Text="{Binding DefaultTitle}" FontSize="17" FontWeight="SemiBold"
+                           Foreground="{DynamicResource TextPrimaryBrush}" />
+                <TextBlock Text="{Binding DefaultDetail}" TextWrapping="Wrap"
+                           Foreground="{DynamicResource TextSecondaryBrush}" />
+            </StackPanel>
 
-            <!-- Needs attention — plain problem sentence, the current binding (plain), and one fix. -->
-            <StackPanel Spacing="8" IsVisible="{Binding IsNotRecommended}">
-                <TextBlock Text="Changed to a custom action — it may not work as expected."
-                           Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap" />
-                <TextBlock Text="{Binding CurrentPlainLabel, StringFormat='Currently: {0}'}"
-                           Foreground="{DynamicResource TextMutedBrush}" TextWrapping="Wrap" />
-                <Button Content="Fix" Command="{Binding SetAutoCommand}"
-                        IsVisible="{Binding ShowUseAdaptive}"
-                        Theme="{StaticResource AccentButton}" Padding="12,5" HorizontalAlignment="Left"
-                        ToolTip.Tip="Reset this input to its normal behavior" />
+            <StackPanel Spacing="3" IsVisible="{Binding IsDisabled}">
+                <TextBlock Text="Does nothing" FontSize="17" FontWeight="SemiBold"
+                           Foreground="{DynamicResource TextSecondaryBrush}" />
+                <TextBlock Text="{Binding DisabledDetail}" TextWrapping="Wrap"
+                           Foreground="{DynamicResource TextSecondaryBrush}" />
+            </StackPanel>
+
+            <!-- Set somewhere else: neither is lit. -->
+            <StackPanel Spacing="3" IsVisible="{Binding IsNotRecommended}">
+                <TextBlock Text="{Binding CurrentPlainLabel, StringFormat='Currently: {0}'}" FontSize="17"
+                           FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}"
+                           TextWrapping="Wrap" />
+                <TextBlock Text="Changed to a custom action. It may not work as expected." TextWrapping="Wrap"
+                           Foreground="{DynamicResource TextSecondaryBrush}" />
             </StackPanel>
         </StackPanel>
     </c:Section>

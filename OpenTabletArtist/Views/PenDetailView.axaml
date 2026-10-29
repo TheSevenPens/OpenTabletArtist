@@ -41,6 +41,7 @@
                      #XTab.IsChecked. Three, named for what they hold:
                        basics    how the pen moves and presses, and the tip and eraser
                        pressure  the pressure switch, curve and smoothing
+                       tilt      whether apps receive the pen's tilt, and two live pictures of it
                        buttons   the barrel buttons and the pen diagram
                      "buttons" is last so the first two sit where they always have, and it is hidden on a pen
                      with no barrel buttons. It was split back out of "basics" (which held the buttons, the
@@ -53,6 +54,8 @@
                          here from the tablet page (#pen-dynamics-move); x:Name kept for the code-behind. -->
                     <RadioButton Content="pressure" x:Name="DynamicsTab"
                                  Theme="{StaticResource PivotTab}" Margin="0,1,26,1" />
+                    <RadioButton Content="tilt" x:Name="TiltTab"
+                                 Theme="{StaticResource PivotTab}" Margin="0,1,26,1" />
                     <RadioButton Content="buttons" x:Name="ButtonsTab"
                                  IsVisible="{Binding HasPenButtons}"
                                  Theme="{StaticResource PivotTab}" Margin="0,1,26,1" />
@@ -61,10 +64,10 @@
             </Grid>
         </Border>
 
-        <!-- BASICS — how the pen moves and presses, and the tip and eraser. Two columns:
-               1  the tip (with its "Disable pen tip" switch, which edits the very binding the tip card
-                  describes), the eraser, then tilt
+        <!-- BASICS — how the pen moves and presses, and the tip and eraser. Three columns:
+               1  the tip, Default action or Disabled
                2  how the pen moves, then how it presses
+               3  the eraser, Default action or Disabled
 
              Column 2 is the star one: the smoothing slider needs a definite width to render its track,
              since a size-to-content Slider collapses it to nothing. -->
@@ -72,46 +75,12 @@
                       IsVisible="{Binding #MovementTab.IsChecked}">
             <WrapPanel ItemSpacing="32" LineSpacing="20" Margin="0,12,0,0">
 
-                <!-- 1 — the tip, the eraser, then the input opt-outs. Each of the tip and eraser is a section of
-                     its own. "Disable pen tip" sits in the tip's section because it edits the very binding the
-                     tip card describes. -->
+                <!-- 1 — the tip: Default action or Disabled. -->
                 <StackPanel Width="240" Spacing="20" VerticalAlignment="Top">
                     <StackPanel>
                         <TextBlock Text="tip" Classes="Display section" />
-                        <StackPanel Spacing="16" Margin="0,12,0,0">
-                            <views:PenSwitchCard DataContext="{Binding PenTipRow}" />
-                            <ctrl:ToggleSetting Label="Disable pen tip" InlineDescription="True"
-                                                IsChecked="{Binding DisablePenTip}" />
-                        </StackPanel>
+                        <views:PenSwitchCard DataContext="{Binding PenTipRow}" Margin="0,12,0,0" />
                     </StackPanel>
-
-                    <StackPanel>
-                        <TextBlock Text="eraser" Classes="Display section" />
-                        <views:PenSwitchCard DataContext="{Binding PenEraserRow}" Margin="0,12,0,0" />
-                    </StackPanel>
-
-                    <c:Section VerticalAlignment="Top">
-                        <StackPanel Spacing="10">
-                            <TextBlock Text="tilt" Classes="Display section" />
-                            <!-- Tilt reaches the pointer only when the pen presses normally (Windows Ink). When it
-                                 presses like a mouse the output takes none, so the switch changes nothing: it is
-                                 greyed out, with the reason beneath, rather than left looking live (#1015
-                                 follow-up). Its saved value is untouched, so it comes back as it was. The
-                                 pressure switch is the same on the pressure tab. -->
-                            <StackPanel Spacing="10" IsEnabled="{Binding PressureAndTiltAvailable}">
-                                <!-- Disable tilt (#494): apps receive no tilt from this tablet. -->
-                                <ctrl:ToggleSetting Label="Disable tilt" InlineDescription="True"
-                                                    IsChecked="{Binding DisableTilt}" />
-                            </StackPanel>
-                            <TextBlock Text="Tilt is off while the pen presses like a mouse."
-                                       TextWrapping="Wrap" Foreground="{DynamicResource TextMutedBrush}"
-                                       IsVisible="{Binding PressesLikeMouse}" />
-                            <!-- Drag bindings hidden for now (#492); the binding + apply wiring stays. -->
-                            <ctrl:ToggleSetting Label="Drag bindings" IsVisible="False"
-                                                Description="Pen button bindings only work while the pen is touching the tablet (drag-only), not while hovering."
-                                                IsChecked="{Binding DragBindingsEnabled}" />
-                        </StackPanel>
-                    </c:Section>
                 </StackPanel>
 
                 <!-- 2 — movement (the choice, then position smoothing), then pressing. -->
@@ -168,6 +137,104 @@
                                 IsVisible="{Binding CanFixOutputMode}" />
                     </StackPanel>
                 </StackPanel>
+
+                <!-- 3 — the eraser. -->
+                <StackPanel Width="240" Spacing="20" VerticalAlignment="Top">
+                    <StackPanel>
+                        <TextBlock Text="eraser" Classes="Display section" />
+                        <views:PenSwitchCard DataContext="{Binding PenEraserRow}" Margin="0,12,0,0" />
+                    </StackPanel>
+
+                    <!-- Drag bindings hidden for now (#492); the binding + apply wiring stays. -->
+                    <ctrl:ToggleSetting Label="Drag bindings" IsVisible="False"
+                                        Description="Pen button bindings only work while the pen is touching the tablet (drag-only), not while hovering."
+                                        IsChecked="{Binding DragBindingsEnabled}" />
+                </StackPanel>
+
+            </WrapPanel>
+        </ScrollViewer>
+
+        <!-- TILT — whether apps receive the pen's tilt: Enabled or Disabled, as one bar (the same segments as the
+             tip and eraser). Tilt reaches the pointer only when the pen presses normally (Windows Ink). When it
+             presses like a mouse the output takes none, so the choice changes nothing: the bar is greyed out,
+             with the reason beneath, rather than left looking live (#1015 follow-up). The saved value is
+             untouched, so it comes back as it was. The pressure switch is the same on the pressure tab.
+             The segments are one-way: the saved setting decides which is lit, and a click is only a command
+             (#494 for Disabled: apps receive no tilt from this tablet). -->
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto"
+                      IsVisible="{Binding #TiltTab.IsChecked}">
+            <WrapPanel ItemSpacing="32" LineSpacing="20" Margin="0,12,0,0">
+
+            <!-- 1 — the Enabled / Disabled choice. -->
+            <StackPanel Width="240" VerticalAlignment="Top">
+                <TextBlock Text="tilt" Classes="Display section" />
+                <c:Section Padding="12,10" Margin="0,12,0,0" HorizontalAlignment="Left" Width="240">
+                    <StackPanel Spacing="12">
+                        <StackPanel Spacing="12" IsEnabled="{Binding PressureAndTiltAvailable}">
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Left">
+                                <RadioButton Classes="segment" Content="Enabled"
+                                             IsChecked="{Binding TiltEnabled, Mode=OneWay}"
+                                             Command="{Binding TurnTiltOnCommand}" />
+                                <RadioButton Classes="segment" Content="Disabled"
+                                             IsChecked="{Binding DisableTilt, Mode=OneWay}"
+                                             Command="{Binding TurnTiltOffCommand}" />
+                            </StackPanel>
+                            <StackPanel Spacing="3" IsVisible="{Binding TiltEnabled}">
+                                <TextBlock Text="Sent to apps" FontSize="17" FontWeight="SemiBold"
+                                           Foreground="{DynamicResource TextPrimaryBrush}" />
+                                <TextBlock Text="Apps receive the angle the pen is held at." TextWrapping="Wrap"
+                                           Foreground="{DynamicResource TextSecondaryBrush}" />
+                            </StackPanel>
+                            <StackPanel Spacing="3" IsVisible="{Binding DisableTilt}">
+                                <TextBlock Text="Not sent" FontSize="17" FontWeight="SemiBold"
+                                           Foreground="{DynamicResource TextSecondaryBrush}" />
+                                <TextBlock Text="Apps receive no tilt from this tablet." TextWrapping="Wrap"
+                                           Foreground="{DynamicResource TextSecondaryBrush}" />
+                            </StackPanel>
+                        </StackPanel>
+                        <TextBlock Text="Tilt is off while the pen presses like a mouse."
+                                   TextWrapping="Wrap" Foreground="{DynamicResource TextMutedBrush}"
+                                   IsVisible="{Binding PressesLikeMouse}" />
+                    </StackPanel>
+                </c:Section>
+            </StackPanel>
+
+            <!-- 2 and 3 — the pen's tilt, live from the tablet's own reports (before the output stage, so they
+                 move even with tilt disabled): which way it leans, seen from above, and how far it is tipped
+                 over, seen from the side. The stream runs while this tab is showing (PenDetailView). -->
+            <StackPanel Width="260" VerticalAlignment="Top">
+                <TextBlock Text="azimuth" Classes="Display section" />
+                <TextBlock Text="Which way the pen leans, seen from above." TextWrapping="Wrap" Margin="0,6,0,0"
+                           Foreground="{DynamicResource TextMutedBrush}" />
+                <c:Section Padding="12,10" Margin="0,12,0,0">
+                    <StackPanel Spacing="8" HorizontalAlignment="Center">
+                        <c:TiltAzimuthDiagram Azimuth="{Binding LiveAzimuth}" Altitude="{Binding LiveAltitude}"
+                                              TrackBrush="{DynamicResource TextMutedBrush}"
+                                              LabelBrush="{DynamicResource TextMutedBrush}"
+                                              PenBrush="{DynamicResource TextPrimaryBrush}"
+                                              AccentBrush="{DynamicResource AccentBrush}" />
+                        <TextBlock Text="{Binding LiveAzimuthText}" FontSize="17" FontWeight="SemiBold"
+                                   HorizontalAlignment="Center" Foreground="{DynamicResource TextPrimaryBrush}" />
+                    </StackPanel>
+                </c:Section>
+            </StackPanel>
+
+            <StackPanel Width="260" VerticalAlignment="Top">
+                <TextBlock Text="altitude" Classes="Display section" />
+                <TextBlock Text="How far the pen is tipped over, seen from the side." TextWrapping="Wrap"
+                           Margin="0,6,0,0" Foreground="{DynamicResource TextMutedBrush}" />
+                <c:Section Padding="12,10" Margin="0,12,0,0">
+                    <StackPanel Spacing="8" HorizontalAlignment="Center">
+                        <c:TiltAltitudeDiagram Altitude="{Binding LiveAltitude}"
+                                               TrackBrush="{DynamicResource TextMutedBrush}"
+                                               LabelBrush="{DynamicResource TextMutedBrush}"
+                                               PenBrush="{DynamicResource TextPrimaryBrush}"
+                                               AccentBrush="{DynamicResource AccentBrush}" />
+                        <TextBlock Text="{Binding LiveAltitudeText}" FontSize="17" FontWeight="SemiBold"
+                                   HorizontalAlignment="Center" Foreground="{DynamicResource TextPrimaryBrush}" />
+                    </StackPanel>
+                </c:Section>
+            </StackPanel>
 
             </WrapPanel>
         </ScrollViewer>

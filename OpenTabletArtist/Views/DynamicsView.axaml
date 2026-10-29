@@ -6,8 +6,8 @@
     <!-- The pressure-dynamics content — two columns: the curve editor + smoothing with the live readouts
          and gauge under it, and the paint preview (two canvases, raw and processed pressure). Hosted by the PEN page's "pressure" pivot
          (#pen-dynamics-move). DataContext is a TabletDetailViewModel, inherited from the host. (Disable
-         tilt and position smoothing → Pen › basics; Disable pressure sensitivity is at the top of the curve
-         card below.) -->
+         tilt → Pen › tilt, position smoothing → Pen › basics; the Enabled / Disabled choice for pressure is at
+         the top of the curve card below.) -->
     <StackPanel IsEnabled="{Binding CanEditPressure}">
         <!-- Three definite-width blocks in a WrapPanel (#691). The widths are definite so the smoothing
              slider's star-sized track has something to divide; wrapping is what keeps 360+16+260+16+170
@@ -21,14 +21,35 @@
                  and pressure smoothing. No card heading — the "pressure" pivot already names the tab. -->
             <ctrl:Section Width="360" VerticalAlignment="Top" Margin="0,2,0,10">
                 <StackPanel>
-                    <!-- Disable pressure sensitivity (#494): a flat on/off contact that drops pressure entirely,
-                         which leaves the curve below inert. It is on this tab, with the curve it overrides. Under
-                         a pen that presses like a mouse the output takes no pressure at all, so the switch changes
-                         nothing: it is greyed out, and the note under it says why. Its saved value is untouched,
-                         so it comes back as it was (#1015 follow-up). -->
-                    <ctrl:ToggleSetting Label="Disable pressure sensitivity" InlineDescription="True"
-                                        IsChecked="{Binding DisablePressure}"
-                                        IsEnabled="{Binding PressureAndTiltAvailable}" Margin="0,0,0,10" />
+                    <!-- Pressure sensitivity, Enabled or Disabled (#494): disabled is a flat on/off contact that
+                         drops pressure entirely, which leaves the curve below inert. It is on this tab, with the
+                         curve it overrides. The same bar as the tip, eraser and tilt. Under a pen that presses like
+                         a mouse the output takes no pressure at all, so the choice changes nothing: the bar is
+                         greyed out, and the note under it says why. Its saved value is untouched, so it comes
+                         back as it was (#1015 follow-up). The segments are one-way: the saved setting decides which
+                         is lit, and a click is only a command. -->
+                    <StackPanel Spacing="12" Margin="0,0,0,10" IsEnabled="{Binding PressureAndTiltAvailable}">
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Left">
+                            <RadioButton Classes="segment" Content="Enabled"
+                                         IsChecked="{Binding PressureEnabled, Mode=OneWay}"
+                                         Command="{Binding TurnPressureOnCommand}" />
+                            <RadioButton Classes="segment" Content="Disabled"
+                                         IsChecked="{Binding DisablePressure, Mode=OneWay}"
+                                         Command="{Binding TurnPressureOffCommand}" />
+                        </StackPanel>
+                        <StackPanel Spacing="3" IsVisible="{Binding PressureEnabled}">
+                            <TextBlock Text="Sent to apps" FontSize="17" FontWeight="SemiBold"
+                                       Foreground="{DynamicResource TextPrimaryBrush}" />
+                            <TextBlock Text="Apps receive how hard you press." TextWrapping="Wrap"
+                                       Foreground="{DynamicResource TextSecondaryBrush}" />
+                        </StackPanel>
+                        <StackPanel Spacing="3" IsVisible="{Binding DisablePressure}">
+                            <TextBlock Text="Not sent" FontSize="17" FontWeight="SemiBold"
+                                       Foreground="{DynamicResource TextSecondaryBrush}" />
+                            <TextBlock Text="Strokes are flat, with no pressure." TextWrapping="Wrap"
+                                       Foreground="{DynamicResource TextSecondaryBrush}" />
+                        </StackPanel>
+                    </StackPanel>
 
                     <!-- #469: when pressure sensitivity is disabled the output stage drops pressure, so this
                          curve has no effect. Flag it here so the tab isn't silently inert. -->
@@ -157,13 +178,13 @@
                         <StackPanel Grid.Column="0" Spacing="6">
                             <TextBlock Text="Draw with raw pressure" TextWrapping="Wrap" />
                             <ctrl:Canvas CornerRadius="0" Padding="0" ClipToBounds="True" Height="300">
-                                <ctrl:PenTestCanvas x:Name="PreviewCanvas" BrushMode="PressureToSize" />
+                                <ctrl:PenTestCanvas x:Name="PreviewCanvas" BrushMode="PressureToSize" FocusWhenLoaded="False" />
                             </ctrl:Canvas>
                         </StackPanel>
                         <StackPanel Grid.Column="1" Spacing="6">
                             <TextBlock Text="Draw with processed pressure" TextWrapping="Wrap" />
                             <ctrl:Canvas CornerRadius="0" Padding="0" ClipToBounds="True" Height="300">
-                                <ctrl:PenTestCanvas x:Name="PreviewCanvas2" BrushMode="PressureToSize" />
+                                <ctrl:PenTestCanvas x:Name="PreviewCanvas2" BrushMode="PressureToSize" FocusWhenLoaded="False" />
                             </ctrl:Canvas>
                         </StackPanel>
                     </Grid>

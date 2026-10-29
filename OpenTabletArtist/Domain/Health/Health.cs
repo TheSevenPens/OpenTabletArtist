@@ -60,11 +60,11 @@ public enum RemediationArea
     /// <summary>One-click fix for the artist-pen-behavior bundle: re-enable Windows Ink + pen tip + pressure
     /// + tilt on the tablet in a single apply (#artist-pen-health).</summary>
     RestorePenBehavior,
-    /// <summary>Deep-link to a tablet's Pen page › basics tab (the tip, with its Disable pen tip switch).</summary>
+    /// <summary>Deep-link to a tablet's Pen page › basics tab (the tip card: Default action or Disabled).</summary>
     TabletPenInputs,
-    /// <summary>Deep-link to a tablet's Pen page › pressure tab (the Disable pressure sensitivity switch).</summary>
+    /// <summary>Deep-link to a tablet's Pen page › pressure tab (the Enabled / Disabled choice).</summary>
     TabletPenPressure,
-    /// <summary>Deep-link to a tablet's Pen page › basics tab (the Disable tilt switch).</summary>
+    /// <summary>Deep-link to a tablet's Pen page › tilt tab (the Enabled / Disabled choice).</summary>
     TabletPenTilt,
     /// <summary>One-click fix for an off-screen (or custom) tablet mapping (#629): re-map the active area
     /// cleanly to the primary display (whole-monitor, undistorted 1:1). Paired with a "Review" secondary
