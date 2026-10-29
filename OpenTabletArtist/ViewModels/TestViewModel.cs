@@ -281,8 +281,9 @@ public partial class TestViewModel : ObservableObject, IDisposable
         PressureText = s.Pressure.ToString("0.000");
         TiltXText = s.TiltX.ToString("0.0") + "°";
         TiltYText = s.TiltY.ToString("0.0") + "°";
-        AzimuthText = DiagnosticsMath.TiltAzimuthDegrees(s.TiltX, s.TiltY).ToString("0.0") + "°";
-        AltitudeText = DiagnosticsMath.TiltAltitudeDegrees(s.TiltX, s.TiltY).ToString("0.0") + "°";
+        // The same formula as the pen page's tilt tab, so a pen reads the same on both.
+        AzimuthText = TiltMath.Azimuth((float)s.TiltX, (float)s.TiltY).ToString("0.0") + "°";
+        AltitudeText = TiltMath.Altitude((float)s.TiltX, (float)s.TiltY).ToString("0.0") + "°";
         TwistText = s.Twist.ToString("0.0") + "°";
     }
 

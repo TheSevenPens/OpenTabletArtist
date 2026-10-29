@@ -22,6 +22,10 @@ public static class DiagnosticsMath
     public static double ReportRateHz(double periodMs)
         => periodMs > 0 ? Math.Round(1000.0 / periodMs) : 0;
 
+    // The two tilt formulas below are what a stroke recording writes as "azimuth" and "lean" (StrokeRecordingSession),
+    // and are kept as they were so a take recorded now compares with one recorded before. Everything the artist
+    // reads on screen (the Test and Diagnostics pages, the tilt tab) uses TiltMath instead.
+
     /// <summary>Tilt azimuth in degrees, normalized to [0, 360).</summary>
     public static double TiltAzimuthDegrees(double tiltX, double tiltY)
     {

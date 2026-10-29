@@ -275,8 +275,8 @@ public partial class DiagnosticsViewModel : ObservableObject, IDisposable
             {
                 DebugTiltX = tilt["X"]?.Value<double>() ?? 0;
                 DebugTiltY = tilt["Y"]?.Value<double>() ?? 0;
-                DebugTiltAzimuth = DiagnosticsMath.TiltAzimuthDegrees(DebugTiltX, DebugTiltY);
-                DebugTiltAltitude = DiagnosticsMath.TiltAltitudeDegrees(DebugTiltX, DebugTiltY);
+                DebugTiltAzimuth = TiltMath.Azimuth((float)DebugTiltX, (float)DebugTiltY);
+                DebugTiltAltitude = TiltMath.Altitude((float)DebugTiltX, (float)DebugTiltY);
             }
 
             // Pen buttons
