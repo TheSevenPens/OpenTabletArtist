@@ -175,7 +175,7 @@ public class PenTabsTests
     }
 
     [AvaloniaFact]
-    public void Basics_LaysOutTipThenMovementThenEraser_AsThreeColumns()
+    public void Basics_LaysOutTipThenEraserThenMovement_AsThreeColumns()
     {
         var view = new PenDetailView { DataContext = Vm(WinInkAbsolute) };
         var window = new Window { Content = view, Width = 1000, Height = 700 };
@@ -190,8 +190,8 @@ public class PenTabsTests
         double movement = Left(Heading(view, "movement"));
         double eraser = Left(Heading(view, "eraser"));
 
-        Assert.True(tip < movement, "movement is the second column, right of the tip");
-        Assert.True(movement < eraser, "the eraser is the third column, right of movement");
+        Assert.True(tip < eraser, "the eraser is the second column, right of the tip");
+        Assert.True(eraser < movement, "movement is the third column, right of the eraser");
         Assert.Equal(Top(view, Heading(view, "tip")), Top(view, Heading(view, "eraser")), 1);
         window.Close();
     }
