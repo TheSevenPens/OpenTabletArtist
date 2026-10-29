@@ -28,7 +28,7 @@
                     <TextBlock Text="Required for pressure &amp; tilt"
                                Foreground="{DynamicResource TextMutedBrush}" FontStyle="Italic"
                                Margin="0,2,0,0"
-                               IsVisible="{Binding !VmultiInstalled}" />
+                               IsVisible="{Binding ShowNotInstalledNote}" />
                     <!-- The other half of the same job lives on another page (#695). VMulti is the virtual
                          pen the Windows Ink plugin injects through: install one without the other and
                          pressure still doesn't reach your drawing app. The two moved apart for locally

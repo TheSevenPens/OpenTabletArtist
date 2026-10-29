@@ -18,14 +18,15 @@ public sealed class WindowsInkAutoSetup : System.IDisposable
     private readonly SetupActions _setup;
     private readonly WindowsInkPluginService _winInk = new();
     private readonly WindowsInkBundledInstaller _bundled = new();
-    private readonly VMultiDetector _vmulti = new();
+    private readonly HealthService _health;
 
     private bool _busy;
     private int _installAttempts; // bounded retries per session (#397)
 
-    public WindowsInkAutoSetup(AppSession session)
+    public WindowsInkAutoSetup(AppSession session, HealthService health)
     {
         _session = session;
+        _health = health;
         _setup = new SetupActions(session, session);
         _session.DataLoaded += OnDataLoaded;
         _session.PropertyChanged += OnSessionPropertyChanged;
@@ -79,12 +80,19 @@ public sealed class WindowsInkAutoSetup : System.IDisposable
         // the output mode, and VMulti is the virtual device it injects through. Without VMulti, switching
         // to Windows Ink would stop the pointer — so leave the tablet alone until VMulti is functional.
         if (_winInk.ReadInstalled(_session.PluginDirectory) == null) return;
-        if (!_vmulti.DetectHid().Functional) return;
+        if (!await VMultiIsFunctionalAsync()) return;
 
         // Delegate the mode-set to the shared SetupActions path (the same one the manual "enable" button
         // uses), passing a filter so tablets the user deliberately opted out of Windows Ink are skipped (#380/#406).
         await _setup.SetDetectedTabletsToWindowsInkAsync(t => !WinInkAutoOptOut.IsOptedOut(t));
     }
+
+    /// <summary>Whether the virtual pen has a working HID control channel, from the shared health report
+    /// rather than a probe of our own, so this agrees with Home and the VMulti page. Waits for the
+    /// collection this data load started: acting on an older report would read VMulti as missing on the
+    /// first load after connecting, and nothing re-runs this until the next data load.</summary>
+    internal async Task<bool> VMultiIsFunctionalAsync() =>
+        VMultiStatus.From(await _health.LatestAnalysisAsync()).Functional;
 
     public void Dispose()
     {

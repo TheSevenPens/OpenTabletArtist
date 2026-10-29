@@ -60,9 +60,6 @@ public sealed partial class HealthService : ObservableObject, IDisposable
     public HealthAnalysisReport? Analysis { get; private set; }
     private readonly DriverConflictMonitor _conflicts;
 
-    // Avoid duplicate refreshes from the VMulti page. The collector owns the authoritative probe.
-    private bool? _vmultiInstalled;
-
     /// <summary>Active issues, worst severity first (see <see cref="HealthEvaluator"/>).</summary>
     public ObservableCollection<HealthIssue> Issues { get; } = new();
 
@@ -114,18 +111,36 @@ public sealed partial class HealthService : ObservableObject, IDisposable
 
     private void OnConflictDriversChanged(object? sender, NotifyCollectionChangedEventArgs e) => Reevaluate();
 
-    /// <summary>Feed the latest VMulti detection result (from the VMulti page) and re-evaluate.</summary>
-    public void SetVMultiInstalled(bool installed)
-    {
-        if (_vmultiInstalled == installed) return;
-        _vmultiInstalled = installed;
-        Reevaluate();
-    }
-
     /// <summary>Force an immediate re-evaluation. Call after an action that changes health-relevant
     /// state without a daemon reload (e.g. installing/uninstalling the Windows Ink plugin), so the
     /// catalog updates at once instead of on the next background poll.</summary>
     public void Refresh() => Reevaluate();
+
+    /// <summary>Re-collect now and return the report that collection produced, or null if it produced
+    /// none (it failed, or the service was disposed). For a caller that changed something the report
+    /// describes and needs the answer after the change, such as the VMulti page after an install. Never
+    /// returns the report from before the call: <see cref="Analysis"/> is replaced or the result is null.</summary>
+    public async Task<HealthAnalysisReport?> RefreshAsync()
+    {
+        var before = Analysis;
+        Reevaluate();
+        var report = await LatestAnalysisAsync();
+        return ReferenceEquals(report, before) ? null : report;
+    }
+
+    /// <summary>The report from the collection in flight, waiting for it (and for any collection that
+    /// supersedes it) to finish; the last report when none is running. For a caller that must not act on
+    /// a view older than the event it is reacting to, such as Windows Ink auto-setup on a data load.</summary>
+    public async Task<HealthAnalysisReport?> LatestAnalysisAsync()
+    {
+        Task seen;
+        do
+        {
+            seen = CurrentCollection;
+            await seen.ConfigureAwait(true);
+        } while (!ReferenceEquals(seen, CurrentCollection));
+        return Analysis;
+    }
 
     /// <summary>Issues whose fix lives in <paramref name="area"/> (optionally for one tablet) — used by a
     /// page to surface just the issues relevant to it, from the same shared catalog.</summary>

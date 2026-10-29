@@ -207,7 +207,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
 
         // Windows Ink auto-setup: install the plugin if missing and switch tablets to Windows Ink
         // (once VMulti is functional), so the user never has to configure Windows Ink themselves.
-        _winInkAutoSetup = new WindowsInkAutoSetup(_session);
+        _winInkAutoSetup = new WindowsInkAutoSetup(_session, _health);
 
         // Global hotkeys (#320, #89): one shared hotkey window; the profile-switch manager and the
         // monitor-cycle manager each register their own chords on it and filter presses by their ids.

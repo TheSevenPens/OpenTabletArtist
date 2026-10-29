@@ -38,19 +38,6 @@ public class VMultiDetector
         hardwareIds.Select(id => VMultiHardwareIds.FirstOrDefault(v => v.Equals(id, StringComparison.OrdinalIgnoreCase)))
             .FirstOrDefault(v => v != null);
 
-    /// <summary>
-    /// Detect vmulti via HID enumeration (only sees enabled, running devices).
-    /// </summary>
-    public HidDetectionResult DetectHid()
-    {
-        var h = ObserveHid();
-        if (h.Error != null) return new HidDetectionResult(false, false, $"Error: {h.Error}");
-        if (!h.Visible) return new HidDetectionResult(false, false, "Not visible to HID");
-        return h.ControlChannel
-            ? new HidDetectionResult(true, true, $"Active ({h.DeviceCount} devices)")
-            : new HidDetectionResult(true, false, "Visible but no control channel");
-    }
-
     /// <summary>The HID view of the virtual pen. A failure is recorded in <c>Error</c>, never thrown: it is
     /// supporting evidence and must not take the install verdict down with it.</summary>
     public static VMultiHidObservation ObserveHid()
@@ -71,21 +58,6 @@ public class VMultiDetector
         catch (Exception ex)
         {
             return new VMultiHidObservation(false, false, 0, ex.Message);
-        }
-    }
-
-    /// <summary>
-    /// Detect vmulti via Windows Setup API (sees all devices including disabled ones).
-    /// </summary>
-    public SetupApiDetectionResult DetectSetupApi()
-    {
-        try
-        {
-            return ClassifySetupApi(FindVMultiDevices());
-        }
-        catch (Exception ex)
-        {
-            return new SetupApiDetectionResult(false, false, $"Error: {ex.Message}");
         }
     }
 
@@ -112,54 +84,6 @@ public class VMultiDetector
         // Only driverless/problem nodes remain — the driver is gone; these are leftover nodes.
         return new SetupApiDetectionResult(false, false,
             $"Not installed ({orphaned.Count} leftover device node{(orphaned.Count == 1 ? "" : "s")}, no driver)");
-    }
-
-    private static List<DeviceInfo> FindVMultiDevices()
-    {
-        var results = new List<DeviceInfo>();
-        var guid = Guid.Empty;
-
-        var devInfoSet = SetupDiGetClassDevs(
-            ref guid, null, nint.Zero,
-            DIGCF_ALLCLASSES | DIGCF_PRESENT);
-
-        if (devInfoSet == INVALID_HANDLE)
-            throw new System.ComponentModel.Win32Exception(Marshal.GetLastWin32Error());
-
-        try
-        {
-            var devInfoData = new SP_DEVINFO_DATA();
-            devInfoData.cbSize = (uint)Marshal.SizeOf(devInfoData);
-
-            for (uint i = 0; SetupDiEnumDeviceInfo(devInfoSet, i, ref devInfoData); i++)
-            {
-                string? hardwareIds = GetDeviceRegistryProperty(devInfoSet, ref devInfoData, SPDRP_HARDWAREID);
-                if (hardwareIds == null) continue;
-
-                // Hardware IDs are multi-sz (null-separated); a node counts if any is a known VMulti ID.
-                if (MatchHardwareId(hardwareIds.Split('\0', StringSplitOptions.RemoveEmptyEntries)) is { } id)
-                {
-                    string? description = GetDeviceRegistryProperty(devInfoSet, ref devInfoData, SPDRP_DEVICEDESC);
-
-                    var (enabled, problem) = GetDevNodeState(devInfoSet, ref devInfoData);
-
-                    results.Add(new DeviceInfo(
-                        id,
-                        description ?? "Unknown",
-                        enabled,
-                        problem
-                    ));
-                }
-            }
-            if (Marshal.GetLastWin32Error() != 259) // ERROR_NO_MORE_ITEMS
-                throw new System.ComponentModel.Win32Exception(Marshal.GetLastWin32Error());
-        }
-        finally
-        {
-            SetupDiDestroyDeviceInfoList(devInfoSet);
-        }
-
-        return results;
     }
 
     /// <summary>Every present device that is a VMulti node or merely looks like one (by hardware ID, name
@@ -284,69 +208,6 @@ public class VMultiDetector
         { return null; }
     }
 
-    // Also search for disabled devices by using DIGCF without DIGCF_PRESENT
-    public static List<DeviceInfo> FindAllDevicesByHardwareId(string targetHardwareId)
-    {
-        var results = new List<DeviceInfo>();
-        var guid = Guid.Empty;
-
-        // First pass: present devices
-        results.AddRange(FindDevicesWithFlags(targetHardwareId, DIGCF_ALLCLASSES | DIGCF_PRESENT));
-
-        // Second pass: all devices (includes non-present/disabled)
-        var allDevices = FindDevicesWithFlags(targetHardwareId, DIGCF_ALLCLASSES);
-        foreach (var dev in allDevices)
-        {
-            if (!results.Any(r => r.HardwareId.Equals(dev.HardwareId, StringComparison.OrdinalIgnoreCase)
-                                  && r.Description == dev.Description))
-            {
-                results.Add(dev);
-            }
-        }
-
-        return results;
-    }
-
-    private static List<DeviceInfo> FindDevicesWithFlags(string targetHardwareId, uint flags)
-    {
-        var results = new List<DeviceInfo>();
-        var guid = Guid.Empty;
-
-        var devInfoSet = SetupDiGetClassDevs(ref guid, null, nint.Zero, flags);
-        if (devInfoSet == INVALID_HANDLE) throw new System.ComponentModel.Win32Exception(Marshal.GetLastWin32Error());
-
-        try
-        {
-            var devInfoData = new SP_DEVINFO_DATA();
-            devInfoData.cbSize = (uint)Marshal.SizeOf(devInfoData);
-
-            for (uint i = 0; SetupDiEnumDeviceInfo(devInfoSet, i, ref devInfoData); i++)
-            {
-                string? hardwareIds = GetDeviceRegistryProperty(devInfoSet, ref devInfoData, SPDRP_HARDWAREID);
-                if (hardwareIds == null) continue;
-
-                foreach (var id in hardwareIds.Split('\0', StringSplitOptions.RemoveEmptyEntries))
-                {
-                    if (id.Equals(targetHardwareId, StringComparison.OrdinalIgnoreCase))
-                    {
-                        string? description = GetDeviceRegistryProperty(devInfoSet, ref devInfoData, SPDRP_DEVICEDESC);
-                        var (enabled, problem) = GetDevNodeState(devInfoSet, ref devInfoData);
-                        results.Add(new DeviceInfo(id, description ?? "Unknown", enabled, problem));
-                        break;
-                    }
-                }
-            }
-            if (Marshal.GetLastWin32Error() != 259) // ERROR_NO_MORE_ITEMS
-                throw new System.ComponentModel.Win32Exception(Marshal.GetLastWin32Error());
-        }
-        finally
-        {
-            SetupDiDestroyDeviceInfoList(devInfoSet);
-        }
-
-        return results;
-    }
-
     // CM device problem codes we care about.
     private const uint CM_PROB_DISABLED = 0x16; // 22 — user-disabled (driver still present)
     private const uint DN_HAS_PROBLEM = 0x00000400;
@@ -432,6 +293,5 @@ public class VMultiDetector
     #endregion
 }
 
-public record HidDetectionResult(bool Visible, bool Functional, string Message);
 public record SetupApiDetectionResult(bool Installed, bool Enabled, string Message);
 public record DeviceInfo(string HardwareId, string Description, bool Enabled, uint Problem = 0);
