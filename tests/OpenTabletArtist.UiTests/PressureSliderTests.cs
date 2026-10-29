@@ -153,4 +153,13 @@ public class PressureSliderTests
         Assert.Equal(0.3, vm.Deadzone, 5);
         window.Close();
     }
+
+    [AvaloniaFact]
+    public void TheDeadzone_IsShownByItsSlider_NotAlsoAsAReadout()
+    {
+        var (window, view, _) = DeadzonePage(Vm(0));
+
+        Assert.DoesNotContain(view.GetVisualDescendants().OfType<TextBlock>(), t => t.Text?.StartsWith("deadzone") == true);
+        window.Close();
+    }
 }

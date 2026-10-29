@@ -145,11 +145,8 @@
                              Ordinary ink, not the accent and the success green they used to carry: the words
                              "raw" and "processed" already say which is which, and color that means something
                              is what the app reserves for the gauge's two bars, which have no words to use. -->
-                        <Panel Height="60">
+                        <Panel Height="40">
                             <StackPanel Spacing="2" VerticalAlignment="Top">
-                                <TextBlock Text="{Binding DeadzoneText, StringFormat='deadzone {0}'}"
-                                           FontFamily="{DynamicResource MonoFontFamily}"
-                                           Foreground="{DynamicResource TextPrimaryBrush}" />
                                 <TextBlock Text="{Binding LiveInputText, StringFormat='raw {0}'}"
                                            FontFamily="{DynamicResource MonoFontFamily}"
                                            Foreground="{DynamicResource TextPrimaryBrush}" />
