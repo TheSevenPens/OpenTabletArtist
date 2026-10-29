@@ -14,7 +14,7 @@
          A switch set somewhere else (OTD's own UI) has neither lit: the card says what it does now, and that it
          may not work. Nothing is rewritten unless the user picks. The segments are one-way: the saved binding
          decides which is lit, and a click is only a command. No GroupName, for the reason on PenButtonCard. -->
-    <c:Section Padding="12,10" Width="240" HorizontalAlignment="Left">
+    <c:Section Width="240" HorizontalAlignment="Left">
         <StackPanel Spacing="12">
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Left">
                 <RadioButton Classes="segment" Content="Default action"

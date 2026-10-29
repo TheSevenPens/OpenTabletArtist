@@ -9,6 +9,8 @@ namespace OpenTabletArtist.Controls;
 /// looks the same. It is a path only, with no buttons: the caller puts those on.
 ///
 /// The numbers below are that drawing's own, in its 4725-unit square, eraser end at the top and tip at the bottom.
+/// The drawing was since revised (a rounder dome and a longer nib): the revision is in a 19688-unit square, and these
+/// are its numbers divided by 19687.5 / 4725.
 /// <see cref="Trace"/> lays the pen on its side, tip on the left, at whatever length is wanted, and says what it
 /// draws to an <see cref="IPenSink"/> so the shape can be measured in a test as well as painted.
 /// </summary>
@@ -25,7 +27,7 @@ public static class PenArtwork
 
     // The drawing's own coordinates. The centre line is x = CenterX; the eraser's dome starts at DomeTopY and the
     // tip ends at TipY.
-    private const double CenterX = 2338.333, DomeTopY = 211.483, TipY = 4566.1, MirrorSum = 4676.666;
+    private const double CenterX = 2338.333, DomeTopY = 211.483, TipY = 4582.098, MirrorSum = 4676.666;
 
     private readonly record struct Seg(bool IsCurve, Point C1, Point C2, Point End);
 
@@ -38,8 +40,8 @@ public static class PenArtwork
     private static readonly Point Start = new(CenterX, DomeTopY);
     private static readonly Seg[] RightHalf =
     {
-        Curve(2369.487, 211.483, 2396.639, 212.755, 2410.262, 235.863),
-        Curve(2421.521, 254.961, 2426.781, 344.920, 2428.795, 391.864),
+        Curve(2369.487, 211.483, 2396.639, 236.755, 2410.262, 259.863),
+        Curve(2421.521, 278.961, 2426.781, 344.920, 2428.795, 391.864),
         Line(2452.807, 391.864),
         Line(2489.204, 2019.789),
         Curve(2489.204, 2019.789, 2501.978, 3361.186, 2511.924, 3856.933),
@@ -47,9 +49,10 @@ public static class PenArtwork
         Curve(2536.437, 4063.374, 2469.928, 4254.560, 2469.928, 4254.560),
         Line(2381.038, 4521.634),
         Line(2352.926, 4521.634),
-        Line(2352.926, 4552.979),
-        Curve(2352.926, 4556.459, 2351.544, 4559.796, 2349.083, 4562.257),
-        Curve(2346.622, 4564.718, 2343.285, 4566.100, 2339.805, 4566.100),
+        Line(2356.144, 4521.634),      // the nib is a little wider than the cone's end: a step of 3.2 units
+        Line(2356.144, 4566.977),
+        Curve(2356.144, 4570.987, 2354.457, 4574.833, 2351.453, 4577.669),
+        Curve(2348.450, 4580.505, 2344.377, 4582.098, 2340.130, 4582.098),
         Line(CenterX, TipY),
     };
 
