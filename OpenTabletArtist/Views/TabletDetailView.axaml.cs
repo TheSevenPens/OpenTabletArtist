@@ -47,6 +47,10 @@ public partial class TabletDetailView : UserControl, ITabbedContent
 
         _screens = TopLevel.GetTopLevel(this)?.Screens;
         if (_screens != null) _screens.Changed += OnScreensChanged;
+        // The view model outlives this view (the shell keeps one per tablet) but is only told about display
+        // changes while the view is attached, so a change made while another page was showing would
+        // otherwise still be listed here. Subscribe first, then read, so nothing falls between the two.
+        Vm?.RefreshDisplaysCommand.Execute(null);
         // Live device-report stream feeds the aux-button highlight (Buttons tab) and the wheel gauge
         // (Wheels tab), so watch those tabs.
         ButtonsTab.IsCheckedChanged += OnLiveTabChanged;
