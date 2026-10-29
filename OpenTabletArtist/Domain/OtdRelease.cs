@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Linq;
 
 namespace OpenTabletArtist.Domain;
 
@@ -15,27 +16,39 @@ namespace OpenTabletArtist.Domain;
 /// </summary>
 public static class OtdRelease
 {
-    /// <summary>The git tag of the pinned release. Note the tag is <c>v0.6.8</c> while the assemblies
-    /// inside report <c>0.6.8.0</c> (a .NET four-part version); both name the same release.</summary>
-    public const string Tag = "v0.6.8";
+    /// <summary>The git tag of the pinned release. For a three-part release the tag is <c>v0.6.8</c> while the
+    /// assemblies inside report <c>0.6.8.0</c> (a .NET four-part version); both name the same release. A
+    /// fourth part, as in <c>v0.6.8.1</c>, is real and is carried through unchanged.</summary>
+    public const string Tag = "v0.6.8.1";
 
     /// <summary>The version as it appears in the release asset's file name — including any prerelease
     /// suffix, which <see cref="System.Version"/> cannot carry.</summary>
-    public const string AssetVersion = "0.6.8";
+    public const string AssetVersion = "0.6.8.1";
 
     /// <summary>
     /// The pinned release as a four-part <see cref="System.Version"/> — the shape the OTD assemblies
-    /// report (<c>0.6.8.0</c>), so comparisons against plugin manifests and daemon versions are unchanged.
+    /// report (<c>0.6.8.1</c>; a three-part release such as <c>0.6.8</c> reports <c>0.6.8.0</c>), so
+    /// comparisons against plugin manifests and daemon versions are unchanged.
     /// The prerelease suffix is dropped: the assemblies do not carry it, and <c>Version.Parse</c> rejects it.
     ///
     /// <b>Read this, never a linked OTD assembly's version.</b> Publishing the app passes
     /// <c>-p:Version=&lt;OTA version&gt;</c>, and MSBuild applies that to every project in the graph —
     /// including the OTD submodule projects OTA references. So in a release build
     /// <c>typeof(AppInfo).Assembly.GetName().Version</c> reports <em>OTA's</em> version, not OTD's, and
-    /// every comparison built on it is wrong. Dev builds pass no version and keep 0.6.8.0, which is why
-    /// this never showed up locally.
+    /// every comparison built on it is wrong. Dev builds pass no version and keep the driver's own, which
+    /// is why this never showed up locally.
     /// </summary>
-    public static readonly System.Version Version = System.Version.Parse(AssetVersion.Split('-')[0] + ".0");
+    public static readonly System.Version Version = FourPart(AssetVersion);
+
+    /// <summary>A release name as a four-part version: the suffix dropped, and zeros appended to make four
+    /// parts. Appending a fixed <c>.0</c> would turn <c>0.6.8.1</c> into the five-part <c>0.6.8.1.0</c>,
+    /// which <see cref="System.Version"/> rejects.</summary>
+    internal static System.Version FourPart(string release)
+    {
+        var parts = release.Split('-')[0].Split('.').ToList();
+        while (parts.Count < 4) parts.Add("0");
+        return System.Version.Parse(string.Join('.', parts));
+    }
 
     /// <summary>The macOS artifact OTA installs, which is the x64 one: on Apple Silicon the daemon runs under
     /// Rosetta 2. OTA itself stays native arm64; they are separate processes over RPC, so the mixed

@@ -4,12 +4,17 @@ public class OtdVersionTests
 {
     [Theory]
     [InlineData("0.6.7", "0.6.7.0", true)]
-    [InlineData("0.6.7.9", "0.6.7+build", true)]
+    [InlineData("0.6.7.9", "0.6.7.9", true)]
+    [InlineData("0.6.8.1", "0.6.8.1+build", true)]
+    [InlineData("0.6.8", "0.6.8.0", true)]
     [InlineData(" 0.6.7-beta ", "0.6.7", true)]
     [InlineData("1", "1.0.0", true)]
     [InlineData("1.2", "1.2.0", true)]
     [InlineData("0.6.6", "0.6.7", false)]
     [InlineData("0.6.8", "0.6.7", false)]
+    [InlineData("0.6.7.9", "0.6.7+build", false)]  // the fourth part is a real difference
+    [InlineData("0.6.8", "0.6.8.1", false)]        // OTD's 0.6.8.1 fixes a crash 0.6.8 has
+    [InlineData("0.6.8.0", "0.6.8.1", false)]
     [InlineData("0.7.0", "0.6.7", false)]
     [InlineData("1.6.7", "0.6.7", false)]
     [InlineData("", "0.6.7", false)]

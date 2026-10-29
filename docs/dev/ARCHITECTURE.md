@@ -278,7 +278,7 @@ This component is not part of our codebase. It is the standard OTD daemon, runni
 
 **Glassmorphism polish.** Current glass panels use semi-transparent backgrounds with box shadows. True acrylic blur effects could be added for deeper visual fidelity.
 
-**OTD as submodule.** OpenTabletDriver is included as a git submodule at `external/OpenTabletDriver`, pinned to v0.6.8. The Avalonia app references `OpenTabletDriver.Desktop`, `OpenTabletDriver`, and `OpenTabletDriver.Plugin` as project references, giving type-safe access to Settings, Profile, BindingSettings, etc. The daemon is also built from the submodule and auto-started by the app.
+**OTD as submodule.** OpenTabletDriver is included as a git submodule at `external/OpenTabletDriver`, pinned to v0.6.8.1. The Avalonia app references `OpenTabletDriver.Desktop`, `OpenTabletDriver`, and `OpenTabletDriver.Plugin` as project references, giving type-safe access to Settings, Profile, BindingSettings, etc. The daemon is also built from the submodule and auto-started by the app.
 
 **Pen-dynamics plugin.** Pressure remapping + smoothing is implemented as our own OTD filter plugin (`plugins/OpenTabletArtist.Dynamics`, net10 to match the daemon) rather than taking a dependency on a third-party plugin (e.g. Slimy Scylla). Because it runs inside the daemon's pipeline, it applies to every app, not just one. Key seams:
 
