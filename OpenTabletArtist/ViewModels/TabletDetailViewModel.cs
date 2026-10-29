@@ -1872,9 +1872,21 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
         set { if (Math.Abs(Curve.Softness - value) > 1e-6) Curve = Curve with { Softness = value }; }
     }
 
-    /// <summary>Softness slider bounds — matches the range the curve model accepts (see PressureCurve).</summary>
-    public double SoftnessMin => -0.9;
-    public double SoftnessMax => 0.9;
+    /// <summary>The pressure deadzone: how hard the pen must press before it registers, which is the curve's
+    /// input minimum, the horizontal position of its pink lower-left node. Dragging that node sideways and this
+    /// slider write the same <see cref="PressureCurveSettings.InputMinimum"/>, and under the same rule (two
+    /// decimals, and a hundredth short of the input maximum), so they stay in sync. The node's vertical drag is
+    /// the output minimum, a different setting that this does not touch.</summary>
+    public double Deadzone
+    {
+        get => Curve.InputMinimum;
+        set
+        {
+            double want = Math.Min(Math.Round(Clamp01(value), 2), Curve.InputMaximum - 0.01);
+            if (Math.Abs(Curve.InputMinimum - want) > 1e-6) Curve = Curve with { InputMinimum = Clamp01(want) };
+            else OnPropertyChanged(nameof(Deadzone)); // a rounded or clamped value: put the slider back on it
+        }
+    }
 
     // The Pen Dynamics filter is always enabled internally (#dynamics-always-on); there's no on/off toggle.
     // Users neutralize dynamics by leaving the curve linear and smoothing at 0 (a genuine no-op).
@@ -1934,11 +1946,6 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
     // distinguishes "no data" from an actual 0).
     public string LiveInputText => LivePressure is { } v ? v.ToString("0.0000") : "—";
 
-    // The pressure deadzone: the x position of the curve's lower-left node (its input minimum) — pressure below
-    // this reads as the output minimum. Shown above the live readouts so the deadzone is explicit when
-    // judging why a hovering pen does or doesn't register.
-    public string DeadzoneText => Curve.InputMinimum.ToString("0.0000");
-
     // Live processed pressure for the top pressure-level bar (#559): the raw pressure run through the SAME
     // pipeline the daemon's Pen Dynamics filter uses — curve, then EMA smoothing — via a stateful
     // PenDynamicsProcessor fed each pen sample. So the processed dot reflects smoothing's lag too, not just
@@ -1957,7 +1964,7 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
     {
         OnPropertyChanged(nameof(CutBelowMinimum));
         OnPropertyChanged(nameof(Softness)); // keep the Softness slider in sync with node drags / presets
-        OnPropertyChanged(nameof(DeadzoneText));
+        OnPropertyChanged(nameof(Deadzone)); // and the Deadzone slider with the lower-left node
         NotifyDynamicsStatus();
         SchedulePersist();
     }

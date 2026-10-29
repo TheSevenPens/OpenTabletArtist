@@ -37,18 +37,6 @@
                                          IsChecked="{Binding DisablePressure, Mode=OneWay}"
                                          Command="{Binding TurnPressureOffCommand}" />
                         </StackPanel>
-                        <StackPanel Spacing="3" IsVisible="{Binding PressureEnabled}">
-                            <TextBlock Text="Sent to apps" FontSize="17" FontWeight="SemiBold"
-                                       Foreground="{DynamicResource TextPrimaryBrush}" />
-                            <TextBlock Text="Apps receive how hard you press." TextWrapping="Wrap"
-                                       Foreground="{DynamicResource TextSecondaryBrush}" />
-                        </StackPanel>
-                        <StackPanel Spacing="3" IsVisible="{Binding DisablePressure}">
-                            <TextBlock Text="Not sent" FontSize="17" FontWeight="SemiBold"
-                                       Foreground="{DynamicResource TextSecondaryBrush}" />
-                            <TextBlock Text="Strokes are flat, with no pressure." TextWrapping="Wrap"
-                                       Foreground="{DynamicResource TextSecondaryBrush}" />
-                        </StackPanel>
                     </StackPanel>
 
                     <!-- #469: when pressure sensitivity is disabled the output stage drops pressure, so this
@@ -113,13 +101,28 @@
                     <!-- Softness slider (#603): mirrors the amber bend node on the curve so Softness has a
                          keyboard-operable path too (both write PressureCurveSettings.Softness, staying in
                          sync). −0.9 hard … 0 linear … 0.9 soft. -->
+                    <!-- The range is literal, not bound: a bound minimum falls back to the slider's 0 when the
+                         page is swapped out, and the slider then clamps a negative softness up to 0 and writes
+                         it into the view-model (PressureSliderTests). -->
                     <ctrl:LabeledSlider Label="Softness" LabelWidth="130" Margin="0,10,0,0"
-                                        Minimum="{Binding SoftnessMin}" Maximum="{Binding SoftnessMax}"
+                                        Minimum="-0.9" Maximum="0.9"
                                         Value="{Binding Softness}" ValueFormat="0.00"
                                         SmallChange="0.02" LargeChange="0.1"
                                         Ticks="-0.9,-0.45,0,0.45,0.9" TickPlacement="BottomRight"
                                         IsEnabled="{Binding CanEditPressure}"
                                         ToolTip.Tip="Curve softness: negative is firmer (convex), positive is lighter (concave). Same as dragging the amber node on the curve." />
+
+                    <!-- Deadzone: the same setting as the pink lower-left node's horizontal position (the curve's input
+                         minimum), so either one moves the other. The range is literal and the whole 0 to 1 the node
+                         can reach: a slider narrower than what the view-model can hold would clamp the value and
+                         write the clamped one back (see the Softness slider above). -->
+                    <ctrl:LabeledSlider Label="Deadzone" LabelWidth="130" Margin="0,10,0,0"
+                                        Minimum="0" Maximum="1"
+                                        Value="{Binding Deadzone}" ValueFormat="0.00"
+                                        SmallChange="0.01" LargeChange="0.05"
+                                        Ticks="0,0.25,0.5,0.75,1" TickPlacement="BottomRight"
+                                        IsEnabled="{Binding CanEditPressure}"
+                                        ToolTip.Tip="How hard the pen must press before it registers. Same as dragging the pink node at the lower left of the curve sideways." />
 
                     <!-- Pressure smoothing (EMA); capped at 0.5 (#496) — heavier lags more than it helps.
                          Position smoothing was moved out to the Pen page's movement tab. -->
@@ -142,11 +145,8 @@
                              Ordinary ink, not the accent and the success green they used to carry: the words
                              "raw" and "processed" already say which is which, and color that means something
                              is what the app reserves for the gauge's two bars, which have no words to use. -->
-                        <Panel Height="60">
+                        <Panel Height="40">
                             <StackPanel Spacing="2" VerticalAlignment="Top">
-                                <TextBlock Text="{Binding DeadzoneText, StringFormat='deadzone {0}'}"
-                                           FontFamily="{DynamicResource MonoFontFamily}"
-                                           Foreground="{DynamicResource TextPrimaryBrush}" />
                                 <TextBlock Text="{Binding LiveInputText, StringFormat='raw {0}'}"
                                            FontFamily="{DynamicResource MonoFontFamily}"
                                            Foreground="{DynamicResource TextPrimaryBrush}" />

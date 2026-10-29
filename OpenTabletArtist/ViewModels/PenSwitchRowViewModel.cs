@@ -56,23 +56,12 @@ public partial class PenSwitchRowViewModel : ObservableObject
 
     private bool _unbound;
 
-    /// <summary>The tip or the eraser with nothing bound: the card's Disabled choice. The card says "Does nothing"
-    /// for it, not "Changed to a custom action"; its Default action is the way back.</summary>
+    /// <summary>The tip or the eraser with nothing bound: the card's Disabled choice. The card does not call it
+    /// "Changed to a custom action"; its Default action is the way back.</summary>
     public bool IsDisabled => _kind is PenSwitchKind.Tip or PenSwitchKind.Eraser && _unbound;
 
     public bool IsRecommended => Mode == PenSwitchBindingMode.Auto;
     public bool IsNotRecommended => Mode != PenSwitchBindingMode.Auto && !IsDisabled;
-
-    /// <summary>What the lit Default action does, in the card's words: the tip draws, the eraser end erases.</summary>
-    public string DefaultTitle => _kind == PenSwitchKind.Eraser ? "Erases" : "Draws";
-
-    public string DefaultDetail => _kind == PenSwitchKind.Eraser
-        ? "Touching the tablet with the eraser end erases."
-        : "Touching the tablet with the pen draws.";
-
-    public string DisabledDetail => _kind == PenSwitchKind.Eraser
-        ? "Touching the tablet with the eraser end is ignored."
-        : "Touching the tablet with the pen is ignored.";
 
     partial void OnModeChanged(PenSwitchBindingMode value)
     {

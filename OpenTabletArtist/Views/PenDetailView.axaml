@@ -66,10 +66,10 @@
 
         <!-- BASICS — how the pen moves and presses, and the tip and eraser. Three columns:
                1  the tip, Default action or Disabled
-               2  how the pen moves, then how it presses
-               3  the eraser, Default action or Disabled
+               2  the eraser, Default action or Disabled
+               3  how the pen moves, then how it presses
 
-             Column 2 is the star one: the smoothing slider needs a definite width to render its track,
+             Column 3 is the star one: the smoothing slider needs a definite width to render its track,
              since a size-to-content Slider collapses it to nothing. -->
         <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto"
                       IsVisible="{Binding #MovementTab.IsChecked}">
@@ -83,7 +83,20 @@
                     </StackPanel>
                 </StackPanel>
 
-                <!-- 2 — movement (the choice, then position smoothing), then pressing. -->
+                <!-- 2 — the eraser. -->
+                <StackPanel Width="240" Spacing="20" VerticalAlignment="Top">
+                    <StackPanel>
+                        <TextBlock Text="eraser" Classes="Display section" />
+                        <views:PenSwitchCard DataContext="{Binding PenEraserRow}" Margin="0,12,0,0" />
+                    </StackPanel>
+
+                    <!-- Drag bindings hidden for now (#492); the binding + apply wiring stays. -->
+                    <ctrl:ToggleSetting Label="Drag bindings" IsVisible="False"
+                                        Description="Pen button bindings only work while the pen is touching the tablet (drag-only), not while hovering."
+                                        IsChecked="{Binding DragBindingsEnabled}" />
+                </StackPanel>
+
+                <!-- 3 — movement (the choice, then position smoothing), then pressing. -->
                 <StackPanel Width="320" VerticalAlignment="Top">
                     <TextBlock Text="movement" Classes="Display section" />
 
@@ -138,19 +151,6 @@
                     </StackPanel>
                 </StackPanel>
 
-                <!-- 3 — the eraser. -->
-                <StackPanel Width="240" Spacing="20" VerticalAlignment="Top">
-                    <StackPanel>
-                        <TextBlock Text="eraser" Classes="Display section" />
-                        <views:PenSwitchCard DataContext="{Binding PenEraserRow}" Margin="0,12,0,0" />
-                    </StackPanel>
-
-                    <!-- Drag bindings hidden for now (#492); the binding + apply wiring stays. -->
-                    <ctrl:ToggleSetting Label="Drag bindings" IsVisible="False"
-                                        Description="Pen button bindings only work while the pen is touching the tablet (drag-only), not while hovering."
-                                        IsChecked="{Binding DragBindingsEnabled}" />
-                </StackPanel>
-
             </WrapPanel>
         </ScrollViewer>
 
@@ -178,18 +178,6 @@
                                 <RadioButton Classes="segment" Content="Disabled"
                                              IsChecked="{Binding DisableTilt, Mode=OneWay}"
                                              Command="{Binding TurnTiltOffCommand}" />
-                            </StackPanel>
-                            <StackPanel Spacing="3" IsVisible="{Binding TiltEnabled}">
-                                <TextBlock Text="Sent to apps" FontSize="17" FontWeight="SemiBold"
-                                           Foreground="{DynamicResource TextPrimaryBrush}" />
-                                <TextBlock Text="Apps receive the angle the pen is held at." TextWrapping="Wrap"
-                                           Foreground="{DynamicResource TextSecondaryBrush}" />
-                            </StackPanel>
-                            <StackPanel Spacing="3" IsVisible="{Binding DisableTilt}">
-                                <TextBlock Text="Not sent" FontSize="17" FontWeight="SemiBold"
-                                           Foreground="{DynamicResource TextSecondaryBrush}" />
-                                <TextBlock Text="Apps receive no tilt from this tablet." TextWrapping="Wrap"
-                                           Foreground="{DynamicResource TextSecondaryBrush}" />
                             </StackPanel>
                         </StackPanel>
                         <TextBlock Text="Tilt is off while the pen presses like a mouse."

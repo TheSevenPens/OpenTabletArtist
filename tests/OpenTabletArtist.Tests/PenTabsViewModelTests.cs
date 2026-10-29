@@ -150,16 +150,6 @@ public class PenTabsViewModelTests
         Assert.True(row.SetAutoCommand.CanExecute(null));
     }
 
-    [Theory]
-    [InlineData(PenSwitchKind.Tip, "Draws")]
-    [InlineData(PenSwitchKind.Eraser, "Erases")]
-    public void TheCardsWords_FollowWhichSwitchItIs(PenSwitchKind kind, string title)
-    {
-        var row = Row(kind, PenSwitchBinding.MakeAdaptiveBinding(kind));
-
-        Assert.Equal(title, row.DefaultTitle);
-    }
-
     [Fact]
     public void TipOnAnotherBinding_IsStillChangedToACustomAction()
     {
@@ -277,5 +267,80 @@ public class PenTabsViewModelTests
 
         Assert.Contains(nameof(TabletDetailViewModel.LiveAzimuthText), raised);
         Assert.Contains(nameof(TabletDetailViewModel.LiveAltitudeText), raised);
+    }
+
+    // ── The deadzone: the lower-left node's horizontal position, as a slider ──
+
+    [Fact]
+    public void TheDeadzone_IsTheCurvesInputMinimum()
+    {
+        var vm = Open(WinInkAbsolute);
+
+        vm.Curve = vm.Curve with { InputMinimum = 0.3 };
+
+        Assert.Equal(0.3, vm.Deadzone);
+    }
+
+    [Fact]
+    public void SettingTheDeadzone_WritesTheInputMinimum_AndLeavesTheRestOfTheCurveAlone()
+    {
+        var vm = Open(WinInkAbsolute);
+        vm.Curve = vm.Curve with { Softness = 0.4, Minimum = 0.2, Maximum = 0.9, InputMaximum = 0.8 };
+        var before = vm.Curve;
+
+        vm.Deadzone = 0.3;
+
+        Assert.Equal(before with { InputMinimum = 0.3 }, vm.Curve);
+    }
+
+    [Fact]
+    public void TheNodeMovingTheDeadzone_IsAnnouncedToTheSlider()
+    {
+        var vm = Open(WinInkAbsolute);
+        var raised = new List<string?>();
+        vm.PropertyChanged += (_, e) => raised.Add(e.PropertyName);
+
+        vm.Curve = vm.Curve with { InputMinimum = 0.25 };   // what dragging the node sideways does
+
+        Assert.Contains(nameof(TabletDetailViewModel.Deadzone), raised);
+    }
+
+    [Theory]
+    [InlineData(0.123, 0.12)]     // two decimals, as the node rounds
+    [InlineData(-0.2, 0)]
+    [InlineData(1, 0.99)]         // a hundredth short of the input maximum, as the node stops
+    [InlineData(5, 0.99)]
+    public void TheDeadzone_FollowsTheRuleTheNodeFollows(double asked, double stored)
+    {
+        var vm = Open(WinInkAbsolute);
+
+        vm.Deadzone = asked;
+
+        Assert.Equal(stored, vm.Deadzone, 6);
+        Assert.Equal(stored, vm.Curve.InputMinimum, 6);
+    }
+
+    [Fact]
+    public void TheDeadzone_StopsAHundredthShortOfAnInputMaximumThatWasPulledIn()
+    {
+        var vm = Open(WinInkAbsolute);
+        vm.Curve = vm.Curve with { InputMaximum = 0.6 };
+
+        vm.Deadzone = 0.9;
+
+        Assert.Equal(0.59, vm.Deadzone, 6);
+    }
+
+    [Fact]
+    public void AClampedDeadzone_IsAnnouncedSoTheSliderCanComeBackToIt()
+    {
+        var vm = Open(WinInkAbsolute);
+        vm.Deadzone = 0.99;
+        var raised = new List<string?>();
+        vm.PropertyChanged += (_, e) => raised.Add(e.PropertyName);
+
+        vm.Deadzone = 1;      // clamps to what it already is: no curve change, but the slider is showing 1
+
+        Assert.Contains(nameof(TabletDetailViewModel.Deadzone), raised);
     }
 }
