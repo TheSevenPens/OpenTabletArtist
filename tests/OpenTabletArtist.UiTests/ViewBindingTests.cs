@@ -48,6 +48,7 @@ public class ViewBindingTests
     [InlineData(TabletDetailTab.DisplayMapping)]
     [InlineData(TabletDetailTab.PenInputs)]
     [InlineData(TabletDetailTab.PenDynamics)]
+    [InlineData(TabletDetailTab.PenTilt)]
     public void TabletDetailView_BindsOnEveryTab(TabletDetailTab tab)
     {
         var settings = SettingsWith("Test Tablet");

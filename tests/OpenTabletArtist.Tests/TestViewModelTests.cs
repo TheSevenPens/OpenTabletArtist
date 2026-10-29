@@ -227,7 +227,19 @@ public class TestViewModelTests
         Assert.Equal("0.500", vm.PressureText);
         Assert.Equal("4200, 3100", vm.RawText);
         Assert.Equal("12", vm.HoverText);
-        Assert.Equal("116.6°, 67.6°", vm.AzAltText); // tilt (20, -10): azimuth, altitude in one cell
+        Assert.Equal("334.2°, 68.0°", vm.AzAltText); // tilt (20, -10): azimuth, altitude in one cell
+    }
+
+    [Fact]
+    public void TheTestPagesTilt_ReadsTheSameAsThePenPagesTiltTab()
+    {
+        using var vm = NewVm(new FakeDeviceData());
+        var sample = Sample(1000);
+        vm.UpdateReadout(sample);
+        vm.PublishReadouts();
+
+        Assert.Equal($"{TiltMath.Azimuth((float)sample.TiltX, (float)sample.TiltY):0.0}°, " +
+                     $"{TiltMath.Altitude((float)sample.TiltX, (float)sample.TiltY):0.0}°", vm.AzAltText);
     }
 
     [Fact]

@@ -977,4 +977,36 @@
         <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
     </Style>
 
+    <!-- A segmented bar: RadioButtons (Classes="segment") that read as one control. The lit one is filled
+         with the accent. Keyed on the class, so no other radio button in the app is touched. Used by the
+         pen button cards and the pen tip card. -->
+    <Style Selector="RadioButton.segment">
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="Margin" Value="0,0,-1,0" />
+        <Setter Property="Template">
+            <ControlTemplate>
+                <Border x:Name="Bd" Background="Transparent" Padding="10,8"
+                        BorderThickness="1" BorderBrush="{DynamicResource GlassBorderBrush}">
+                    <TextBlock x:Name="Lbl" Text="{TemplateBinding Content}" FontSize="12.5"
+                               HorizontalAlignment="Center" VerticalAlignment="Center"
+                               Foreground="{DynamicResource TextSecondaryBrush}" />
+                </Border>
+            </ControlTemplate>
+        </Setter>
+    </Style>
+    <Style Selector="RadioButton.segment:pointerover /template/ Border#Bd">
+        <Setter Property="Background" Value="{DynamicResource GlassBgHoverBrush}" />
+    </Style>
+    <Style Selector="RadioButton.segment:checked /template/ Border#Bd">
+        <Setter Property="Background" Value="{DynamicResource AccentBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
+    </Style>
+    <Style Selector="RadioButton.segment:checked /template/ TextBlock#Lbl">
+        <Setter Property="Foreground" Value="{DynamicResource TextInverseBrush}" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+    </Style>
+    <Style Selector="RadioButton.segment:disabled">
+        <Setter Property="Opacity" Value="0.5" />
+    </Style>
+
 </Styles>

@@ -388,12 +388,12 @@ public class HealthEvaluatorTests
 
         Assert.Equal("Pen › basics", links.Single(l => l.Area == RemediationArea.TabletPenInputs).Destination);        // the tip
         Assert.Equal("Pen › pressure", links.Single(l => l.Area == RemediationArea.TabletPenPressure).Destination);    // pressure
-        Assert.Equal("Pen › basics", links.Single(l => l.Area == RemediationArea.TabletPenTilt).Destination);          // tilt
+        Assert.Equal("Pen › tilt", links.Single(l => l.Area == RemediationArea.TabletPenTilt).Destination);            // tilt
     }
 
     [Theory]
     [InlineData(RemediationArea.TabletPenInputs, TabletDetailTab.PenInputs)]        // basics
-    [InlineData(RemediationArea.TabletPenTilt, TabletDetailTab.PenInputs)]          // basics
+    [InlineData(RemediationArea.TabletPenTilt, TabletDetailTab.PenTilt)]            // tilt
     [InlineData(RemediationArea.TabletPenPressure, TabletDetailTab.PenDynamics)]    // pressure
     [InlineData(RemediationArea.TabletPenBehavior, TabletDetailTab.PenBehavior)]
     public void AHealthLink_OpensThePenTabThatHoldsItsSwitch(RemediationArea area, TabletDetailTab tab)

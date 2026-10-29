@@ -18,7 +18,7 @@ namespace OpenTabletArtist.UiTests;
 
 /// <summary>
 /// The pen page as three tabs, basics · pressure · buttons: what each one holds, that buttons is last and goes
-/// away on a pen with no barrel buttons, that the toggles for pressure and tilt are greyed out (with the
+/// away on a pen with no barrel buttons, that the pressure switch and the tilt choice are greyed out (with the
 /// reason) while the pen presses like a mouse, and that the tip card says "Disabled". Bindings are checked
 /// on every tab, since a tab's content only shows once it is selected.
 /// </summary>
@@ -60,11 +60,11 @@ public class PenTabsTests
     // ── The tabs ───────────────────────────────────────────────────
 
     [AvaloniaFact]
-    public void TheTabs_AreBasicsPressureButtons_InThatOrder_OpeningOnBasics()
+    public void TheTabs_AreBasicsPressureTiltButtons_InThatOrder_OpeningOnBasics()
     {
         var (window, view) = Page(Vm(WinInkAbsolute));
 
-        Assert.Equal(new[] { "basics", "pressure", "buttons" }, TabNames(view));
+        Assert.Equal(new[] { "basics", "pressure", "tilt", "buttons" }, TabNames(view));
         Assert.True(view.FindControl<RadioButton>("MovementTab")!.IsChecked);
         window.Close();
     }
@@ -74,7 +74,7 @@ public class PenTabsTests
     {
         var (window, view) = Page(Vm(WinInkAbsolute, penButtons: 0));
 
-        Assert.Equal(new[] { "basics", "pressure" }, TabNames(view));
+        Assert.Equal(new[] { "basics", "pressure", "tilt" }, TabNames(view));
         window.Close();
     }
 
@@ -83,14 +83,14 @@ public class PenTabsTests
     {
         var (window, view) = Page(Vm(WinInkAbsolute));
 
-        Assert.Equal(2, Visible<PenSwitchCard>(view).Count());
+        Assert.Equal(2, Visible<PenSwitchCard>(view).Count());   // the tip's and the eraser's
         Assert.Empty(Visible<PenButtonCard>(view));
         var headings = Visible<TextBlock>(view).Where(t => t.Classes.Contains("section")).Select(t => t.Text).ToList();
         Assert.Contains("tip", headings);
         Assert.Contains("eraser", headings);
         Assert.DoesNotContain("tip and eraser", headings);      // two sections now, one for each
         Assert.Contains("movement", headings);
-        Assert.Contains("tilt", headings);
+        Assert.DoesNotContain("tilt", headings);                // tilt has its own tab
         Assert.DoesNotContain("pen input", headings);
         if (OperatingSystem.IsWindows()) Assert.Contains("pressing", headings);
         window.Close();
@@ -107,45 +107,98 @@ public class PenTabsTests
         Visible<PenSwitchCard>(view).Single(c => ((PenSwitchRowViewModel)c.DataContext!).SectionLabel == label);
 
     [AvaloniaFact]
-    public void TheTipSection_HoldsTheTipCard_AndTheDisablePenTipSwitch_AboveTheEraserSection()
+    public void TheTipSection_IsOneCard_OfDefaultActionAndDisabled_WithNoSeparateSwitch()
     {
         var (window, view) = Page(Vm(WinInkAbsolute));
 
-        double tipHeading = Top(view, Heading(view, "tip"));
-        double tipCard = Top(view, Card(view, "PEN TIP"));
-        double disableTip = Top(view, Visible<ToggleSetting>(view).Single(t => t.Label == "Disable pen tip"));
-        double eraserHeading = Top(view, Heading(view, "eraser"));
+        var tip = Card(view, "PEN TIP");
 
-        Assert.True(tipHeading < tipCard, "the tip card is under the tip heading");
-        Assert.True(tipCard < disableTip, "Disable pen tip is under the tip card");
-        Assert.True(disableTip < eraserHeading, "Disable pen tip is in the tip section, not the eraser's");
+        Assert.True(Top(view, Heading(view, "tip")) < Top(view, tip), "the tip card is under the tip heading");
+        Assert.Equal(new[] { "Default action", "Disabled" }, PenButtonCardTests.Segments(tip).Keys.ToArray());
+        Assert.Equal(new[] { "Default action" }, PenButtonCardTests.Lit(tip));
+        Assert.DoesNotContain(Visible<ToggleSetting>(view), t => t.Label == "Disable pen tip");
         window.Close();
     }
 
     [AvaloniaFact]
-    public void TheEraserSection_HoldsOnlyTheEraserCard_BeforeTheTiltSection()
+    public void Basics_LaysOutTipThenMovementThenEraser_AsThreeColumns()
     {
-        var (window, view) = Page(Vm(WinInkAbsolute));
+        var view = new PenDetailView { DataContext = Vm(WinInkAbsolute) };
+        var window = new Window { Content = view, Width = 1000, Height = 700 };
+        window.Show();
+        window.Measure(new Size(1000, 700));
+        window.Arrange(new Rect(0, 0, 1000, 700));
+        Dispatcher.UIThread.RunJobs();
 
-        double eraserHeading = Top(view, Heading(view, "eraser"));
-        double eraserCard = Top(view, Card(view, "ERASER"));
-        double tilt = Top(view, Heading(view, "tilt"));
+        double Left(Visual c) => c.TranslatePoint(new Avalonia.Point(0, 0), view)!.Value.X;
 
-        Assert.True(eraserHeading < eraserCard);
-        Assert.True(eraserCard < tilt, "the tilt section comes after the eraser");
+        double tip = Left(Heading(view, "tip"));
+        double movement = Left(Heading(view, "movement"));
+        double eraser = Left(Heading(view, "eraser"));
+
+        Assert.True(tip < movement, "movement is the second column, right of the tip");
+        Assert.True(movement < eraser, "the eraser is the third column, right of movement");
+        Assert.Equal(Top(view, Heading(view, "tip")), Top(view, Heading(view, "eraser")), 1);
         window.Close();
     }
 
     [AvaloniaFact]
-    public void DisablePenTip_StillDisablesTheTip()
+    public void TheEraserSection_IsOneCard_OfDefaultActionAndDisabled()
+    {
+        var (window, view) = Page(Vm(WinInkAbsolute));
+
+        var eraser = Card(view, "ERASER");
+
+        Assert.Equal(new[] { "Default action", "Disabled" }, PenButtonCardTests.Segments(eraser).Keys.ToArray());
+        Assert.Equal(new[] { "Default action" }, PenButtonCardTests.Lit(eraser));
+        Assert.Contains(Visible<TextBlock>(eraser), t => t.Text == "Erases");
+        window.Close();
+    }
+
+    [AvaloniaFact]
+    public void ChoosingDisabledOnTheEraser_DisablesIt_AndLeavesTheTipAlone()
     {
         var vm = Vm(WinInkAbsolute);
         var (window, view) = Page(vm);
 
-        Visible<ToggleSetting>(view).Single(t => t.Label == "Disable pen tip").IsChecked = true;
-        Dispatcher.UIThread.RunJobs();
+        PenButtonCardTests.Click(window, PenButtonCardTests.Segments(Card(view, "ERASER"))["Disabled"]);
 
-        Assert.True(vm.DisablePenTip);
+        Assert.True(vm.PenEraserRow!.IsDisabled);
+        Assert.True(vm.PenTipRow!.IsRecommended);
+        Assert.Equal(new[] { "Disabled" }, PenButtonCardTests.Lit(Card(view, "ERASER")));
+        Assert.Contains(Visible<TextBlock>(Card(view, "ERASER")), t => t.Text == "Does nothing");
+
+        PenButtonCardTests.Click(window, PenButtonCardTests.Segments(Card(view, "ERASER"))["Default action"]);
+
+        Assert.True(vm.PenEraserRow!.IsRecommended);
+        window.Close();
+    }
+
+    [AvaloniaFact]
+    public void TheEraserSection_HoldsTheEraserCard_UnderItsHeading()
+    {
+        var (window, view) = Page(Vm(WinInkAbsolute));
+
+        Assert.True(Top(view, Heading(view, "eraser")) < Top(view, Card(view, "ERASER")));
+        window.Close();
+    }
+
+    [AvaloniaFact]
+    public void ChoosingDisabled_DisablesTheTip_AndDefaultActionPutsItBack()
+    {
+        var vm = Vm(WinInkAbsolute);
+        var (window, view) = Page(vm);
+        var tip = Card(view, "PEN TIP");
+
+        PenButtonCardTests.Click(window, PenButtonCardTests.Segments(tip)["Disabled"]);
+
+        Assert.True(vm.PenTipRow!.IsDisabled);
+        Assert.Equal(new[] { "Disabled" }, PenButtonCardTests.Lit(Card(view, "PEN TIP")));
+
+        PenButtonCardTests.Click(window, PenButtonCardTests.Segments(Card(view, "PEN TIP"))["Default action"]);
+
+        Assert.True(vm.PenTipRow!.IsRecommended);
+        Assert.Equal(new[] { "Default action" }, PenButtonCardTests.Lit(Card(view, "PEN TIP")));
         window.Close();
     }
 
@@ -194,13 +247,14 @@ public class PenTabsTests
 
         Assert.False(view.FindControl<RadioButton>("ButtonsTab")!.IsVisible);
         Assert.True(view.FindControl<RadioButton>("MovementTab")!.IsChecked);
-        Assert.NotEmpty(Visible<PenSwitchCard>(view));              // basics' content is showing
+        Assert.NotEmpty(Visible<PenSwitchCard>(view));                 // basics' content is showing
         window.Close();
     }
 
     [AvaloniaTheory]
     [InlineData("MovementTab")]
     [InlineData("DynamicsTab")]
+    [InlineData("TiltTab")]
     [InlineData("ButtonsTab")]
     public void EveryTab_BindsAgainstItsViewModel(string tab)
     {
@@ -219,30 +273,130 @@ public class PenTabsTests
     private static ToggleSetting Toggle(PenDetailView view, string label) =>
         view.GetVisualDescendants().OfType<ToggleSetting>().Single(t => t.Label == label);
 
+    // The tilt tab's Enabled / Disabled bar. Only that tab is showing when these are read, so the visible
+    // segments are its two.
+    private static Dictionary<string, RadioButton> TiltSegments(PenDetailView view)
+    {
+        Select(view, "TiltTab");
+        return Visible<RadioButton>(view).Where(r => r.Classes.Contains("segment"))
+            .ToDictionary(r => (string)r.Content!);
+    }
+
     [AvaloniaFact]
     public void PressesLikeAMouse_GreysOutTilt_AndSaysWhy()
     {
         if (!OperatingSystem.IsWindows()) return; // "presses like a mouse" is the Windows-only plain output
         var (window, view) = Page(Vm(NativeAbsolute));
 
-        Assert.False(Toggle(view, "Disable tilt").IsEffectivelyEnabled);
-        Assert.True(Toggle(view, "Disable pen tip").IsEffectivelyEnabled);     // the tip still works as a button
+        Assert.All(PenButtonCardTests.Segments(Card(view, "PEN TIP")).Values,
+            r => Assert.True(r.IsEffectivelyEnabled));                          // the tip still works as a button
+        Assert.All(TiltSegments(view).Values, r => Assert.False(r.IsEffectivelyEnabled));
         Assert.Contains(Visible<TextBlock>(view), t => t.Text == "Tilt is off while the pen presses like a mouse.");
         window.Close();
     }
 
     [AvaloniaFact]
-    public void OnThePressureTab_ThePressureSwitchIsGreyedOut_WithTheReasonRightUnderIt()
+    public void TheTiltTab_IsOneBar_OfEnabledAndDisabled_OpeningOnEnabled()
+    {
+        var (window, view) = Page(Vm(WinInkAbsolute));
+
+        var segments = TiltSegments(view);
+
+        Assert.Equal(new[] { "Enabled", "Disabled" }, segments.Keys.ToArray());
+        Assert.Equal(new[] { "Enabled" }, segments.Where(x => x.Value.IsChecked == true).Select(x => x.Key).ToArray());
+        Assert.Contains(Visible<TextBlock>(view), t => t.Text == "tilt");
+        Assert.DoesNotContain(Visible<ToggleSetting>(view), t => t.Label == "Disable tilt");
+        window.Close();
+    }
+
+    [AvaloniaFact]
+    public void TheTiltTab_ShowsTheTiltFromAboveAndFromTheSide_AndTheyFollowTheLiveTilt()
+    {
+        var vm = Vm(WinInkAbsolute);
+        var (window, view) = Page(vm);
+        Select(view, "TiltTab");
+
+        var headings = Visible<TextBlock>(view).Where(t => t.Classes.Contains("section")).Select(t => t.Text).ToList();
+        Assert.Contains("azimuth", headings);
+        Assert.Contains("altitude", headings);
+        var above = Visible<TiltAzimuthDiagram>(view).Single();
+        var side = Visible<TiltAltitudeDiagram>(view).Single();
+        Assert.Null(above.Azimuth);                             // no pen yet: nothing drawn but the dials
+        Assert.Null(side.Altitude);
+
+        vm.SetLiveTilt(new PenSample(0.5, 0.5, 0, 0, 0, 25, -30, 0, false, HasTilt: true));
+        Dispatcher.UIThread.RunJobs();
+
+        Assert.Equal(vm.LiveAzimuth, above.Azimuth);
+        Assert.Equal(vm.LiveAltitude, above.Altitude);
+        Assert.Equal(vm.LiveAltitude, side.Altitude);
+        Assert.Contains(Visible<TextBlock>(view), t => t.Text == vm.LiveAzimuthText && t.Text != "—");
+        Assert.Contains(Visible<TextBlock>(view), t => t.Text == vm.LiveAltitudeText && t.Text != "—");
+        window.Close();
+    }
+
+    [AvaloniaFact]
+    public void TheDiagrams_AreNotOnBasics()
+    {
+        var (window, view) = Page(Vm(WinInkAbsolute));
+
+        Assert.Empty(Visible<TiltAzimuthDiagram>(view));
+        Assert.Empty(Visible<TiltAltitudeDiagram>(view));
+        window.Close();
+    }
+
+    [AvaloniaFact]
+    public void ChoosingDisabledOnTheTiltTab_DisablesTilt_AndEnabledPutsItBack()
+    {
+        var vm = Vm(WinInkAbsolute);
+        var (window, view) = Page(vm);
+
+        PenButtonCardTests.Click(window, TiltSegments(view)["Disabled"]);
+
+        Assert.True(vm.DisableTilt);
+        Assert.Equal(new[] { "Disabled" }, TiltSegments(view).Where(x => x.Value.IsChecked == true).Select(x => x.Key).ToArray());
+        Assert.Contains(Visible<TextBlock>(view), t => t.Text == "Apps receive no tilt from this tablet.");
+
+        PenButtonCardTests.Click(window, TiltSegments(view)["Enabled"]);
+
+        Assert.False(vm.DisableTilt);
+        Assert.Equal(new[] { "Enabled" }, TiltSegments(view).Where(x => x.Value.IsChecked == true).Select(x => x.Key).ToArray());
+        window.Close();
+    }
+
+    // The pressure tab's Enabled / Disabled bar. Only that tab is showing when these are read.
+    private static Dictionary<string, RadioButton> PressureSegments(PenDetailView view)
+    {
+        Select(view, "DynamicsTab");
+        view.UpdateLayout();
+        return Visible<RadioButton>(view).Where(r => r.Classes.Contains("segment"))
+            .ToDictionary(r => (string)r.Content!);
+    }
+
+    [AvaloniaFact]
+    public void OnThePressureTab_ThePressureBarIsGreyedOut_WithTheReasonRightUnderIt()
     {
         if (!OperatingSystem.IsWindows()) return;
         var (window, view) = Page(Vm(NativeAbsolute));
-        Select(view, "DynamicsTab");
 
-        var toggle = Visible<ToggleSetting>(view).Single(t => t.Label == "Disable pressure sensitivity");
+        var bar = PressureSegments(view)["Enabled"];
         var reason = Visible<TextBlock>(view).Single(t => t.Text == "The pen is set to press like a mouse, so this curve has no effect right now.");
 
-        Assert.False(toggle.IsEffectivelyEnabled);
-        Assert.True(Top(view, toggle) < Top(view, reason));
+        Assert.All(PressureSegments(view).Values, r => Assert.False(r.IsEffectivelyEnabled));
+        Assert.True(Top(view, bar) < Top(view, reason));
+        window.Close();
+    }
+
+    [AvaloniaFact]
+    public void ThePressureTab_IsOneBar_OfEnabledAndDisabled_OpeningOnEnabled()
+    {
+        var (window, view) = Page(Vm(WinInkAbsolute));
+
+        var segments = PressureSegments(view);
+
+        Assert.Equal(new[] { "Enabled", "Disabled" }, segments.Keys.ToArray());
+        Assert.Equal(new[] { "Enabled" }, segments.Where(x => x.Value.IsChecked == true).Select(x => x.Key).ToArray());
+        Assert.DoesNotContain(Visible<ToggleSetting>(view), t => t.Label == "Disable pressure sensitivity");
         window.Close();
     }
 
@@ -251,78 +405,118 @@ public class PenTabsTests
     {
         var (window, view) = Page(Vm(WinInkAbsolute));
 
-        Assert.True(Toggle(view, "Disable tilt").IsEffectivelyEnabled);
+        Assert.All(TiltSegments(view).Values, r => Assert.True(r.IsEffectivelyEnabled));
         Assert.DoesNotContain(Visible<TextBlock>(view),
             t => t.Text == "Tilt is off while the pen presses like a mouse.");
 
-        Select(view, "DynamicsTab");
-        Assert.True(Toggle(view, "Disable pressure sensitivity").IsEffectivelyEnabled);
+        Assert.All(PressureSegments(view).Values, r => Assert.True(r.IsEffectivelyEnabled));
         window.Close();
     }
 
     // ── Health links open the tab that holds the switch ────────────
 
-    [AvaloniaTheory]
-    [InlineData(RemediationArea.TabletPenInputs, "Disable pen tip")]
-    [InlineData(RemediationArea.TabletPenTilt, "Disable tilt")]
-    [InlineData(RemediationArea.TabletPenPressure, "Disable pressure sensitivity")]
-    public void AHealthLink_LandsOnTheTabWhereItsSwitchIs(RemediationArea area, string switchLabel)
+    [AvaloniaFact]
+    public void ThePressureHealthLink_LandsOnThePressureTab()
     {
         var vm = Vm(WinInkAbsolute);
         var (window, view) = Page(vm);
         Select(view, "ButtonsTab");                             // start somewhere else
 
-        vm.RequestTab(DashboardViewModel.PenTabFor(area));
+        vm.RequestTab(DashboardViewModel.PenTabFor(RemediationArea.TabletPenPressure));
         Dispatcher.UIThread.RunJobs();
 
-        Assert.Contains(Visible<ToggleSetting>(view), t => t.Label == switchLabel);
-        window.Close();
-    }
-
-    // ── Disable pressure sensitivity, on the pressure tab ──────────
-
-    [AvaloniaFact]
-    public void DisablePressureSensitivity_IsOnThePressureTab_NotOnBasics()
-    {
-        var (window, view) = Page(Vm(WinInkAbsolute));
-
-        Assert.DoesNotContain(Visible<ToggleSetting>(view), t => t.Label == "Disable pressure sensitivity");
-        Assert.Contains(Visible<ToggleSetting>(view), t => t.Label == "Disable tilt");     // tilt stays where it was
-
-        Select(view, "DynamicsTab");
-
-        Assert.Contains(Visible<ToggleSetting>(view), t => t.Label == "Disable pressure sensitivity");
-        Assert.DoesNotContain(Visible<ToggleSetting>(view), t => t.Label == "Disable tilt");
+        Assert.True(view.FindControl<RadioButton>("DynamicsTab")!.IsChecked);
+        Assert.Contains(Visible<RadioButton>(view), r => r.Classes.Contains("segment") && (string?)r.Content == "Enabled");
         window.Close();
     }
 
     [AvaloniaFact]
-    public void DisablePressureSensitivity_SitsAboveTheCurve_ItOverrides()
-    {
-        var (window, view) = Page(Vm(WinInkAbsolute));
-        Select(view, "DynamicsTab");
-
-        var toggle = Visible<ToggleSetting>(view).Single(t => t.Label == "Disable pressure sensitivity");
-        var chart = Visible<PressureCurveChart>(view).Single();
-
-        Assert.True(Top(view, toggle) < Top(view, chart));
-        window.Close();
-    }
-
-    [AvaloniaFact]
-    public void TickingDisablePressureSensitivity_OnThePressureTab_DisablesPressure_AndFlagsTheCurve()
+    public void TheTiltHealthLink_LandsOnTheTiltTab()
     {
         var vm = Vm(WinInkAbsolute);
         var (window, view) = Page(vm);
+
+        vm.RequestTab(DashboardViewModel.PenTabFor(RemediationArea.TabletPenTilt));
+        Dispatcher.UIThread.RunJobs();
+
+        Assert.True(view.FindControl<RadioButton>("TiltTab")!.IsChecked);
+        Assert.Contains(Visible<RadioButton>(view), r => r.Classes.Contains("segment") && (string?)r.Content == "Enabled");
+        window.Close();
+    }
+
+    [AvaloniaFact]
+    public void ThePenTipHealthLink_LandsOnBasics_WhereTheTipCardIs()
+    {
+        var vm = Vm(WinInkAbsolute);
+        var (window, view) = Page(vm);
+        Select(view, "ButtonsTab");                             // start somewhere else
+
+        vm.RequestTab(DashboardViewModel.PenTabFor(RemediationArea.TabletPenInputs));
+        Dispatcher.UIThread.RunJobs();
+
+        Assert.NotEmpty(Visible<PenSwitchCard>(view));
+        window.Close();
+    }
+
+    // ── Pressure sensitivity, on the pressure tab ──────────────────
+
+    [AvaloniaFact]
+    public void ThePressureBar_IsOnThePressureTab_NotOnBasics()
+    {
+        var (window, view) = Page(Vm(WinInkAbsolute));
+
+        Assert.DoesNotContain(Visible<RadioButton>(view), r => (string?)r.Content == "Enabled");
+
         Select(view, "DynamicsTab");
+
+        Assert.Contains(Visible<RadioButton>(view), r => r.Classes.Contains("segment") && (string?)r.Content == "Enabled");
+        window.Close();
+    }
+
+    [AvaloniaFact]
+    public void ThePressureTab_OpensAtTheTop_NotScrolledDownToTheDrawingCanvas()
+    {
+        var (window, view) = Page(Vm(WinInkAbsolute));
+
+        Select(view, "DynamicsTab");
+        view.UpdateLayout();
+
+        var showing = view.GetVisualDescendants().OfType<ScrollViewer>().Single(sv => sv.IsEffectivelyVisible);
+        Assert.True(showing.Extent.Height > showing.Viewport.Height, "the tab is taller than the window, so it can scroll");
+        Assert.Equal(0, showing.Offset.Y);
+        window.Close();
+    }
+
+    [AvaloniaFact]
+    public void ThePressureBar_SitsAboveTheCurve_ItOverrides()
+    {
+        var (window, view) = Page(Vm(WinInkAbsolute));
+
+        var bar = PressureSegments(view)["Enabled"];
+        var chart = Visible<PressureCurveChart>(view).Single();
+
+        Assert.True(Top(view, bar) < Top(view, chart));
+        window.Close();
+    }
+
+    [AvaloniaFact]
+    public void ChoosingDisabledOnThePressureTab_DisablesPressure_FlagsTheCurve_AndEnabledPutsItBack()
+    {
+        var vm = Vm(WinInkAbsolute);
+        var (window, view) = Page(vm);
         const string note = "Pressure sensitivity is disabled, so this curve has no effect right now.";
         Assert.DoesNotContain(Visible<TextBlock>(view), t => t.Text == note);
 
-        Visible<ToggleSetting>(view).Single(t => t.Label == "Disable pressure sensitivity").IsChecked = true;
-        Dispatcher.UIThread.RunJobs();
+        PenButtonCardTests.Click(window, PressureSegments(view)["Disabled"]);
 
         Assert.True(vm.DisablePressure);
+        Assert.Equal(new[] { "Disabled" }, PressureSegments(view).Where(x => x.Value.IsChecked == true).Select(x => x.Key).ToArray());
         Assert.Contains(Visible<TextBlock>(view), t => t.Text == note);
+
+        PenButtonCardTests.Click(window, PressureSegments(view)["Enabled"]);
+
+        Assert.False(vm.DisablePressure);
+        Assert.DoesNotContain(Visible<TextBlock>(view), t => t.Text == note);
         window.Close();
     }
 
@@ -352,15 +546,31 @@ public class PenTabsTests
     // ── The tip card ───────────────────────────────────────────────
 
     [AvaloniaFact]
-    public void ADisabledTip_SaysDisabled_AndOffersNoFix()
+    public void ADisabledTip_LightsDisabled_AndSaysItDoesNothing()
     {
         var (window, view) = Page(Vm(WinInkAbsolute, tipBound: false));
 
-        var tip = Visible<PenSwitchCard>(view).Single(c => ((PenSwitchRowViewModel)c.DataContext!).SectionLabel == "PEN TIP");
+        var tip = Card(view, "PEN TIP");
 
-        Assert.Contains(Visible<TextBlock>(tip), t => t.Text == "Disabled");
-        Assert.Empty(Visible<Button>(tip));
+        Assert.Equal(new[] { "Disabled" }, PenButtonCardTests.Lit(tip));
+        Assert.Contains(Visible<TextBlock>(tip), t => t.Text == "Does nothing");
         Assert.DoesNotContain(Visible<TextBlock>(tip), t => t.Text?.Contains("custom action") == true);
+        window.Close();
+    }
+
+    [AvaloniaFact]
+    public void ATipSetElsewhere_LightsNeitherChoice_AndSaysWhatItDoesNow()
+    {
+        var vm = Vm(WinInkAbsolute);
+        vm.PenTipRow = new PenSwitchRowViewModel(PenSwitchKind.Tip, 1, AuxKeyBinding.MakeMouseBinding("Left"), true,
+            (_, _, _) => Task.CompletedTask, () => Task.CompletedTask);
+        var (window, view) = Page(vm);
+
+        var tip = Card(view, "PEN TIP");
+
+        Assert.Empty(PenButtonCardTests.Lit(tip));
+        Assert.Contains(Visible<TextBlock>(tip), t => t.Text == "Currently: Mouse button");
+        Assert.Contains(Visible<TextBlock>(tip), t => t.Text?.Contains("custom action") == true);
         window.Close();
     }
 
