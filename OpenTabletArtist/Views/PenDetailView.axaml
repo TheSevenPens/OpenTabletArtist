@@ -168,7 +168,7 @@
             <!-- 1 — the Enabled / Disabled choice. -->
             <StackPanel Width="240" VerticalAlignment="Top">
                 <TextBlock Text="tilt" Classes="Display section" />
-                <c:Section Padding="12,10" Margin="0,12,0,0" HorizontalAlignment="Left" Width="240">
+                <c:Section Margin="0,12,0,0" HorizontalAlignment="Left" Width="240">
                     <StackPanel Spacing="12">
                         <StackPanel Spacing="12" IsEnabled="{Binding PressureAndTiltAvailable}">
                             <StackPanel Orientation="Horizontal" HorizontalAlignment="Left">

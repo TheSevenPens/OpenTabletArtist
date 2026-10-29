@@ -120,6 +120,32 @@ public class PenTabsTests
         window.Close();
     }
 
+    private static double Left(PenDetailView view, Visual control) => control.TranslatePoint(new Avalonia.Point(0, 0), view)!.Value.X;
+
+    [AvaloniaFact]
+    public void TheTipAndEraserChoices_StartAtTheLeftEdgeOfTheirHeadings()
+    {
+        var (window, view) = Page(Vm(WinInkAbsolute));
+
+        foreach (var (heading, label) in new[] { ("tip", "PEN TIP"), ("eraser", "ERASER") })
+        {
+            var bar = PenButtonCardTests.Segments(Card(view, label))["Default action"];
+            Assert.Equal(Left(view, Heading(view, heading)), Left(view, bar), 1);
+        }
+        window.Close();
+    }
+
+    [AvaloniaFact]
+    public void TheTiltChoice_StartsAtTheLeftEdgeOfItsHeading()
+    {
+        var (window, view) = Page(Vm(WinInkAbsolute));
+
+        var bar = TiltSegments(view)["Enabled"];
+
+        Assert.Equal(Left(view, Heading(view, "tilt")), Left(view, bar), 1);
+        window.Close();
+    }
+
     [AvaloniaFact]
     public void Basics_LaysOutTipThenMovementThenEraser_AsThreeColumns()
     {
