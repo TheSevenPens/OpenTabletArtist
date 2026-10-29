@@ -1872,10 +1872,6 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
         set { if (Math.Abs(Curve.Softness - value) > 1e-6) Curve = Curve with { Softness = value }; }
     }
 
-    /// <summary>Softness slider bounds — matches the range the curve model accepts (see PressureCurve).</summary>
-    public double SoftnessMin => -0.9;
-    public double SoftnessMax => 0.9;
-
     // The Pen Dynamics filter is always enabled internally (#dynamics-always-on); there's no on/off toggle.
     // Users neutralize dynamics by leaving the curve linear and smoothing at 0 (a genuine no-op).
     private PenDynamicsSettings CurrentDynamics =>

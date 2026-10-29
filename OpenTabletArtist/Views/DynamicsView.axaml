@@ -101,8 +101,11 @@
                     <!-- Softness slider (#603): mirrors the amber bend node on the curve so Softness has a
                          keyboard-operable path too (both write PressureCurveSettings.Softness, staying in
                          sync). −0.9 hard … 0 linear … 0.9 soft. -->
+                    <!-- The range is literal, not bound: a bound minimum falls back to the slider's 0 when the
+                         page is swapped out, and the slider then clamps a negative softness up to 0 and writes
+                         it into the view-model (PressureSliderTests). -->
                     <ctrl:LabeledSlider Label="Softness" LabelWidth="130" Margin="0,10,0,0"
-                                        Minimum="{Binding SoftnessMin}" Maximum="{Binding SoftnessMax}"
+                                        Minimum="-0.9" Maximum="0.9"
                                         Value="{Binding Softness}" ValueFormat="0.00"
                                         SmallChange="0.02" LargeChange="0.1"
                                         Ticks="-0.9,-0.45,0,0.45,0.9" TickPlacement="BottomRight"
