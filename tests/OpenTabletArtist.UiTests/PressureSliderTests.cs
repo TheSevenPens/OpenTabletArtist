@@ -3,6 +3,7 @@ using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
+using OpenTabletArtist.Controls;
 using OpenTabletArtist.Domain;
 using OpenTabletArtist.Services;
 using OpenTabletArtist.ViewModels;
@@ -62,6 +63,94 @@ public class PressureSliderTests
         Dispatcher.UIThread.RunJobs();
 
         Assert.Equal(softness, vm.Softness, 5);
+        window.Close();
+    }
+
+    private static (Window Window, PenDetailView View, LabeledSlider Slider) DeadzonePage(TabletDetailViewModel vm)
+    {
+        var view = new PenDetailView { DataContext = vm };
+        var window = HarnessTests.Show(view);
+        view.FindControl<RadioButton>("DynamicsTab")!.IsChecked = true;
+        Dispatcher.UIThread.RunJobs();
+        var slider = view.GetVisualDescendants().OfType<LabeledSlider>().Single(l => l.Label == "Deadzone" && l.IsEffectivelyVisible);
+        return (window, view, slider);
+    }
+
+    [AvaloniaFact]
+    public void TheDeadzoneSlider_MovesTheCurvesInputMinimum_AndNothingElse()
+    {
+        var vm = Vm(0.4);
+        var (window, _, slider) = DeadzonePage(vm);
+        var before = vm.Curve;
+
+        slider.Value = 0.3;
+        Dispatcher.UIThread.RunJobs();
+
+        Assert.Equal(before with { InputMinimum = 0.3 }, vm.Curve);
+        window.Close();
+    }
+
+    [AvaloniaFact]
+    public void MovingTheLowerLeftNode_MovesTheDeadzoneSlider()
+    {
+        var vm = Vm(0);
+        var (window, _, slider) = DeadzonePage(vm);
+        Assert.Equal(0, slider.Value);
+
+        vm.Curve = vm.Curve with { InputMinimum = 0.4, Minimum = 0.1 };   // a drag of the node, sideways and up
+        Dispatcher.UIThread.RunJobs();
+
+        Assert.Equal(0.4, slider.Value, 5);
+        window.Close();
+    }
+
+    [AvaloniaFact]
+    public void TheDeadzoneSlider_SnapsToTwoDecimals_LikeTheNode()
+    {
+        var vm = Vm(0);
+        var (window, _, slider) = DeadzonePage(vm);
+
+        slider.Value = 0.1234;
+        Dispatcher.UIThread.RunJobs();
+
+        Assert.Equal(0.12, vm.Deadzone, 6);
+        Assert.Equal(0.12, slider.Value, 6);
+        window.Close();
+    }
+
+    [AvaloniaFact]
+    public void AtTheTopOfItsRange_TheDeadzoneSlider_ShowsWhereTheValueActuallyIs()
+    {
+        var vm = Vm(0);
+        var (window, _, slider) = DeadzonePage(vm);
+
+        slider.Value = 1;
+        Dispatcher.UIThread.RunJobs();
+
+        Assert.Equal(0.99, vm.Deadzone, 6);
+        Assert.Equal(0.99, slider.Value, 6);       // the slider is not left saying 1
+        window.Close();
+    }
+
+    [AvaloniaFact]
+    public void SwappingThePenPageOut_LeavesTheDeadzoneAlone()
+    {
+        var vm = Vm(0);
+        vm.Curve = vm.Curve with { InputMinimum = 0.3 };
+        var host = new ContentControl
+        {
+            Content = vm,
+            ContentTemplate = new Avalonia.Controls.Templates.FuncDataTemplate<TabletDetailViewModel>((_, _) => new PenDetailView(), true),
+        };
+        var window = HarnessTests.Show(host);
+        Dispatcher.UIThread.RunJobs();
+        host.GetVisualDescendants().OfType<PenDetailView>().Single().FindControl<RadioButton>("DynamicsTab")!.IsChecked = true;
+        Dispatcher.UIThread.RunJobs();
+
+        host.Content = new TextBlock { Text = "another page" };
+        Dispatcher.UIThread.RunJobs();
+
+        Assert.Equal(0.3, vm.Deadzone, 5);
         window.Close();
     }
 }
