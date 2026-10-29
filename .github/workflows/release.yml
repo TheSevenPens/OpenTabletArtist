@@ -123,7 +123,7 @@ jobs:
       - name: Download the official OpenTabletDriver daemon into Daemon/
         shell: pwsh
         env:
-          OTD_SHA256: "316334C2AC2071DBE26FDE61A583D21F4F71A8437A42AA03B2337B5A97E5D1BC"
+          OTD_SHA256: "A41D719621CC05F5987C251A5D35099A5D751F1BA2F454652B1AA2B87376F8BD"
         run: |
           $ErrorActionPreference = 'Stop'
 
@@ -132,7 +132,7 @@ jobs:
           $otdTag = $null
           try { $otdTag = (git -C external/OpenTabletDriver describe --tags --exact-match 2>$null) } catch { }
           if ($otdTag) { $otdTag = $otdTag.Trim() }
-          if ($otdTag -notmatch '^v?\d+\.\d+\.\d+(-[0-9A-Za-z.]+)?$') {
+          if ($otdTag -notmatch '^v?\d+\.\d+\.\d+(\.\d+)?(-[0-9A-Za-z.]+)?$') {
             throw "The OpenTabletDriver submodule is not on an exact release tag (got '$otdTag')."
           }
           $version = $otdTag -replace '^v',''
@@ -229,12 +229,15 @@ jobs:
           $otdTag = $null
           try { $otdTag = (git -C external/OpenTabletDriver describe --tags --exact-match 2>$null) } catch { }
           if ($otdTag) { $otdTag = $otdTag.Trim() }
-          if ($otdTag -notmatch '^v?\d+\.\d+\.\d+(-[0-9A-Za-z.]+)?$') {
+          if ($otdTag -notmatch '^v?\d+\.\d+\.\d+(\.\d+)?(-[0-9A-Za-z.]+)?$') {
             throw "The OpenTabletDriver submodule is not on an exact release tag (got '$otdTag'), so the OTD version can't be determined."
           }
-          # Four-part, matching the FileVersion this used to read (the tag says 0.6.8, the assembly says
-          # 0.6.8.0). The comparisons below are version-typed, so the shape matters.
-          $otd = [version]("$($otdTag -replace '^v','' -replace '-.*$','').0")
+          # Four-part, matching the FileVersion this used to read (a tag of v0.6.8 says 0.6.8 while the
+          # assembly says 0.6.8.0; v0.6.8.1 already has four). Pad to four rather than append ".0", which
+          # would make five. The comparisons below are version-typed, so the shape matters.
+          $parts = @(($otdTag -replace '^v','' -replace '-.*$','').Split('.'))
+          while ($parts.Count -lt 4) { $parts += '0' }
+          $otd = [version]($parts -join '.')
           Write-Host "Bundled OpenTabletDriver version: $otd (submodule tag $otdTag)"
 
           # Mirrors PluginMetadata.IsSupportedBy exactly -- the same rule the app applies to the online

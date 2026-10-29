@@ -215,6 +215,10 @@ The pin moved to `v0.6.8` (commit `f22e74e`). Re-reading both items against it:
 
 Line references above are against `v0.6.8`; the rest of this file still cites `736003e`.
 
+The pin has since moved to `v0.6.8.1` (2026-10-29), a Windows fix: it changes `AsyncPositionedPipelineElement` (the
+scheduler may no longer be changed once set), the version number and two documentation strings, so both items
+above stand as written.
+
 ---
 
 ## Before this goes anywhere

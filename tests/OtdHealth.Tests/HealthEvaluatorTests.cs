@@ -162,9 +162,20 @@ public class HealthEvaluatorTests
     [InlineData("", "0.6.7")]
     [InlineData("0.6.7", "")]
     [InlineData("0.6.7", "0.6.7.0")]
-    [InlineData("0.6.7+abc", "0.6.7.2")]
+    [InlineData("0.6.7+abc", "0.6.7.0")]
     public void UnknownOrEquivalentVersionsDoNotRaiseFindings(string actual, string expected) =>
         Assert.Empty(HealthEvaluator.Evaluate(Healthy() with { DaemonVersion = actual, ExpectedOtdVersion = expected }));
+
+    // OpenTabletDriver 0.6.8.1 is a Windows crash fix over 0.6.8, so a daemon on the older one has to read as
+    // out of date rather than as the same release.
+    [Fact]
+    public void AFourthPartDifferenceRaisesTheVersionFinding()
+    {
+        var findings = HealthEvaluator.Evaluate(Healthy() with { DaemonVersion = "0.6.8", ExpectedOtdVersion = "0.6.8.1" });
+        var mismatch = Assert.Single(findings, f => f.Code == HealthCheckCodes.DaemonVersionMismatch);
+        Assert.Equal("0.6.8", mismatch.Evidence!.ActualVersion);
+        Assert.Equal("0.6.8.1", mismatch.Evidence!.ExpectedVersion);
+    }
 
     [Theory]
     [InlineData(false)]

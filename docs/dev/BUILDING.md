@@ -79,7 +79,7 @@ What stays dark without a bundled daemon:
 
 | | dev tree | Windows release |
 |---|---|---|
-| THIS APP line | `built against OTD 0.6.8.0` | `bundles OTD 0.6.8.0` |
+| THIS APP line | `built against OTD 0.6.8.1` | `bundles OTD 0.6.8.1` |
 | provenance chip | `YOURS` only | `BUNDLED`, or `YOURS` on someone else's daemon |
 | way back to the bundled copy | cannot appear | offered, or explained when a location is chosen |
 | driver card | always shown | hidden until there is something to offer |

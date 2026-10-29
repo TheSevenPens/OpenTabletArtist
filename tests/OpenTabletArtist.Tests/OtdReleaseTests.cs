@@ -14,17 +14,17 @@ namespace OpenTabletArtist.Tests;
 /// </summary>
 public class OtdReleaseTests
 {
-    // The tag is "v0.6.8" while the assemblies inside report "0.6.8.0". If these ever disagree about the
-    // release, an assisted install would hand the user a driver that immediately raises
+    // The tag is "v0.6.8.1" and the assemblies inside report "0.6.8.1" too. If these ever disagree about
+    // the release, an assisted install would hand the user a driver that immediately raises
     // otd.versionMismatch — the exact outcome pinning exists to prevent.
     [Fact]
     public void ThePinnedReleaseIsTheOneOtaIsBuiltAgainst()
     {
-        Assert.True(DaemonVersion.SameRelease(OtdRelease.AssetVersion, "0.6.8.0"));
+        Assert.True(DaemonVersion.SameRelease(OtdRelease.AssetVersion, "0.6.8.1"));
         Assert.Equal($"v{OtdRelease.AssetVersion}", OtdRelease.Tag);
     }
 
-    // Matches the real published artifact: OpenTabletDriver-0.6.8_osx-x64.tar.gz.
+    // Matches the real published artifact: OpenTabletDriver-0.6.8.1_osx-x64.tar.gz.
     [Fact]
     public void TheMacAssetIsNamedTheWayOtdPublishesIt()
     {
@@ -62,9 +62,19 @@ public class OtdReleaseTests
     [Fact]
     public void Version_IsTheFourPartFormOfThePinnedRelease()
     {
-        Assert.Equal(new System.Version(OtdRelease.AssetVersion.Split('-')[0] + ".0"), OtdRelease.Version);
+        Assert.Equal(new System.Version(0, 6, 8, 1), OtdRelease.Version);
         Assert.Equal(OtdRelease.Tag, "v" + OtdRelease.AssetVersion);
     }
+
+    /// <summary>A release is named with three parts (v0.6.8) or four (v0.6.8.1); the assemblies always report
+    /// four. Appending a fixed ".0" parsed the first and threw on the second.</summary>
+    [Theory]
+    [InlineData("0.6.8", "0.6.8.0")]
+    [InlineData("0.6.8.1", "0.6.8.1")]
+    [InlineData("0.6.8-rc1", "0.6.8.0")]
+    [InlineData("0.6.8.1-rc1", "0.6.8.1")]
+    public void FourPart_PadsToFourPartsAndKeepsARealFourth(string release, string expected) =>
+        Assert.Equal(System.Version.Parse(expected), OtdRelease.FourPart(release));
 
     /// <summary>
     /// The guard for a bug that dev builds cannot show.
@@ -74,7 +84,7 @@ public class OtdReleaseTests
     /// <c>typeof(AppInfo).Assembly.GetName().Version</c> returns OTA's version rather than OTD's, and
     /// everything derived from it is wrong: Windows Ink plugin compatibility finds no matching manifest,
     /// the health card reports the wrong "built against", and every connected daemon looks mismatched.
-    /// Dev builds pass no version, keep 0.6.8.0, and look perfect.
+    /// Dev builds pass no version, keep the driver's own, and look perfect.
     ///
     /// A behavioural test cannot catch that — it would have to run against a published build with a
     /// version stamp. So this reads the source instead: nothing in the app may ask a linked OTD type's

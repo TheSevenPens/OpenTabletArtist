@@ -21,7 +21,7 @@ public sealed record ApprovedConfig(string Path, string FileName, string Manufac
 /// </summary>
 public sealed class ApprovedConfigsService
 {
-    /// <summary>The OTD branch to fetch from — matches the bundled daemon (submodule v0.6.8 on 0.6.x).</summary>
+    /// <summary>The OTD branch to fetch from — matches the bundled daemon (submodule v0.6.8.1 on 0.6.x).</summary>
     public const string Branch = "0.6.x";
 
     private const string ConfigPrefix = "OpenTabletDriver.Configurations/Configurations/";
