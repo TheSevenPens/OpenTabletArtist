@@ -65,7 +65,7 @@ latest-result gate prevents superseded collections from publishing, but is not a
 | Displays | Mapping against captured bounds; CLI enumerates physical pixels on Windows with temporary thread DPI awareness. Live headless Linux/macOS enumeration is `Unsupported` when needed. Consumers can supply their own bounds. No detected tablets makes this probe inapplicable. |
 | ConfigurationOverrides | Recursive JSON read in the daemon's reported directory, compared with the embedded pinned OTD configuration catalog. Unknown path or malformed/unreadable data cannot certify no overrides. |
 | WindowsInk | Installed metadata, checked against the caller's expected OTD release. Does not download a repository or load plugin code. |
-| VMulti | Windows SetupAPI present device nodes, including disabled and driverless-node classification; does not install, enable, or open a control channel. |
+| VMulti | Windows SetupAPI present device nodes, including disabled and driverless-node classification; does not install, enable, or open a control channel. Also records the HID view of the virtual pen (visible, control channel present) on the probe result as supporting evidence; the VMulti page and Windows Ink auto-setup read that, so the install verdict has one source. |
 | DriverConflicts | Existing daemon detection log, including OTA self-match exclusion. Reflects that log's latest available observations, not a fresh manufacturer-driver scan. |
 | ProcessElevation | The collecting Windows process (OTA or CLI), not the daemon. |
 | LinuxUdev | Known OTD rule paths under `/etc` and `/usr/lib`; presence proxy, not a udev-rule validator. |

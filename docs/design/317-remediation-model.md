@@ -92,9 +92,10 @@ VMulti's virtual HID device — see OTD's own README ("Windows Ink … and VMult
   direct-to-location model in action.
 - **VMulti *is* a checked prerequisite** (corrected — an earlier draft wrongly excluded it). The Windows
   Ink plugin injects pen input through VMulti's virtual HID device, so a missing VMulti driver breaks
-  pressure/tilt just like a missing plugin does. Its detection is async P/Invoke owned by the VMulti
-  page, which pushes the result into `HealthService.SetVMultiInstalled(...)`; the input is nullable so
-  no false "not installed" flashes before the first detection reports.
+  pressure/tilt just like a missing plugin does. Its detection is the health collector's VMulti
+  probe (it was first owned by the VMulti page, which pushed its result into `HealthService`; the page
+  now reads the collector's report instead, so Home and the page cannot disagree); the input is nullable
+  so no false "not installed" flashes before the first detection reports.
 - **`daemon.disconnected` is suppressed while a connect is in flight**, so startup doesn't flash a
   scary "not connected" card.
 

@@ -1,4 +1,5 @@
 using System;
+using System.ComponentModel;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
@@ -19,15 +20,18 @@ public partial class VMultiViewModel : ObservableObject, IDisposable
 {
     private readonly IDialogService _dialogs;
     private readonly HealthService _health;
-    private readonly VMultiDetector _vmulti = new();
     private readonly VMultiInstaller _vmultiInstaller = new();
     private readonly CancellationTokenSource _cts = new();
 
+    /// <summary>The page enumerates nothing itself: it shows what the health collector's VMulti probe saw
+    /// (see <see cref="VMultiStatus"/>), so it says what Home says. It starts as "Checking..." and only
+    /// moves once a report arrives, so it never claims "Not installed" before anyone has looked.</summary>
     public VMultiViewModel(IDialogService dialogs, HealthService health)
     {
         _dialogs = dialogs;
         _health = health;
-        _ = InitVmultiAsync();
+        _health.PropertyChanged += OnHealthChanged;
+        Apply(VMultiStatus.From(_health.Analysis));
     }
 
     [ObservableProperty] private bool _vmultiInstalled;
@@ -38,47 +42,50 @@ public partial class VMultiViewModel : ObservableObject, IDisposable
     [ObservableProperty] private string _vmultiInstallStatus = "";
     [ObservableProperty] private bool _showInstallButton;
     [ObservableProperty] private bool _showUninstallButton;
+    /// <summary>True only when VMulti is known not to be installed, not while the answer is pending.</summary>
+    [ObservableProperty] private bool _showNotInstalledNote;
 
-    partial void OnVmultiInstalledChanged(bool value) => UpdateVmultiButtons();
     partial void OnVmultiInstallingChanged(bool value) => UpdateVmultiButtons();
+
+    // Known is what keeps both buttons away while the answer is pending or unreadable: neither "install"
+    // nor "uninstall" is right when we haven't seen the state.
+    private bool _vmultiKnown;
 
     private void UpdateVmultiButtons()
     {
-        ShowInstallButton = !VmultiInstalled && !VmultiInstalling;
-        ShowUninstallButton = VmultiInstalled && !VmultiInstalling;
+        ShowInstallButton = _vmultiKnown && !VmultiInstalled && !VmultiInstalling;
+        ShowUninstallButton = _vmultiKnown && VmultiInstalled && !VmultiInstalling;
+        ShowNotInstalledNote = _vmultiKnown && !VmultiInstalled;
     }
 
-    private async Task InitVmultiAsync() => await RefreshVmultiDetection();
+    private void OnHealthChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        // A null Analysis (the daemon went away) raises nothing, so the last answer stays on screen
+        // rather than flashing "Checking..." for a driver that has not changed.
+        if (e.PropertyName == nameof(HealthService.Analysis) && _health.Analysis is { } report)
+            Apply(VMultiStatus.From(report));
+    }
 
+    private void Apply(VMultiStatus status)
+    {
+        _vmultiKnown = status.Known;
+        VmultiInstalled = status.Installed;
+        VmultiMessage = status.Summary;
+        VmultiSetupApiStatus = status.SetupApiText;
+        VmultiHidStatus = status.HidText;
+        // Recompute explicitly: no property hook fires when a value stays the same, and Known can change
+        // while Installed does not (pending -> not installed).
+        UpdateVmultiButtons();
+    }
+
+    /// <summary>Re-collect health and show the result. Also what runs after an install or uninstall, so
+    /// the page waits for a collection that started after the change rather than reading an older one.</summary>
     [RelayCommand]
     private async Task RefreshVmultiDetection()
     {
-        var (hidResult, setupResult) = await Task.Run(() =>
-            (_vmulti.DetectHid(), _vmulti.DetectSetupApi()));
-
-        VmultiHidStatus = hidResult.Message;
-        VmultiSetupApiStatus = setupResult.Message;
-        // "Installed" means a working driver — detection treats driverless leftover nodes (Code 28
-        // after an uninstall) as not installed, so the card flips to "Not installed" once the driver
-        // is gone instead of reporting the orphaned device nodes as installed.
-        VmultiInstalled = hidResult.Visible || setupResult.Installed;
-
-        if (hidResult.Functional)
-            VmultiMessage = "Installed & active";
-        else if (setupResult.Installed && !setupResult.Enabled)
-            VmultiMessage = "Installed but disabled";
-        else if (setupResult.Installed)
-            VmultiMessage = "Installed (not active in HID)";
-        else
-            VmultiMessage = "Not installed";
-
-        // Recompute explicitly: the OnVmultiInstalledChanged hook only fires when the value changes,
-        // so when detection legitimately leaves VmultiInstalled = false (its default), the buttons
-        // would otherwise never be initialized and the Install button wouldn't appear.
-        UpdateVmultiButtons();
-
-        // Feed the health catalog so the "VMulti not installed" check reflects the latest detection.
-        _health.SetVMultiInstalled(VmultiInstalled);
+        Apply(VMultiStatus.Pending);
+        var report = await _health.RefreshAsync();
+        Apply(report == null ? VMultiStatus.Unreadable("the health check did not complete") : VMultiStatus.From(report));
     }
 
     [RelayCommand]
@@ -203,6 +210,7 @@ public partial class VMultiViewModel : ObservableObject, IDisposable
 
     public void Dispose()
     {
+        _health.PropertyChanged -= OnHealthChanged;
         _cts.Cancel();
         _cts.Dispose();
     }
