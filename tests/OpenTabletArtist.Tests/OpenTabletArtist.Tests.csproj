@@ -69,6 +69,13 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- The pen-dynamics filter itself, as source: the plugin is built but not referenced (below), so its
+         behaviour cannot be exercised through the assembly. It is plain code over the shared Domain types
+         this project already sees. -->
+    <Compile Include="..\..\plugins\OpenTabletArtist.Dynamics\DynamicsFilter.cs" Link="DynamicsFilter.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\..\OpenTabletArtist\OpenTabletArtist.csproj" />
     <!-- Build the plugin (don't reference its assembly) so the type-name guard test (#104) always
          finds its DLL — including release CI, which tests before the solution/plugin build.
