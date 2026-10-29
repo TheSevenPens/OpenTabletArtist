@@ -26,8 +26,6 @@ public sealed class PenButtonsDiagram : Control
         AvaloniaProperty.Register<PenButtonsDiagram, IBrush?>(nameof(StrokeBrush));
     public static readonly StyledProperty<IBrush?> AccentBrushProperty =
         AvaloniaProperty.Register<PenButtonsDiagram, IBrush?>(nameof(AccentBrush));
-    public static readonly StyledProperty<IBrush?> LabelBrushProperty =
-        AvaloniaProperty.Register<PenButtonsDiagram, IBrush?>(nameof(LabelBrush));
 
     /// <summary>How many barrel buttons the pen has (1 to 3).</summary>
     public int ButtonCount { get => GetValue(ButtonCountProperty); set => SetValue(ButtonCountProperty, value); }
@@ -38,12 +36,11 @@ public sealed class PenButtonsDiagram : Control
     public IBrush? FillBrush { get => GetValue(FillBrushProperty); set => SetValue(FillBrushProperty, value); }
     public IBrush? StrokeBrush { get => GetValue(StrokeBrushProperty); set => SetValue(StrokeBrushProperty, value); }
     public IBrush? AccentBrush { get => GetValue(AccentBrushProperty); set => SetValue(AccentBrushProperty, value); }
-    public IBrush? LabelBrush { get => GetValue(LabelBrushProperty); set => SetValue(LabelBrushProperty, value); }
 
     static PenButtonsDiagram()
     {
         AffectsRender<PenButtonsDiagram>(ButtonCountProperty, ShowConnectorsProperty, CardGapProperty,
-            FillBrushProperty, StrokeBrushProperty, AccentBrushProperty, LabelBrushProperty);
+            FillBrushProperty, StrokeBrushProperty, AccentBrushProperty);
         AffectsMeasure<PenButtonsDiagram>(ShowConnectorsProperty);
     }
 
@@ -79,9 +76,6 @@ public sealed class PenButtonsDiagram : Control
 
     private void DrawPen(DrawingContext ctx, IPen? outline)
     {
-        DrawCentered(ctx, "tip", 22, 10, 11, LabelBrush, FontWeight.Normal);
-        DrawCentered(ctx, "eraser end", 778, 10, 11, LabelBrush, FontWeight.Normal);
-
         ctx.DrawGeometry(FillBrush, outline, PenBody);
         if (outline is not null) ctx.DrawGeometry(null, outline, PenSeams);
     }
