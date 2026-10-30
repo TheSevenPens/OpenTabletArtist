@@ -401,7 +401,6 @@ public class VMultiStatusTests
         public void StopAll() { }
         public string? PathOf(int processId) => null;
         public string? SingleRunningDaemonPath() => null;
-        public string ReadVersion(string executablePath) => HealthService.ExpectedOtdVersion;
     }
 
     private static AppSession NewSession() => new(FakeSession.Over(new FakeDaemonTransport()), new NoLifecycle());

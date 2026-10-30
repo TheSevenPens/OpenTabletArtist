@@ -63,6 +63,8 @@ public sealed partial class DaemonStatusViewModel : ObservableObject, IDisposabl
     public string DaemonSourceDisplayPath => Domain.ExecutablePath.BundleOrSelf(_session.DaemonSourcePath);
     public string DaemonVersion => _session.DaemonVersion;
     public bool HasDaemonVersion => _session.HasDaemonVersion;
+    public bool IsAppOwnedDaemon => _session.IsAppOwnedDaemon;
+    public bool IsForeignDaemon => _session.IsForeignDaemon;
     /// <summary>A daemon answers but the app declined to attach to it over its version (#1042).</summary>
     public bool IsDaemonRefused => _session.IsDaemonRefused;
     public string DaemonRefusalReason => _session.DaemonRefusalReason;
