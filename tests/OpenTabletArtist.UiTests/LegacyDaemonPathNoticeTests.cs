@@ -17,7 +17,7 @@ using Xunit;
 namespace OpenTabletArtist.UiTests;
 
 /// <summary>
-/// The upgrade notice on Home, through the button an artist actually presses (#947).
+/// The upgrade notice on the Health page, through the button an artist actually presses (#947, #1050).
 /// </summary>
 ///
 /// <remarks>
@@ -29,7 +29,7 @@ namespace OpenTabletArtist.UiTests;
 /// </para>
 /// <para>
 /// No connection is started. <c>AppSession</c> is built over the fake transport and never asked to
-/// connect, which is enough for the dashboard to exist and the health list to evaluate.
+/// connect, which is enough for the Health page to exist and the health list to evaluate.
 /// </para>
 /// </remarks>
 public class LegacyDaemonPathNoticeTests
@@ -51,7 +51,7 @@ public class LegacyDaemonPathNoticeTests
         AppSettings.Set(HealthService.LegacyPathNoticeAcknowledgedKey, "");
         AppSettings.Set(LegacyPathKey, OldDaemon);
 
-        var (view, health, session) = Home();
+        var (view, health, session) = HealthPage();
         using var lifetime = session;
 
         var button = NoticeButton(view);
@@ -84,35 +84,33 @@ public class LegacyDaemonPathNoticeTests
     /// this row to everybody.
     /// </remarks>
     [AvaloniaFact]
-    public void WithNoStoredPath_TheRowIsNotOnHome()
+    public void WithNoStoredPath_TheRowIsNotOnTheHealthPage()
     {
         AppSettings.Set(HealthService.LegacyPathNoticeAcknowledgedKey, "");
         AppSettings.Set(LegacyPathKey, "");
 
-        var (view, health, session) = Home();
+        var (view, health, session) = HealthPage();
         using var lifetime = session;
 
         Assert.DoesNotContain(health.Issues, i => i.Id == "daemon.ignoredPath");
         Assert.Null(NoticeButton(view));
     }
 
-    /// <summary>The dashboard, rendered, with nothing connected.</summary>
-    private static (DashboardView View, HealthService Health, AppSession Session) Home()
+    /// <summary>The Health page, rendered, with nothing connected.</summary>
+    private static (HealthView View, HealthService Health, AppSession Session) HealthPage()
     {
         var daemon = new FakeDaemonTransport();
         var store = new MemorySettingsFileStore();
         var session = new AppSession(FakeSession.Over(daemon, store), new FakeLifecycle());
         var health = new HealthService(session, new FakeDeviceData(), new DriverConflictMonitor());
 
-        var page = new DashboardViewModel(
+        var page = new HealthPageViewModel(
             session,
             new DaemonStatusViewModel(session),
-            new FakeDialogService(),
-            navigateToTablet: (_, _) => { },
             health,
-            new TabletsOverviewViewModel());
+            navigateToTablet: (_, _) => { });
 
-        var view = new DashboardView { DataContext = page };
+        var view = new HealthView { DataContext = page };
         var window = new Window { Content = view, Width = 1100, Height = 900 };
         window.Show();
         window.Measure(new Size(1100, 900));
@@ -122,7 +120,7 @@ public class LegacyDaemonPathNoticeTests
     }
 
     /// <summary>The row's action, found by the words on it rather than by position.</summary>
-    private static Button? NoticeButton(DashboardView view) =>
+    private static Button? NoticeButton(HealthView view) =>
         view.GetVisualDescendants().OfType<Button>()
             .FirstOrDefault(b => (b.Content as string) == "Got it");
 }

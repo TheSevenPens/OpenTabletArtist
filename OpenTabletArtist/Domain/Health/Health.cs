@@ -108,7 +108,19 @@ public sealed record HealthIssue(
     // An optional second action button rendered beside the primary Fix (#629). Used when Fix performs the
     // change directly but a "Review" that just navigates to where the setting lives is still useful. Null
     // for ordinary single-button issues.
-    Remediation? Secondary = null);
+    Remediation? Secondary = null)
+{
+    /// <summary>The tier said in words, for the small label above a card's title (#1050). Colour and icon
+    /// carry the tier too; the word is what tells a suggestion from a misconfiguration to someone who
+    /// cannot rely on either.</summary>
+    public string TierLabel => Severity switch
+    {
+        HealthSeverity.Broken => "BROKEN",
+        HealthSeverity.Misconfigured => "MISCONFIGURED",
+        HealthSeverity.Recommendation => "SUGGESTION",
+        _ => "INFORMATION",
+    };
+}
 
 /// <summary>Per-tablet inputs the checks read. <see cref="Mapping"/> is the display-mapping
 /// classification (only meaningful for a detected, Absolute-mode tablet; None otherwise).</summary>

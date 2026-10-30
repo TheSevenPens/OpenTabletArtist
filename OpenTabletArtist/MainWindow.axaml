@@ -97,6 +97,16 @@
                      when enabled) + the version stamp, pinned to the top so the version sits just under the
                      native close button (not down on the wordmark baseline). -->
                 <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="16" VerticalAlignment="Top">
+                    <!-- The health chip (#1050): on every page, so health is clear wherever you are. Its
+                         look is the worst finding's tier and its number is how many there are; clicking it
+                         opens the Health page. Before the switcher, so the chip stays put as the switcher
+                         comes and goes with the page. -->
+                    <controls:HealthChip VerticalAlignment="Center"
+                        Tier="{Binding HealthChip.Tier}" Label="{Binding HealthChip.Label}"
+                        Count="{Binding HealthChip.Count}"
+                        Command="{Binding HealthChip.OpenCommand}"
+                        ToolTip.Tip="{Binding HealthChip.Summary}"
+                        AutomationProperties.Name="{Binding HealthChip.Summary}" />
                     <!-- The switcher lives in the SHELL, not on the page (#switcher-in-shell). It selects
                          the app-wide active tablet — TABLET, PEN and SCRIBBLE are all linked to it — so it
                          belongs to the chrome rather than to one page, and hosting it here buys back a

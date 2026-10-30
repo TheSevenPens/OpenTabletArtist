@@ -449,7 +449,7 @@ public class HealthEvaluatorTests
     [InlineData(RemediationArea.TabletPenBehavior, TabletDetailTab.PenBehavior)]
     public void AHealthLink_OpensThePenTabThatHoldsItsSwitch(RemediationArea area, TabletDetailTab tab)
     {
-        Assert.Equal(tab, DashboardViewModel.PenTabFor(area));
+        Assert.Equal(tab, HealthPageViewModel.PenTabFor(area));
     }
 
     [Fact]

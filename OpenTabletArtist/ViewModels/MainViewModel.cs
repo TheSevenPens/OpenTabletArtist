@@ -85,6 +85,12 @@ public partial class MainViewModel : ObservableObject, IDisposable
     public HotkeysViewModel Hotkeys { get; }
     public DiagnosticsViewModel Diagnostics { get; }
     public DashboardViewModel Dashboard { get; }
+
+    /// <summary>The Health page: every finding, worst first (#1050).</summary>
+    public HealthPageViewModel HealthPage { get; }
+
+    /// <summary>The top-bar health indicator, shown on every page (#1050).</summary>
+    public HealthChipViewModel HealthChip { get; }
     public TestViewModel Test { get; }
     public LogViewModel Log { get; }
     public PluginsViewModel Plugins { get; }
@@ -232,12 +238,18 @@ public partial class MainViewModel : ObservableObject, IDisposable
         VMulti = new VMultiViewModel(dialogs, _health);
         // Shared daemon status/control surface for the Home problem card + the Daemon tab.
         _daemonStatus = new DaemonStatusViewModel(_session, () => OpenAdvancedTab(AdvancedTab.Daemon));
-        Dashboard = new DashboardViewModel(_session, _daemonStatus, dialogs, NavigateToTabletByName, _health, TabletsOverview,
+        Dashboard = new DashboardViewModel(dialogs, TabletsOverview, Presets);
+        // The Health page (#1050): the findings that used to fill Home's right-hand column. Its buttons
+        // navigate, so it takes the shell's navigation as callbacks.
+        HealthPage = new HealthPageViewModel(_session, _daemonStatus, _health, NavigateToTabletByName,
             () => OpenSettingsTab(SettingsTab.Drivers),  // Driver Cleanup has its own pivot (#drivers-tab)
             () => OpenAdvancedTab(AdvancedTab.Plugins),  // Windows Ink → Plugins pivot (#winink-to-plugins)
             () => OpenSettingsTab(SettingsTab.Drivers),  // VMulti → SETTINGS → DRIVERS (#vmulti-to-drivers)
             () => OpenAdvancedTab(AdvancedTab.CustomTabletConfigs),
             NavigateToPenByName);                        // pen-behaviour "Fix" → PEN page (#pen-split)
+        // The top-bar chip, on every page: the worst finding's tier and how many there are. Clicking it opens
+        // the Health page.
+        HealthChip = new HealthChipViewModel(_health, _daemonStatus, () => Navigate(HealthPage));
         Test = new TestViewModel(_session.Daemon, _session, () => _session.DaemonVersion,
             showRecordingReview: dialogs.ShowRecordingReviewAsync,
             showRecordingProblem: message => dialogs.ShowMessageAsync("Can't record", message));
@@ -288,6 +300,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
         NavSections.Add(new NavLeafViewModel("TABLET", TabletPage));
         NavSections.Add(new NavLeafViewModel("PEN", PenPage));
         NavSections.Add(new NavLeafViewModel("SCRIBBLE", Test));
+        NavSections.Add(new NavLeafViewModel("HEALTH", HealthPage));
         NavSections.Add(new NavLeafViewModel("SETTINGS", Settings));
         NavSections.Add(new NavLeafViewModel("ADVANCED", Advanced));
 
@@ -674,6 +687,8 @@ public partial class MainViewModel : ObservableObject, IDisposable
         foreach (var vm in _tabletDetails.Values) vm.Dispose(); // unsubscribe per-tablet detection
         Diagnostics.Dispose();    // stops debugging + unsubscribes connection sync
         Dashboard.Dispose();      // cancels VMulti install/uninstall token + unsubscribes
+        HealthPage.Dispose();     // unsubscribes from the health catalog + daemon status
+        HealthChip.Dispose();     // unsubscribes from the health catalog + daemon status
         Presets.Dispose();        // unsubscribes DataLoaded
         Hotkeys.Dispose();        // unsubscribes DataLoaded
         Test.Dispose();           // stops the daemon debug stream if running

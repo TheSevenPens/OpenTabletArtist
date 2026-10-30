@@ -8,7 +8,7 @@
 Give the user an experience that surfaces the right information and, when something needs action,
 points them to where the fix is made. Concretely:
 
-- **Home shows only what needs attention.** When everything's healthy, Home is quiet.
+- **Health is quiet when everything's healthy.** (Since #1050 the findings live on the Health page, with a chip in the top bar on every page; Home no longer lists them.)
 - **Warning/remediation cards** describe a problem and offer a **Fix**. When a clean one-click fix
   exists the card performs it *in place*; otherwise it *directs* the user to where the fix lives. A card
   can offer both — a **Fix** that acts plus a **Review** that opens the relevant tab (#629).
@@ -44,7 +44,7 @@ Live wiring in `Services/HealthService.cs` (an `ObservableObject`):
 
 Surfaces:
 
-- **Home "Needs attention" stack** (`DashboardView`): all issues, worst-first, hidden when healthy.
+- **Health page** (`HealthView`, was Home's "Needs attention" stack until #1050): all issues, worst-first; the top-bar chip (`HealthChip`) shows the worst tier and the count.
   Each card = severity dot + title + detail + a **Fix** button (plus an optional **Review** button, #629).
   `DashboardViewModel.Remediate` / `RemediateSecondary` dispatch per `RemediationArea`: some *act in
   place* (daemon Refresh/Restart, re-enable dynamics, restore pen behavior, map to primary display, reset

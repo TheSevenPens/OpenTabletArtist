@@ -473,7 +473,7 @@ public class PenTabsTests
         var (window, view) = Page(vm);
         Select(view, "ButtonsTab");                             // start somewhere else
 
-        vm.RequestTab(DashboardViewModel.PenTabFor(RemediationArea.TabletPenPressure));
+        vm.RequestTab(HealthPageViewModel.PenTabFor(RemediationArea.TabletPenPressure));
         Dispatcher.UIThread.RunJobs();
 
         Assert.True(view.FindControl<RadioButton>("DynamicsTab")!.IsChecked);
@@ -487,7 +487,7 @@ public class PenTabsTests
         var vm = Vm(WinInkAbsolute);
         var (window, view) = Page(vm);
 
-        vm.RequestTab(DashboardViewModel.PenTabFor(RemediationArea.TabletPenTilt));
+        vm.RequestTab(HealthPageViewModel.PenTabFor(RemediationArea.TabletPenTilt));
         Dispatcher.UIThread.RunJobs();
 
         Assert.True(view.FindControl<RadioButton>("TiltTab")!.IsChecked);
@@ -502,7 +502,7 @@ public class PenTabsTests
         var (window, view) = Page(vm);
         Select(view, "ButtonsTab");                             // start somewhere else
 
-        vm.RequestTab(DashboardViewModel.PenTabFor(RemediationArea.TabletPenInputs));
+        vm.RequestTab(HealthPageViewModel.PenTabFor(RemediationArea.TabletPenInputs));
         Dispatcher.UIThread.RunJobs();
 
         Assert.NotEmpty(Visible<PenSwitchCard>(view));
