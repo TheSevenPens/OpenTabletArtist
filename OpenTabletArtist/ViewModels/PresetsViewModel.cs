@@ -31,6 +31,22 @@ public partial class PresetsViewModel : ObservableObject, IDisposable
     public bool HasPresets => Presets.Count > 0;
     partial void OnPresetsChanged(List<PresetInfo> value) => OnPropertyChanged(nameof(HasPresets));
 
+    /// <summary>Where the "sort by name" choice is remembered between runs.</summary>
+    public const string SortByNameKey = "Presets:SortByName";
+
+    /// <summary>List by name instead of newest first. Newest first moves a preset to the top every time it is
+    /// updated, which is the wrong order for someone who knows their presets by name.</summary>
+    [ObservableProperty] private bool _sortByName = AppSettings.Get(SortByNameKey) == "true";
+
+    partial void OnSortByNameChanged(bool value)
+    {
+        AppSettings.Set(SortByNameKey, value ? "true" : "false");
+        Presets = Arrange(Presets);
+    }
+
+    // The preset most recently loaded, by any route; null after "restore default" or before any load.
+    private string? _lastLoaded;
+
     public PresetsViewModel(IPresetStore store, ISettingsCoordinator settings, IDeviceData deviceData,
         IDialogService dialogs, IProfileHotkeys hotkeys, ProfileSwitchService profileSwitch)
     {
@@ -41,6 +57,27 @@ public partial class PresetsViewModel : ObservableObject, IDisposable
         _hotkeys = hotkeys;
         _profileSwitch = profileSwitch;
         _deviceData.DataLoaded += OnDataLoaded;
+        _profileSwitch.Switched += OnSwitched;
+    }
+
+    // Raised for a load from this page, the tray or a hotkey alike, so the badge is right whichever was used.
+    private void OnSwitched(string? name)
+    {
+        _lastLoaded = name;
+        Presets = Arrange(Presets);
+    }
+
+    /// <summary>The list in the chosen order, with the last-loaded preset marked. Names compare
+    /// case-insensitively, as the file system does.</summary>
+    private List<PresetInfo> Arrange(IEnumerable<PresetInfo> presets)
+    {
+        var marked = presets.Select(p => p with
+        {
+            IsLastLoaded = string.Equals(p.Name, _lastLoaded, StringComparison.OrdinalIgnoreCase),
+        });
+        return SortByName
+            ? marked.OrderBy(p => p.Name, StringComparer.CurrentCultureIgnoreCase).ToList()
+            : marked.OrderByDescending(p => p.LastModified, StringComparer.Ordinal).ToList();
     }
 
     private void OnDataLoaded()
@@ -96,7 +133,7 @@ public partial class PresetsViewModel : ObservableObject, IDisposable
                 AppLog.Warn($"Skipped a preset that couldn't be read: {file}", ex);
             }
         }
-        Presets = presetList;
+        Presets = Arrange(presetList);
     }
 
     [RelayCommand]
@@ -133,6 +170,12 @@ public partial class PresetsViewModel : ObservableObject, IDisposable
     {
         var settings = _settings.CurrentSettings;
         if (settings == null) return;
+
+        // It overwrites the preset as surely as Delete removes it, and Delete asks.
+        var confirmed = await _dialogs.ShowConfirmAsync(
+            "Update Preset",
+            $"Replace the profile \"{name}\" with your current settings?\n\nWhat it holds now will be lost.");
+        if (!confirmed) return;
 
         var path = Path.Combine(PresetDirectory, $"{name}.json");
         _store.Save(settings, path);
@@ -233,5 +276,9 @@ public partial class PresetsViewModel : ObservableObject, IDisposable
         await LoadAsync();
     }
 
-    public void Dispose() => _deviceData.DataLoaded -= OnDataLoaded;
+    public void Dispose()
+    {
+        _deviceData.DataLoaded -= OnDataLoaded;
+        _profileSwitch.Switched -= OnSwitched;
+    }
 }
