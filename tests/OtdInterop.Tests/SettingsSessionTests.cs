@@ -637,4 +637,52 @@ public class SettingsSessionTests
         Assert.Equal(4, daemon.Applied[^1].Profiles[0].BindingSettings.AuxButtons.Count);
         Assert.False(session.HasUnsavedChanges);
     }
+
+    /// <summary>
+    /// A preset is applied as the daemon would load it, so the daemon's own matching of a profile to its
+    /// tablet is not read back as a rejection. The raw document, applied the ordinary way, is the control: it
+    /// is rejected, which is what paused editing for a preset saved before a tablet's specification changed
+    /// (#1060).
+    /// </summary>
+    [Fact]
+    public async Task AFileIsAppliedAsTheDaemonLoadsIt_SoItsMatchingIsNotARejection()
+    {
+        var tablets = Detected("T");
+        var live = LoadedByTheDaemon(Document(), tablets, Document().Revision);
+        var preset = Document(120);
+        preset.Profiles[0].BindingSettings.WheelBindings.Add(new WheelBindingSettings());   // thresholds 0, no step size
+
+        var (loadedSession, loadedDaemon, _) = await OpenWith(Document(), live, tablets);
+        using var loadedLifetime = loadedSession;
+        loadedDaemon.Readback = sent => LoadedByTheDaemon(sent, tablets, sent.Revision);
+        var loaded = await loadedSession.ApplyLoadedAsync(preset);
+
+        Assert.True(loaded.IsLive, "the daemon's matching is not a rejection");
+        Assert.False(loadedSession.IsPaused);
+        Assert.Equal(15, loadedDaemon.Applied[^1].Profiles[0].BindingSettings.WheelBindings[0].StepSize);
+        Assert.Equal(120, loadedDaemon.Settings!.Profiles[0].AbsoluteModeSettings!.Tablet.Width);
+
+        var (rawSession, rawDaemon, _) = await OpenWith(Document(), live, tablets);
+        using var rawLifetime = rawSession;
+        rawDaemon.Readback = sent => LoadedByTheDaemon(sent, tablets, sent.Revision);
+        var raw = await rawSession.ApplyAsync(preset);
+
+        Assert.False(raw.IsLive);
+        Assert.True(rawSession.IsPaused);
+    }
+
+    /// <summary>It is still an apply: a paused session refuses it, and a change made outside is noticed.</summary>
+    [Fact]
+    public async Task AFileIsRefused_WhenTheDaemonChangedUnderneath()
+    {
+        var tablets = Detected("T");
+        var (session, daemon, _) = await OpenWith(Document(), LoadedByTheDaemon(Document(), tablets, Document().Revision), tablets);
+        using var lifetime = session;
+        daemon.Settings = LoadedByTheDaemon(Document(150), tablets, Document().Revision);   // an outside edit
+
+        var applied = await session.ApplyLoadedAsync(Document(120));
+
+        Assert.Equal(SettingsApplyStatus.ChangedElsewhere, applied.Status);
+        Assert.Empty(daemon.Applied);
+    }
 }

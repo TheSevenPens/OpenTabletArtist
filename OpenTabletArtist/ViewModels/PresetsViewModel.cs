@@ -245,6 +245,9 @@ public partial class PresetsViewModel : ObservableObject, IDisposable
             return;
         }
         _hotkeys.RenameSnapshot(name, newName); // carry the hotkey mapping across (#320)
+        // The marker is a name, so it moves with the file; left alone it named nothing, and a later preset given
+        // the old name would have been marked as the one loaded (#1060).
+        if (string.Equals(_lastLoaded, name, StringComparison.OrdinalIgnoreCase)) _lastLoaded = newName;
         await LoadAsync();
     }
 

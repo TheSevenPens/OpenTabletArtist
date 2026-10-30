@@ -63,11 +63,12 @@ public class ProfileSwitchServiceTests
     }
 
     /// <summary>
-    /// Loading what is already live is the same as the first time: no question about unsaved changes, which
-    /// are the preset itself, and nothing sent to the daemon. It still counts as loaded.
+    /// Loading what the workspace already holds asks no question about unsaved changes, which are the preset
+    /// itself. It still applies, because only an apply reads the daemon: whether the document is stale, paused
+    /// or has a write outstanding is not something the local document can say (#1060).
     /// </summary>
     [Fact]
-    public async Task LoadingWhatIsAlreadyLive_AsksNothingAndSendsNothing()
+    public async Task LoadingWhatTheWorkspaceHolds_AsksNothing_ButStillApplies()
     {
         var (service, settings, _) = Open();
         settings.Changes = false;
@@ -79,8 +80,43 @@ public class ProfileSwitchServiceTests
         Assert.True(await service.SwitchToAsync("Draw"));
 
         Assert.False(asked);
-        Assert.Equal(0, settings.ApplyCalls);
+        Assert.Equal(1, settings.ApplyCalls);
         Assert.Equal("Draw", announced);
+    }
+
+    /// <summary>If the apply that follows is refused (paused, stale, a write outstanding), the load has failed
+    /// and says so, however equal the local document looked.</summary>
+    [Fact]
+    public async Task LoadingWhatTheWorkspaceHolds_ReportsFailure_WhenTheApplyIsRefused()
+    {
+        var (service, settings, _) = Open();
+        settings.Changes = false;
+        settings.ApplyResult = SettingsApplyOutcome.ChangedElsewhere;
+        var failed = false;
+        var announced = false;
+        service.SwitchFailed += _ => failed = true;
+        service.Switched += _ => announced = true;
+
+        Assert.False(await service.SwitchToAsync("Draw"));
+
+        Assert.True(failed);
+        Assert.False(announced);
+    }
+
+    /// <summary>Input typed and not yet submitted would be thrown away by the load, so the question is asked
+    /// even when the submitted document equals the preset.</summary>
+    [Fact]
+    public async Task LoadingWhatTheWorkspaceHolds_StillAsks_WhenInputIsWaitingToBeSubmitted()
+    {
+        var (service, settings, _) = Open();
+        settings.Changes = false;
+        var asked = false;
+        service.HasPendingInput = () => true;
+        service.BeforeReplaceAsync = _ => { asked = true; return Task.FromResult(true); };
+
+        Assert.True(await service.SwitchToAsync("Draw"));
+
+        Assert.True(asked);
     }
 
     /// <summary>The question is still asked when the load would replace something.</summary>
@@ -96,6 +132,35 @@ public class ProfileSwitchServiceTests
 
         Assert.True(asked);
         Assert.Equal(1, settings.ApplyCalls);
+    }
+
+    /// <summary>
+    /// A tablet the preset does not hold keeps its profile as it is when the load goes ahead, not as it was
+    /// when the question was put. Filling the preset in place before the prompt put the old copy back over a
+    /// change made while the prompt was open (#1060).
+    /// </summary>
+    [Fact]
+    public async Task ATabletThatChangesWhileThePromptIsOpen_IsKeptAsItIsNow()
+    {
+        var (service, settings, _) = Open();
+        var profile = new OpenTabletDriver.Desktop.Profiles.Profile { Tablet = "Wacom PTK-670", OutputMode = TestOtd.Output() };
+        settings.CurrentSettings = new OpenTabletDriver.Desktop.Settings
+        {
+            Profiles = new OpenTabletDriver.Desktop.Profiles.ProfileCollection { profile },
+        };
+        var changedDuringThePrompt = new OpenTabletDriver.Desktop.Profiles.Profile { Tablet = "Wacom PTK-670", OutputMode = TestOtd.Output() };
+        service.BeforeReplaceAsync = _ =>
+        {
+            settings.CurrentSettings = new OpenTabletDriver.Desktop.Settings
+            {
+                Profiles = new OpenTabletDriver.Desktop.Profiles.ProfileCollection { changedDuringThePrompt },
+            };
+            return Task.FromResult(true);
+        };
+
+        Assert.True(await service.SwitchToAsync("Draw"));
+
+        Assert.Same(changedDuringThePrompt, settings.Applied!.Profiles.GetProfile("Wacom PTK-670"));
     }
 
     [Theory]

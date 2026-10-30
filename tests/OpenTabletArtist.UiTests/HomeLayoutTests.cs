@@ -120,6 +120,45 @@ public class HomeLayoutTests
         Assert.Single(heights.Distinct());
     }
 
+    /// <summary>
+    /// At the narrowest the window goes, the card's text is inside the card. The two-column layout narrows the
+    /// text cell while the icon and button keep their width, so the text wraps taller; a fixed card height let it
+    /// run out of the bottom (#1060). The check is on the children's bounds, not the card's outer height.
+    /// </summary>
+    [AvaloniaTheory]
+    [InlineData(null)]
+    [InlineData(HealthSeverity.Information)]
+    [InlineData(HealthSeverity.Recommendation)]
+    [InlineData(HealthSeverity.Misconfigured)]
+    [InlineData(HealthSeverity.Broken)]
+    public void TheHealthCard_KeepsItsTextInsideItself_AtTheNarrowestWindow(HealthSeverity? worst)
+    {
+        var page = HomeAt(800, reported: true, out var health, out _, out _, out _);
+        if (worst is { } w) Add(health, new HealthIssue("x", w, "x", "", Remediation: null));
+        Dispatcher.UIThread.RunJobs();
+
+        var card = page.View.GetVisualDescendants().OfType<Control>().Single(c => c.MinHeight == 112 && c.IsEffectivelyVisible);
+        foreach (var text in card.GetVisualDescendants().OfType<TextBlock>().Where(t => t.IsEffectivelyVisible && !string.IsNullOrEmpty(t.Text)))
+        {
+            var bottom = text.TranslatePoint(new Point(0, text.Bounds.Height), card)!.Value.Y;
+            Assert.True(bottom <= card.Bounds.Height + 0.5, $"\"{text.Text}\" ends at {bottom}, past the card's {card.Bounds.Height}");
+        }
+        page.Close();
+    }
+
+    /// <summary>Before the health check has answered, Home does not say everything is fine.</summary>
+    [AvaloniaFact]
+    public void TheHealthCard_SaysItIsChecking_BeforeTheHealthCheckHasAnswered()
+    {
+        var page = HomeAt(1280, reported: false, out _, out _, out _, out _);
+
+        var texts = VisibleTexts(page.View);
+
+        Assert.Contains("Checking your setup", texts);
+        Assert.DoesNotContain("Everything's working fine", texts);
+        page.Close();
+    }
+
     [AvaloniaTheory]
     [InlineData(null, "Everything's working fine")]
     [InlineData(HealthSeverity.Information, "Worth a look")]
@@ -205,11 +244,19 @@ public class HomeLayoutTests
         Home(out health, out tablets, out opened, out _);
 
     internal static Shown Home(out HealthService health, out TabletsOverviewViewModel tablets, out Opened opened,
-        out FakeConnectionState connection)
+        out FakeConnectionState connection) =>
+        HomeAt(1280, reported: true, out health, out tablets, out opened, out connection);
+
+    /// <summary>Home at a given window width, with the health check either answered (with nothing found) or
+    /// never answering.</summary>
+    internal static Shown HomeAt(double width, bool reported, out HealthService health, out TabletsOverviewViewModel tablets,
+        out Opened opened, out FakeConnectionState connection)
     {
         connection = new FakeConnectionState { IsConnected = true, DaemonVersion = "0.6.8.1" };
         health = new HealthService(connection, new FakeDeviceData(), new DriverConflictMonitor(),
-            _ => new TaskCompletionSource<OtdHealth.Collector.HealthAnalysisReport>().Task);
+            reported
+                ? _ => Task.FromResult(new OtdHealth.Collector.HealthAnalysisReport(new OtdHealth.HealthSnapshot(), [], []))
+                : _ => new TaskCompletionSource<OtdHealth.Collector.HealthAnalysisReport>().Task);
         health.Issues.Clear();
         var counter = new Opened();
         opened = counter;
@@ -221,10 +268,10 @@ public class HomeLayoutTests
         var badge = new HealthBadgeViewModel(health, daemon);
         var model = new DashboardViewModel(new FakeDialogService(), tablets, presets, badge, daemon, () => counter.Health++);
         var view = new DashboardView { DataContext = model };
-        var window = new Window { Content = view, Width = 1280, Height = 900 };
+        var window = new Window { Content = view, Width = width, Height = 900 };
         window.Show();
-        window.Measure(new Size(1280, 900));
-        window.Arrange(new Rect(0, 0, 1280, 900));
+        window.Measure(new Size(width, 900));
+        window.Arrange(new Rect(0, 0, width, 900));
         Dispatcher.UIThread.RunJobs();
         return new Shown(window, view, model);
     }
@@ -250,7 +297,7 @@ public class HomeLayoutTests
 
     /// <summary>The card's own height: the alert when there are findings, the plain card when there are none.</summary>
     private static double CardHeight(Control view) =>
-        view.GetVisualDescendants().OfType<Control>().Single(c => c.Height == 112 && c.IsEffectivelyVisible).Bounds.Height;
+        view.GetVisualDescendants().OfType<Control>().Single(c => c.MinHeight == 112 && c.IsEffectivelyVisible).Bounds.Height;
 
     private static Button HealthButton(Control view, DashboardViewModel model) =>
         view.GetVisualDescendants().OfType<Button>().Single(b => b.IsEffectivelyVisible && ReferenceEquals(b.Command, model.OpenHealthCommand));

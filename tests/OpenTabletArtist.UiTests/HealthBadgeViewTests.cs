@@ -153,6 +153,19 @@ public class HealthBadgeViewTests
         window.Close();
     }
 
+    /// <summary>Before the health check has answered, "nothing needs attention" is not yet known (#1060).</summary>
+    [AvaloniaFact]
+    public void TheHealthPage_DoesNotSayNothingNeedsAttention_BeforeTheHealthCheckHasAnswered()
+    {
+        var (view, _, _, window) = HealthPage(reported: false);
+
+        var texts = view.GetVisualDescendants().OfType<TextBlock>().Where(t => t.IsEffectivelyVisible).Select(t => t.Text).ToList();
+
+        Assert.Contains("Checking…", texts);
+        Assert.DoesNotContain("Nothing needs attention.", texts);
+        window.Close();
+    }
+
     /// <summary>With no daemon the page must not say nothing needs attention above a card saying nothing is
     /// connected.</summary>
     [AvaloniaFact]
@@ -278,11 +291,14 @@ public class HealthBadgeViewTests
         health.HasIssues = health.Issues.Count > 0;
     }
 
-    private static (HealthView View, HealthService Health, FakeConnectionState Connection, Window Window) HealthPage()
+    private static (HealthView View, HealthService Health, FakeConnectionState Connection, Window Window) HealthPage(
+        bool reported = true)
     {
         var connection = new FakeConnectionState { IsConnected = true };
         var health = new HealthService(connection, new FakeDeviceData(), new DriverConflictMonitor(),
-            _ => new TaskCompletionSource<OtdHealth.Collector.HealthAnalysisReport>().Task);
+            reported
+                ? _ => Task.FromResult(new OtdHealth.Collector.HealthAnalysisReport(new OtdHealth.HealthSnapshot(), [], []))
+                : _ => new TaskCompletionSource<OtdHealth.Collector.HealthAnalysisReport>().Task);
         health.Issues.Clear();
         var session = new AppSession(FakeSession.Over(new FakeDaemonTransport(), new MemorySettingsFileStore()), new FakeLifecycle());
         var page = new HealthPageViewModel(session, new DaemonStatusViewModel(connection), health,

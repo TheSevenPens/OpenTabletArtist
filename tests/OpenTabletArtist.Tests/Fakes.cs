@@ -392,7 +392,7 @@ internal sealed class FakeSettingsCoordinator : ISettingsCoordinator
     public SettingsRestoreOutcome RestoreResult { get; set; } = SettingsRestoreOutcome.Restored;
     public bool DaemonAccepts { get; set; } = true;
     public bool Changes { get; set; } = true;
-    public bool WouldChange(Settings settings) => Changes;
+    public Task<bool> WouldChangeLoadedAsync(Settings settings) => Task.FromResult(Changes);
 
     public Task<SettingsApplyOutcome> ApplySettingsAsync(Settings settings)
     {
@@ -400,6 +400,8 @@ internal sealed class FakeSettingsCoordinator : ISettingsCoordinator
         Applied = settings;
         return Task.FromResult(DaemonAccepts ? ApplyResult : SettingsApplyOutcome.Disconnected);
     }
+    public Task<SettingsApplyOutcome> ApplyLoadedSettingsAsync(Settings settings) => ApplySettingsAsync(settings);
+
     public Task<SettingsRestoreOutcome> RestoreDefaultAsync()
     {
         RestoreCalls++;

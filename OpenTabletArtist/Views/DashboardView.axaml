@@ -130,14 +130,15 @@
                  via the typed-nav DataTemplate so the markup isn't duplicated. -->
             <ContentControl Content="{Binding About}" />
 
-            <!-- HEALTH (#1050): one card, the same size in every state, that says how strongly to act and
+            <!-- HEALTH (#1050): one card, the same size in every state (a minimum, so that a narrow window
+                 grows it instead of clipping its text, #1060), that says how strongly to act and
                  leads to the Health page. It lists no findings. With findings it is an alert in the worst
                  finding's tier, and only the two that ask for action get the loud button. With none it is
                  a plain card that says so. -->
             <StackPanel>
                 <TextBlock Text="health" Classes="Display section" Margin="0,0,0,10" />
                 <Panel>
-                    <c:Alert Severity="{Binding Health.CardSeverity}" Height="112" Padding="16,0"
+                    <c:Alert Severity="{Binding Health.CardSeverity}" MinHeight="112" Padding="16,0"
                              IsVisible="{Binding Health.HasFindings}">
                         <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="14" VerticalAlignment="Center">
                             <Panel Grid.Column="0" VerticalAlignment="Center">
@@ -167,12 +168,18 @@
                                     IsVisible="{Binding !Health.CardIsSevere}" />
                         </Grid>
                     </c:Alert>
-                    <Border Height="112" Padding="16,0" Background="{DynamicResource GlassBgBrush}"
+                    <Border MinHeight="112" Padding="16,0" Background="{DynamicResource GlassBgBrush}"
                             BorderBrush="{DynamicResource DividerBrush}" BorderThickness="1"
                             IsVisible="{Binding !Health.HasFindings}">
                         <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="14" VerticalAlignment="Center">
-                            <PathIcon Data="{StaticResource IconCheckCircle}" Width="26" Height="26"
-                                      Foreground="{DynamicResource SuccessBrush}" />
+                            <Panel VerticalAlignment="Center">
+                                <PathIcon Data="{StaticResource IconCheckCircle}" Width="26" Height="26"
+                                          Foreground="{DynamicResource SuccessBrush}"
+                                          IsVisible="{Binding !Health.IsChecking}" />
+                                <PathIcon Data="{StaticResource IconDotsHorizontal}" Width="26" Height="26"
+                                          Foreground="{DynamicResource TextSecondaryBrush}"
+                                          IsVisible="{Binding Health.IsChecking}" />
+                            </Panel>
                             <StackPanel Grid.Column="1" MinWidth="0" VerticalAlignment="Center">
                                 <TextBlock Text="{Binding Health.CardEyebrow}" Classes="SectionLabel" />
                                 <TextBlock Text="{Binding Health.CardHeadline}" Classes="CardTitle" Margin="0,2,0,0"

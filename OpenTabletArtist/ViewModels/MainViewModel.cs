@@ -224,6 +224,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
         _profileSwitch = new ProfileSwitchService(_session, _presetStore, () => _session.PresetDirectory);
         _profileSwitch.BeforeReplaceAsync = restoring => restoring
             ? ConfirmRevertAsync() : ResolveUnsavedSettingsAsync();
+        _profileSwitch.HasPendingInput = () => HasPendingInput;
         _profileHotkeys = new ProfileHotkeyManager(_globalHotkeys, _profileSwitch);
         _monitorCycle = new MonitorCycleService(_session, _session);
         _monitorHotkeys = new MonitorCycleHotkeys(_globalHotkeys, _monitorCycle);

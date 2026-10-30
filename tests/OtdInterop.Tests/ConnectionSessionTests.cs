@@ -350,6 +350,38 @@ public class ConnectionSessionTests
         Assert.Equal("", session.SettingsProblem);
     }
 
+    /// <summary>
+    /// A daemon whose settings could not be read pins nothing, so refusing it frees its replacement (#1060).
+    /// </summary>
+    /// <remarks>
+    /// The pin used to be taken before the read. A read that failed left it set with no settings session, and
+    /// Decline took "no settings session" to mean "this connection never pinned", so the pin stayed and the
+    /// readable replacement was held read-only until OTA restarted.
+    /// </remarks>
+    [Fact]
+    public async Task ADaemonWhoseSettingsCouldNotBeRead_PinsNothing_SoItsReplacementIsUsable()
+    {
+        var daemon = new FakeDaemonTransport { Settings = SettingsSessionTests.Document() };
+        var locator = new FakeProcessLocator { Path = "foreign.exe" };
+        using var session = FakeSession.Over(daemon, locator: locator);
+        daemon.GetSettingsHandler = () => Task.FromResult<Settings?>(null);   // identified, but unreadable
+        daemon.Reconnect();
+        await session.InitializeAsync();
+        Assert.Null(session.Settings);
+
+        session.Decline();
+        daemon.RaiseDisconnected();
+
+        daemon.GetSettingsHandler = null;
+        locator.Path = "bundled.exe";
+        daemon.AppInfo = FakeDaemonTransport.Reporting("bundled/settings.json");
+        daemon.Reconnect();
+        await session.InitializeAsync();
+
+        Assert.True(session.CanEditSettings);
+        Assert.DoesNotContain("Restart OpenTabletArtist", session.SettingsProblem);
+    }
+
     /// <summary>Declining a connection that never set the pin leaves the earlier daemon's pin alone.</summary>
     /// <remarks>
     /// The pin is what stops a different daemon being adopted mid-session under unsaved edits. A refusal of

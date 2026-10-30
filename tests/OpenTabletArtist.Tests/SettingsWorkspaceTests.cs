@@ -62,26 +62,28 @@ public class SettingsWorkspaceTests
     }
 
     /// <summary>
-    /// A document that is already live would change nothing, and a different one would. This is what lets a
-    /// second click on a loaded preset skip the question about unsaved changes, which are the preset.
+    /// A preset the workspace already holds would change nothing, and a different one would. This is what lets a
+    /// second click on a loaded preset skip the question about unsaved changes, which are the preset. The
+    /// preset here was saved under an older revision, as the real ones are: the load stamps the live revision
+    /// on it, so a comparison made on the raw file would always say it differs (#1060).
     /// </summary>
     [Fact]
-    public async Task WouldChange_IsFalseForWhatIsLive_AndTrueForAnythingElse()
+    public async Task WouldChangeLoaded_IsFalseForThePresetThatWasLoaded_AndTrueForAnyOther()
     {
         var (session, _, _) = await Connected();
         using var lifetime = session;
         var workspace = new SettingsWorkspace(session.Settings!, false);
+        var preset = Document();
+        preset.Revision = "0.0.1";
+        preset.Profiles[0].BindingSettings.DisablePressure = true;
 
-        var edit = workspace.Current!;
-        edit.Profiles[0].BindingSettings.DisablePressure = true;
-        Assert.True((await workspace.ApplyAsync(edit)).IsLive);
+        Assert.True(await workspace.WouldChangeLoadedAsync(preset), "before it is loaded it would change things");
+        Assert.True((await workspace.ApplyLoadedAsync(preset)).IsLive);
 
-        Assert.False(workspace.WouldChange(edit), "what was just applied is live");
-        Assert.False(workspace.WouldChange(workspace.Current!));
-
-        var other = workspace.Current!;
-        other.Profiles[0].BindingSettings.DisablePressure = false;
-        Assert.True(workspace.WouldChange(other));
+        Assert.False(await workspace.WouldChangeLoadedAsync(preset), "the preset that was just loaded");
+        var other = Document();
+        other.Revision = "0.0.1";
+        Assert.True(await workspace.WouldChangeLoadedAsync(other));
     }
 
     /// <summary>Applied-but-unsaved still counts as idle.</summary>
