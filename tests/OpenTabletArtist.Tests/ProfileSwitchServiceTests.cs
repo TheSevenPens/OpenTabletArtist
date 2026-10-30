@@ -62,6 +62,42 @@ public class ProfileSwitchServiceTests
         Assert.Equal(["Wacom PTK-670"], settings.Applied!.Profiles.Select(p => p.Tablet));
     }
 
+    /// <summary>
+    /// Loading what is already live is the same as the first time: no question about unsaved changes, which
+    /// are the preset itself, and nothing sent to the daemon. It still counts as loaded.
+    /// </summary>
+    [Fact]
+    public async Task LoadingWhatIsAlreadyLive_AsksNothingAndSendsNothing()
+    {
+        var (service, settings, _) = Open();
+        settings.Changes = false;
+        var asked = false;
+        string? announced = null;
+        service.BeforeReplaceAsync = _ => { asked = true; return Task.FromResult(true); };
+        service.Switched += name => announced = name;
+
+        Assert.True(await service.SwitchToAsync("Draw"));
+
+        Assert.False(asked);
+        Assert.Equal(0, settings.ApplyCalls);
+        Assert.Equal("Draw", announced);
+    }
+
+    /// <summary>The question is still asked when the load would replace something.</summary>
+    [Fact]
+    public async Task LoadingSomethingDifferent_StillAsks()
+    {
+        var (service, settings, _) = Open();
+        settings.Changes = true;
+        var asked = false;
+        service.BeforeReplaceAsync = _ => { asked = true; return Task.FromResult(true); };
+
+        Assert.True(await service.SwitchToAsync("Draw"));
+
+        Assert.True(asked);
+        Assert.Equal(1, settings.ApplyCalls);
+    }
+
     [Theory]
     [InlineData(false)]
     [InlineData(true)]

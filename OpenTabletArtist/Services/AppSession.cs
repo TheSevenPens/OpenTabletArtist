@@ -148,6 +148,10 @@ public interface ISettingsCoordinator
     Settings? CurrentSettings { get; }
     Task<SettingsApplyOutcome> ApplySettingsAsync(Settings settings);
     Task<SettingsRestoreOutcome> RestoreDefaultAsync();
+
+    /// <summary>Whether applying <paramref name="settings"/> would change what is live. True when that
+    /// cannot be told, so a caller that skips work on false never skips it wrongly.</summary>
+    bool WouldChange(Settings settings);
 }
 
 /// <summary>Tablet/device data produced by the session's data load (#41 PR 2).</summary>
@@ -1284,6 +1288,8 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
 
     public Task<SettingsApplyOutcome> ApplySettingsAsync(Settings settings) =>
         ApplyThroughAsync(workspace => workspace.ApplyAsync(settings));
+
+    public bool WouldChange(Settings settings) => _workspace?.WouldChange(settings) ?? true;
 
     public Task<SettingsApplyOutcome> ApplyProfileAsync(OpenTabletDriver.Desktop.Profiles.Profile profile) =>
         ApplyThroughAsync(workspace => workspace.ApplyProfileAsync(profile));
