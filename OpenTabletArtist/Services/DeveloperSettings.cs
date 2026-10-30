@@ -37,7 +37,8 @@ public sealed partial class DeveloperSettings : ObservableObject
         _loading = false;
     }
 
-    /// <summary>Show the Filters tab on a tablet's page. Hidden by default — users never need it.</summary>
+    /// <summary>Show the Filters tab on the Advanced page (#1049): every tablet's filters. Hidden by default — users
+    /// never need it.</summary>
     [ObservableProperty] private bool _showFiltersTab;
     /// <summary>Show the JSON tab on a tablet's page. Hidden by default — users never need it.</summary>
     [ObservableProperty] private bool _showJsonTab;

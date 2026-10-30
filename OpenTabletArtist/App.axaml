@@ -140,6 +140,7 @@
         <DataTemplate DataType="{x:Type vm:CustomTabletConfigsViewModel}"><views:CustomTabletConfigsView /></DataTemplate>
         <DataTemplate DataType="{x:Type vm:DriverCleanupViewModel}"><views:DriverCleanupView /></DataTemplate>
         <DataTemplate DataType="{x:Type vm:DiagnosticsViewModel}"><views:DiagnosticsView /></DataTemplate>
+        <DataTemplate DataType="{x:Type vm:FiltersViewModel}"><views:FiltersView /></DataTemplate>
         <DataTemplate DataType="{x:Type vm:TestViewModel}"><views:TestView /></DataTemplate>
         <DataTemplate DataType="{x:Type vm:LogViewModel}"><views:LogView /></DataTemplate>
         <DataTemplate DataType="{x:Type vm:DaemonViewModel}"><views:DaemonView /></DataTemplate>

@@ -172,8 +172,6 @@
                 <c:Section Title="Tablet page extras"
                            Description="Show extra diagnostic tabs and rarely-needed controls on a tablet's page. Hidden by default.">
                     <StackPanel Spacing="4">
-                        <c:ToggleSetting Label="Show the Filters tab"
-                                         IsChecked="{Binding Settings.ShowFiltersTab}" />
                         <c:ToggleSetting Label="Show the JSON tab"
                                          IsChecked="{Binding Settings.ShowJsonTab}" />
                         <c:ToggleSetting Label="Show the ‘Cut below input minimum’ pressure option"
@@ -191,6 +189,9 @@
                         <c:ToggleSetting Label="Show the Diagnostics tab"
                                          Description="The live pen-report stream, under Advanced."
                                          IsChecked="{Binding Settings.ShowDiagnosticsTab}" />
+                        <c:ToggleSetting Label="Show the Filters tab"
+                                         Description="Every tablet's filters, under Advanced. Filters belong to a tablet, so each gets its own section."
+                                         IsChecked="{Binding Settings.ShowFiltersTab}" />
                     </StackPanel>
                 </c:Section>
                 </StackPanel>

@@ -834,9 +834,6 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
         _suppressMappingApply = false;
     }
 
-    /// <summary>Show the Filters tab — a developer-only view of the profile's raw filters, hidden unless
-    /// enabled on Advanced → Developer (users never need it).</summary>
-    public bool ShowFiltersTab => DeveloperSettings.Instance.ShowFiltersTab;
     /// <summary>Show the JSON tab — the raw settings JSON, hidden unless enabled on Advanced → Developer.</summary>
     public bool ShowJsonTab => DeveloperSettings.Instance.ShowJsonTab;
     /// <summary>Show the "Cut below input minimum" dead-zone checkbox in Pressure Dynamics — hidden unless
@@ -845,8 +842,7 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
 
     private void OnDeveloperSettingsChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
     {
-        if (e.PropertyName == nameof(DeveloperSettings.ShowFiltersTab)) OnPropertyChanged(nameof(ShowFiltersTab));
-        else if (e.PropertyName == nameof(DeveloperSettings.ShowJsonTab)) OnPropertyChanged(nameof(ShowJsonTab));
+        if (e.PropertyName == nameof(DeveloperSettings.ShowJsonTab)) OnPropertyChanged(nameof(ShowJsonTab));
         else if (e.PropertyName == nameof(DeveloperSettings.ShowCutBelowMinimum)) OnPropertyChanged(nameof(ShowCutBelowMinimum));
     }
 
@@ -1238,8 +1234,8 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
         RefreshWheels();
 
         // Filters + raw JSON view (also refreshed after a dynamics toggle/edit persists, so the
-        // Filters tab reflects the DynamicsFilter's enabled state without a manual Refresh).
-        UpdateFiltersDisplay();
+        // JSON tab reflects the DynamicsFilter's enabled state without a manual Refresh).
+        UpdateRawJson();
 
         // Active-area diagram (full + effective area + mapped display).
         RefreshTabletArea();
@@ -1271,36 +1267,11 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
         RefreshCalibrationStatus();
     }
 
-    /// <summary>Recomputes the Filters-tab list and the raw-JSON view from the current
-    /// <see cref="_profile"/>. Called on a full refresh and again after a dynamics edit persists,
-    /// so the Filters tab tracks the DynamicsFilter's enabled state without a manual Refresh.</summary>
-    private void UpdateFiltersDisplay()
-    {
-        Filters.Clear();
-        foreach (var f in _profile.Filters)
-        {
-            var path = f?.Path ?? "Unknown";
-            var typeName = path.Split('.').LastOrDefault() ?? "Unknown";
-            Filters.Add(new FilterCardViewModel(
-                title: FriendlyFilterName(typeName),
-                fullPath: path,
-                enabled: f?.Enable ?? true,
-                origin: ProfileFilterMaintenance.Classify(path)));
-        }
-        HasFilters = Filters.Count > 0;
-
+    /// <summary>Recomputes the raw-JSON view from the current <see cref="_profile"/>. Called on a full refresh and
+    /// again after a dynamics edit persists, so the JSON tab tracks it without a manual Refresh. (The filters have
+    /// their own tab, on the Advanced page, and read the saved profiles themselves, #1049.)</summary>
+    private void UpdateRawJson() =>
         RawJson = JsonConvert.SerializeObject(_profile, Formatting.Indented);
-    }
-
-    /// <summary>Maps our plugin filter class names to the friendly labels they carry as
-    /// <c>[PluginName]</c> in the plugin; anything else (third-party filters) keeps its type name.</summary>
-    private static string FriendlyFilterName(string typeName) => typeName switch
-    {
-        "DynamicsFilter" => "Pen Dynamics",
-        "HoverFilter" => "Hover Limit",
-        "CalibrationFilter" => "Calibration",
-        _ => typeName,
-    };
 
     [RelayCommand]
     private async Task FixOutputMode()
@@ -1851,11 +1822,6 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
     [ObservableProperty] private string _auxButtonCount = "0";
     [ObservableProperty] private bool _noAuxButtons;
     [ObservableProperty] private List<ButtonBinding> _auxButtons = [];
-    /// <summary>One card per filter on the profile (Filters tab). Rebuilt by <see cref="UpdateFiltersDisplay"/>.</summary>
-    public ObservableCollection<FilterCardViewModel> Filters { get; } = new();
-
-    /// <summary>False when the profile has no filters — the Filters tab shows its empty state.</summary>
-    [ObservableProperty] private bool _hasFilters;
     [ObservableProperty] private string _rawJson = "";
 
     // ── Pressure curve tab ──────────────────────────────────────
@@ -2382,8 +2348,8 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
         // The filter is always enabled internally; users neutralize it with linear/zero settings, not a toggle.
         PressureCurveProfile.Write(_settings, _profile.Tablet ?? "", dynamics, enable: true);
         // The write mutated _profile.Filters (added/enabled/disabled the DynamicsFilter); reflect that
-        // in the Filters tab and JSON view immediately rather than waiting for a manual Refresh.
-        UpdateFiltersDisplay();
+        // in the JSON view immediately rather than waiting for a manual Refresh.
+        UpdateRawJson();
         TakeOutcome(await SubmitAsync(_settings), draft);
     }
 
@@ -2429,7 +2395,7 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
         if (_applyAction == null || _settings == null) return;
         var draft = _draftGeneration;
         HoverProfile.Write(_settings, _profile.Tablet ?? "", (int)MaxHoverDistance, HoverLimitEnabled, NearProximityOnly);
-        UpdateFiltersDisplay();
+        UpdateRawJson();
         TakeOutcome(await SubmitAsync(_settings), draft);
     }
 

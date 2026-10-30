@@ -24,6 +24,9 @@ namespace OpenTabletArtist.Tests;
 /// that was broken and the part a later reordering would break again.
 /// </para>
 /// </remarks>
+// In the same collection as the tests that write app settings, so a write of theirs cannot land between this
+// test's write and its read of the same file.
+[Collection("AppSettingsFile")]
 public class TestAppDataRootTests
 {
     /// <summary>OTA's data directory for this run is inside the throwaway root.</summary>

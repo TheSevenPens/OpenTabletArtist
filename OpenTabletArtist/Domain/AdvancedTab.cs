@@ -10,5 +10,6 @@ public enum AdvancedTab
     CustomTabletConfigs = 2,
     Diagnostics = 3,
     Plugins = 4,
+    Filters = 6,              // every tablet's filters (developer view, #1049)
     Console = 5,              // the daemon Console log (its own tab, next to Daemon in the rail)
 }
