@@ -213,8 +213,38 @@ internal sealed class FakeConnectionState : IConnectionState
         set { _daemonSourcePath = value; PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(DaemonSourcePath))); }
     }
     private string _daemonSourcePath = "";
-    public string DaemonVersion => "";
-    public bool HasDaemonVersion => false;
+    /// <summary>The version the pretend daemon reports. The one this build ships with by default, so a
+    /// test that is not about the version rule is not refused by it (#1042); set it to exercise the rule.</summary>
+    public string DaemonVersion { get; set; } = HealthService.ExpectedOtdVersion;
+    public bool HasDaemonVersion => DaemonVersion.Length > 0;
+
+    // Settable and notifying, like the rest the daemon page is derived from: a silent setter could not
+    // show a page that fails to follow a refusal (#1042).
+    private bool _isDaemonRefused;
+    public bool IsDaemonRefused
+    {
+        get => _isDaemonRefused;
+        set => Set(ref _isDaemonRefused, value, nameof(IsDaemonRefused));
+    }
+
+    private string _daemonRefusalReason = "";
+    public string DaemonRefusalReason
+    {
+        get => _daemonRefusalReason;
+        set => Set(ref _daemonRefusalReason, value, nameof(DaemonRefusalReason));
+    }
+
+    private string _daemonVersionNote = "";
+    public string DaemonVersionNote
+    {
+        get => _daemonVersionNote;
+        set
+        {
+            Set(ref _daemonVersionNote, value, nameof(DaemonVersionNote));
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(HasDaemonVersionNote)));
+        }
+    }
+    public bool HasDaemonVersionNote => _daemonVersionNote.Length > 0;
     public bool SaveFailed => false;
     public string SaveStatusText => "";
     public bool ShowAppOwnedDaemon => false;

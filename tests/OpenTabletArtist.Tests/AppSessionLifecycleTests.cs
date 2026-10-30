@@ -31,6 +31,7 @@ public class AppSessionLifecycleTests
         public void StopAll() => StopAllCount++;
         public string? PathOf(int processId) => null;
         public string? SingleRunningDaemonPath() => null;
+        public string ReadVersion(string executablePath) => HealthService.ExpectedOtdVersion;
     }
 
     // No exe present and nothing running → the missing-exe short-circuit should fire.
@@ -49,6 +50,7 @@ public class AppSessionLifecycleTests
         public void StopAll() => StopAllCount++;
         public string? PathOf(int processId) => null;
         public string? SingleRunningDaemonPath() => null;
+        public string ReadVersion(string executablePath) => HealthService.ExpectedOtdVersion;
     }
 
     // Daemon present, but it dies the moment it is started.
@@ -65,6 +67,7 @@ public class AppSessionLifecycleTests
         public void StopAll() { }
         public string? PathOf(int processId) => null;
         public string? SingleRunningDaemonPath() => null;
+        public string ReadVersion(string executablePath) => HealthService.ExpectedOtdVersion;
     }
 
     private sealed class FakeSettingsStore : IPresetStore

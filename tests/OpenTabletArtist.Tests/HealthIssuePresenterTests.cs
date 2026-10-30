@@ -34,7 +34,7 @@ public class HealthIssuePresenterTests
     {
         var card = Assert.Single(HealthIssuePresenter.Present([
             new(HealthCheckCodes.DaemonVersionMismatch, CoreSeverity.Recommendation, Evidence:
-                new HealthEvidence { ActualVersion = "0.6.6", ExpectedVersion = "0.6.7" }),
+                new HealthEvidence { ActualVersion = "0.6.7", ExpectedVersion = "0.6.7.1" }),
             new(HealthCheckCodes.DaemonSourceUnknown, CoreSeverity.Recommendation),
             new(HealthCheckCodes.ForeignDaemon, CoreSeverity.Information, Evidence:
                 new HealthEvidence { ManagedButNotSelected = false }),
@@ -44,9 +44,43 @@ public class HealthIssuePresenterTests
         Assert.Equal([
             "An OpenTabletDriver you installed, not the bundled copy",
             "Location couldn't be read",
-            "Version 0.6.6, untested with this app — it was built against 0.6.7",
+            "This daemon is 0.6.7, older than the 0.6.7.1 this version of OpenTabletArtist ships with. It may be missing fixes.",
         ], card.Links!.Select(l => l.Setting).ToArray());
         Assert.All(card.Links!, l => Assert.Equal(RemediationArea.Daemon, l.Area));
+    }
+
+    // A daemon the app refuses is the reason nothing works, so it is not one row among the user-supplied
+    // daemon's: it gets its own card, ahead of that one, and says what to do (#1042).
+    [Fact]
+    public void ARefusedVersionIsItsOwnCardAheadOfTheDaemonCard()
+    {
+        var cards = HealthIssuePresenter.Present([
+            new(HealthCheckCodes.DaemonVersionMismatch, CoreSeverity.Broken, Evidence:
+                new HealthEvidence { ActualVersion = "0.6.7", ExpectedVersion = "0.6.8" }),
+            new(HealthCheckCodes.ForeignDaemon, CoreSeverity.Information, Evidence:
+                new HealthEvidence { ManagedButNotSelected = false }),
+        ]);
+
+        Assert.Equal(["otd.versionBlocked", "otd.driver"], cards.Select(c => c.Id).ToArray());
+        var blocked = cards[0];
+        Assert.Equal(UiSeverity.Broken, blocked.Severity);
+        Assert.Contains("0.6.7", blocked.Detail);
+        Assert.Contains("0.6.8", blocked.Detail);
+        Assert.Contains("Stop that daemon", blocked.Detail);
+        Assert.Equal(RemediationArea.Daemon, blocked.Remediation!.Area);
+        // The version is not repeated as a row in the other card.
+        Assert.DoesNotContain(cards[1].Links!, l => l.Setting.Contains("0.6.7"));
+    }
+
+    [Fact]
+    public void AnUnreadableVersionIsRefusedToo_AndSaysItCouldNotBeRead()
+    {
+        var card = Assert.Single(HealthIssuePresenter.Present([
+            new(HealthCheckCodes.DaemonVersionMismatch, CoreSeverity.Broken, Evidence:
+                new HealthEvidence { ActualVersion = "", ExpectedVersion = "0.6.8" }),
+        ]));
+        Assert.Equal("otd.versionBlocked", card.Id);
+        Assert.Contains("couldn't read", card.Detail);
     }
 
     [Fact]

@@ -58,6 +58,70 @@ public static class DaemonExePaths
         catch { return null; }   // an unusable path is simply no UX, like a missing one
     }
 
+    /// <summary>A place <see cref="FindUx"/> looked, and why it looked there.</summary>
+    public sealed record UxSearched(string Folder, string Where);
+
+    /// <summary>Where OpenTabletDriver's own window is, or everywhere it was looked for and was not.</summary>
+    public sealed record UxLookup(string? Path, IReadOnlyList<UxSearched> Searched)
+    {
+        /// <summary>What to tell the artist when <see cref="Path"/> is null: where it looked, so the answer is
+        /// something they can check rather than a bare "not found".</summary>
+        public string NotFoundMessage()
+        {
+            var name = UxExeName;
+            if (Searched.Count == 0)
+                return $"OpenTabletArtist couldn't find OpenTabletDriver's own window ({name}). It doesn't know where an "
+                    + "OpenTabletDriver is installed, so it has nowhere to look. Start the daemon and try again, or "
+                    + "reinstall OpenTabletArtist.";
+            var where = string.Join("\n", Searched.Select(s => $"• {s.Where}: {s.Folder}"));
+            return $"OpenTabletArtist couldn't find OpenTabletDriver's own window ({name}). It looked:\n\n{where}\n\n"
+                + "It isn't in any of those places.";
+        }
+    }
+
+    /// <summary>
+    /// Finds OpenTabletDriver's own window (#1043): beside the daemon that is running if one is, and only
+    /// there; with none running, beside the daemon OTA ships or can start.
+    /// </summary>
+    /// <remarks>
+    /// A running daemon is the only place looked, and that is the rule <see cref="UxBeside"/> was written
+    /// for: the window should belong to <em>that</em> driver, and another install's copy would point the
+    /// artist at a daemon that is not the one the page is about. So a running daemon with no window beside
+    /// it is an answer ("not there"), not a reason to open someone else's.
+    ///
+    /// With nothing running there is no driver to honour, and the copy that ships with the app is the
+    /// sensible one. Only folders that exist are reported as searched: a developer build probes paths that
+    /// were never going to be there, and listing them would bury the one the artist can actually look in.
+    /// </remarks>
+    public static UxLookup FindUx(string? runningDaemonPath, string baseDir)
+    {
+        var searched = new List<UxSearched>();
+
+        string? Look(string? daemonPath, string where)
+        {
+            if (UxBeside(daemonPath) is { } found) return found;
+            try
+            {
+                if (string.IsNullOrWhiteSpace(daemonPath)) return null;
+                var folder = Path.GetDirectoryName(Path.GetFullPath(daemonPath.Trim()));
+                if (!string.IsNullOrEmpty(folder) && Directory.Exists(folder)
+                    && !searched.Any(s => string.Equals(s.Folder, folder,
+                        OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal)))
+                    searched.Add(new UxSearched(folder, where));
+            }
+            catch { /* an unusable path is simply nowhere to look */ }
+            return null;
+        }
+
+        if (!string.IsNullOrWhiteSpace(runningDaemonPath))
+            return new UxLookup(Look(runningDaemonPath, "beside the daemon that is running"), searched);
+
+        string? ux = null;
+        foreach (var candidate in Candidates(baseDir))
+            if ((ux = Look(candidate, "beside the daemon OpenTabletArtist ships with")) is not null) break;
+        return new UxLookup(ux, searched);
+    }
+
     /// <summary>The OTD settings window's executable file name for this platform.</summary>
     public static string UxExeName { get; } =
         OperatingSystem.IsWindows() ? "OpenTabletDriver.UX.Wpf.exe"

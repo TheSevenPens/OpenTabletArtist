@@ -8,8 +8,15 @@ internal static class HealthIssuePresenter
     internal static IReadOnlyList<HealthIssue> Present(IReadOnlyList<HealthFinding> findings)
     {
         var issues = new List<HealthIssue>();
+        // A daemon the app will not attach to is not a row among the user-supplied daemon's, it is the
+        // reason nothing works, and it gets a card of its own at the top (#1042).
+        var version = findings.FirstOrDefault(f => f.Code == HealthCheckCodes.DaemonVersionMismatch);
+        var blocked = version is not null && OtdVersion.Blocks(GateOf(version));
+        if (blocked) issues.Add(VersionBlockedCard(version!));
+
         var daemon = findings.Where(f => f.Code is HealthCheckCodes.ForeignDaemon
-            or HealthCheckCodes.DaemonSourceUnknown or HealthCheckCodes.DaemonVersionMismatch).ToList();
+            or HealthCheckCodes.DaemonSourceUnknown
+            || (f.Code == HealthCheckCodes.DaemonVersionMismatch && !blocked)).ToList();
         if (daemon.Count > 0) issues.Add(DaemonCard(daemon));
 
         foreach (var tablet in findings.Where(f => IsPenBehavior(f.Code)).GroupBy(f => f.TabletId ?? f.TabletName))
@@ -17,7 +24,7 @@ internal static class HealthIssuePresenter
 
         foreach (var f in findings)
         {
-            if (daemon.Contains(f) || IsPenBehavior(f.Code)) continue;
+            if (daemon.Contains(f) || IsPenBehavior(f.Code) || (blocked && f == version)) continue;
             issues.Add(PresentSingle(f));
         }
         return issues;
@@ -137,15 +144,30 @@ internal static class HealthIssuePresenter
                 : "An OpenTabletDriver you installed, not the bundled copy", "", RemediationArea.Daemon));
         if (findings.Any(f => f.Code == HealthCheckCodes.DaemonSourceUnknown))
             rows.Add(new HealthLink("Location couldn't be read", "", RemediationArea.Daemon));
+        // Only a tolerated revision difference reaches here; a refused version has its own card.
         var version = findings.FirstOrDefault(f => f.Code == HealthCheckCodes.DaemonVersionMismatch);
         if (version is not null)
             rows.Add(new HealthLink(
-                $"Version {version.Evidence!.ActualVersion}, untested with this app — it was built against "
-                + $"{version.Evidence.ExpectedVersion}", "", RemediationArea.Daemon));
+                DaemonVersionCopy.Note(GateOf(version), version.Evidence!.ActualVersion!, version.Evidence.ExpectedVersion!)
+                    ?? $"Version {version.Evidence.ActualVersion}, not the {version.Evidence.ExpectedVersion} this app ships with",
+                "", RemediationArea.Daemon));
 
         return new HealthIssue("otd.driver", Severity(findings.Max(f => f.Severity)),
             "User-supplied OTD Daemon", "OTA using a user-supplied OTD daemon",
             new Remediation("Review", RemediationArea.Daemon), Links: rows);
+    }
+
+    private static DaemonVersionGate GateOf(HealthFinding version) =>
+        OtdVersion.Gate(version.Evidence!.ActualVersion ?? "", version.Evidence.ExpectedVersion ?? "");
+
+    private static HealthIssue VersionBlockedCard(HealthFinding version)
+    {
+        var evidence = version.Evidence!;
+        var why = DaemonVersionCopy.Refusal(GateOf(version), evidence.ActualVersion ?? "", evidence.ExpectedVersion ?? "")!;
+        return new HealthIssue("otd.versionBlocked", Severity(version.Severity),
+            "OpenTabletArtist isn't connected: the running daemon is the wrong version",
+            $"{why} {DaemonVersionCopy.HowToFix}",
+            new Remediation("Review", RemediationArea.Daemon));
     }
 
     private static bool IsPenBehavior(string code) => code is HealthCheckCodes.TabletWinInkOff

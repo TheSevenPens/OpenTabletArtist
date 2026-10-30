@@ -10,6 +10,8 @@ using OpenTabletDriver.Desktop;
 using OpenTabletArtist.Concurrency;
 using OpenTabletArtist.Domain;
 using OtdInterop;
+using DaemonVersionGate = OtdHealth.DaemonVersionGate;
+using OtdVersion = OtdHealth.OtdVersion;
 
 namespace OpenTabletArtist.Services;
 
@@ -38,6 +40,18 @@ public interface IConnectionState : INotifyPropertyChanged
     /// via the pipe-server PID; empty when not connected or the path/version couldn't be read). (#296)</summary>
     string DaemonVersion { get; }
     bool HasDaemonVersion { get; }
+    /// <summary>A daemon answers, but this app declined to attach to it because its release is not the
+    /// one this build ships with, or its version could not be read (#1042). Not
+    /// <see cref="IsConnected"/>: nothing is loaded from it and nothing is written to it. The pipe is
+    /// held open, so the daemon can still be stopped from here, and that is the way out.</summary>
+    bool IsDaemonRefused { get; }
+    /// <summary>Why, in a sentence ending with what to do about it; empty unless
+    /// <see cref="IsDaemonRefused"/>.</summary>
+    string DaemonRefusalReason { get; }
+    /// <summary>A sentence about a daemon whose revision differs from the shipped one, which works but is
+    /// worth knowing (an older one more strongly). Empty for an exact match and for a refused daemon.</summary>
+    string DaemonVersionNote { get; }
+    bool HasDaemonVersionNote { get; }
     bool ShowAppOwnedDaemon { get; }
     bool ShowForeignDaemonWarning { get; }
     /// <summary>This build ships a daemon of its own in <c>&lt;app&gt;/Daemon/</c>. False on macOS, where
@@ -238,6 +252,19 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
     [ObservableProperty] private string _daemonVersion = "";
     public bool HasDaemonVersion => !string.IsNullOrEmpty(DaemonVersion);
     partial void OnDaemonVersionChanged(string value) => OnPropertyChanged(nameof(HasDaemonVersion));
+
+    [ObservableProperty] private bool _isDaemonRefused;
+    [ObservableProperty] private string _daemonRefusalReason = "";
+    [ObservableProperty] private string _daemonVersionNote = "";
+    public bool HasDaemonVersionNote => !string.IsNullOrEmpty(DaemonVersionNote);
+    partial void OnDaemonVersionNoteChanged(string value) => OnPropertyChanged(nameof(HasDaemonVersionNote));
+    partial void OnIsDaemonRefusedChanged(bool value)
+    {
+        OnPropertyChanged(nameof(CanStartDaemon));
+        OnPropertyChanged(nameof(ShowStartButton));
+        UpdateDaemonActivity();
+    }
+
     [ObservableProperty] private string _daemonStatusText = "Not connected";
     [ObservableProperty] private bool _isDaemonExeMissing;
 
@@ -538,7 +565,10 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
     public bool ShowDaemonSourceUnknown => IsConnected && Ownership == DaemonOwnership.Unknown;
     public bool HasBundledDaemon => _daemonLifecycle.HasBundledDaemon();
     public bool HasDaemonSourcePath => !string.IsNullOrEmpty(DaemonSourcePath);
-    public bool CanStartDaemon => !IsConnected && _daemonLifecycle.FindExe() != null;
+    // Not while a daemon is refused: Start connects to whatever is already running, which is that daemon, so
+    // pressing it could only repeat the refusal. The way out is to stop the daemon, after which this
+    // offers itself again.
+    public bool CanStartDaemon => !IsConnected && !IsDaemonRefused && _daemonLifecycle.FindExe() != null;
 
     /// <summary>A connect attempt is in flight (e.g. the ~5s initial auto-connect at startup) but the
     /// daemon hasn't answered yet — used to show a "Connecting…" indicator instead of a bare
@@ -607,7 +637,7 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
     /// overlapping.
     /// </para>
     /// </remarks>
-    public bool ShowStartButton => !IsConnected;
+    public bool ShowStartButton => !IsConnected && !IsDaemonRefused;
 
     // --- Device data (IDeviceData) — populated by the data load ---
     [ObservableProperty] private JToken? _tablets;
@@ -658,6 +688,19 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
         _session.Connected += change => Dispatcher.UIThread.Post(() =>
         {
             if (Abandoned || change.ConnectionId != session.ConnectionId) return;
+
+            // The version rule (#1042). The library has connected and loaded by now, so this is where the
+            // app declines: it does not become connected, load data or open a workspace, so nothing can be
+            // read from or written to a daemon it was not built for.
+            var gate = GateFor(change);
+            if (OtdVersion.Blocks(gate))
+            {
+                RefuseDaemon(change, gate);
+                return;
+            }
+            IsDaemonRefused = false;
+            DaemonRefusalReason = "";
+
             ConnectionStatus = "Connected";
             IsConnected = true;
             IsDaemonRunning = true;
@@ -697,6 +740,10 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
             DaemonIsManagedButNotSelected = false;
             DaemonSourcePath = "";
             DaemonVersion = "";
+            // The daemon that was refused is gone, and whatever starts next is judged afresh.
+            DaemonVersionNote = "";
+            DaemonRefusalReason = "";
+            IsDaemonRefused = false;
             HasTablet = false;
             TabletName = "";
             DetectedTablets = [];
@@ -764,7 +811,9 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
     /// <summary>Recompute the daemon status text + activity indicators from the connect/op state.</summary>
     private void UpdateDaemonActivity()
     {
-        DaemonStatusText = IsConnected ? "Daemon running" : IsConnecting ? "Connecting…" : "Not connected";
+        DaemonStatusText = IsConnected ? "Daemon running"
+            : IsDaemonRefused ? "Wrong daemon version"
+            : IsConnecting ? "Connecting…" : "Not connected";
         OnPropertyChanged(nameof(IsConnecting));
         OnPropertyChanged(nameof(ShowDaemonActivity));
         OnPropertyChanged(nameof(DaemonActivityText));
@@ -935,6 +984,9 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
     public async Task RefreshAsync()
     {
         if (IsConnected) { await ReloadAsync(); return; }
+
+        // Reconnecting would reach the same daemon and get the same answer, so say why instead.
+        if (IsDaemonRefused) { DaemonOperationError = DaemonRefusalReason; return; }
 
         // The check is a process-name lookup, so it knows about the daemon as this package ships it.
         // A renamed executable, or one hosted as "dotnet OpenTabletDriver.Daemon.dll", would not match
@@ -1441,6 +1493,8 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
     private async Task StartDaemon()
     {
         if (IsDaemonBusy) return;
+        // Start connects to whatever is already running, which here is the daemon that was refused.
+        if (IsDaemonRefused) { DaemonOperationError = DaemonRefusalReason; return; }
         IsDaemonBusy = true;
         DaemonOperationError = "";
         try
@@ -1484,7 +1538,9 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
 
             if (!await WaitForConnectionStateAsync(connected: true, DaemonOperationTimeout))
             {
-                DaemonOperationError = "The daemon didn't come online within 30 seconds.";
+                DaemonOperationError = IsDaemonRefused
+                    ? DaemonRefusalReason
+                    : "The daemon didn't come online within 30 seconds.";
                 ConnectionStatus = "Disconnected"; // clear the Connecting… indicator on failure
             }
         }
@@ -1670,7 +1726,9 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
 
             if (!await WaitForConnectionStateAsync(connected: true, DaemonOperationTimeout))
             {
-                DaemonOperationError = "The daemon didn't come online within 30 seconds.";
+                DaemonOperationError = IsDaemonRefused
+                    ? DaemonRefusalReason
+                    : "The daemon didn't come online within 30 seconds.";
                 ConnectionStatus = "Disconnected"; // clear the Connecting… indicator on failure
             }
         }
@@ -1694,6 +1752,8 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
         while (IsConnected != connected)
         {
             if (sw.Elapsed >= timeout) return false;
+            // A refused daemon answers, and will go on answering the same way, so the wait is over.
+            if (connected && IsDaemonRefused) return false;
             try { await Task.Delay(100, token); }
             catch (OperationCanceledException) { return IsConnected == connected; }
         }
@@ -1739,6 +1799,51 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
         }
     }
 
+    /// <summary>The release this build ships with: the number a daemon's version is measured against.</summary>
+    private static string ExpectedVersion => HealthService.ExpectedOtdVersion;
+
+    private DaemonVersionGate GateFor(DaemonChange change) => OtdVersion.Gate(
+        change.ExecutablePath is { } path ? _daemonLifecycle.ReadVersion(path) : "", ExpectedVersion);
+
+    /// <summary>
+    /// Declines a daemon (#1042): shows what is known about it and why, and attaches to nothing.
+    /// </summary>
+    /// <remarks>
+    /// The library has already connected and loaded settings by the time this runs, and it offers no way
+    /// to let go of a daemon short of closing the session. So the pipe stays open and the app simply does
+    /// not use it: no <see cref="Connected"/> event, no workspace, no data load, and
+    /// <see cref="IsConnected"/> stays false, which is what every consumer already gates on. Holding the
+    /// pipe is also what lets Stop find the process, and Stop is the way out.
+    ///
+    /// The identity is shown without being pinned (see <see cref="ApplyDaemonIdentity"/>): a daemon the
+    /// app refused must not become the one a later Start relaunches.
+    /// </remarks>
+    private void RefuseDaemon(DaemonChange change, DaemonVersionGate gate)
+    {
+        // Before anything else: the library has already adopted this daemon and pinned the session to it.
+        // Left alone, the bundled daemon the user starts next would be called a different one and held
+        // read-only until the app restarted.
+        _session.Decline();
+        _workspace = null;
+        Profiles = [];
+        SettingsReplaced?.Invoke();
+        ConnectionStatus = "Disconnected";
+        IsConnected = false;
+        ConnectStalled = false;
+        ConnectPhase = "";
+        IsDaemonExeMissing = false;
+        if (DaemonOperationError == DaemonExeMissingMessage
+            || DaemonOperationError == NoDaemonToReachMessage) DaemonOperationError = "";
+
+        ApplyDaemonIdentity(change, pin: false);
+        DaemonRefusalReason =
+            $"{DaemonVersionCopy.Refusal(gate, DaemonVersion, ExpectedVersion)} {DaemonVersionCopy.HowToFix}";
+        DaemonVersionNote = "";
+        // Last, so a listener woken by it already sees the version and the reason.
+        IsDaemonRefused = true;
+        UpdateSettingsState();
+    }
+
     // Determine whether the daemon we're connected to is this project's build.
     // Conservative: only flags "foreign" when we can positively read the server path.
     /// <summary>
@@ -1756,16 +1861,20 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
     /// one we may stop or restart without asking. The question of <em>which</em> daemon, and what to drop
     /// because it is a different one, was answered before we got here.
     /// </summary>
-    private void ApplyDaemonIdentity(DaemonChange change)
+    private void ApplyDaemonIdentity(DaemonChange change, bool pin = true)
     {
         var actual = change.ExecutablePath;
-        _daemonPath ??= actual;
+        // Restart and Start relaunch this path, so only a daemon the app has accepted may set it. A refused
+        // one is somebody else's, and relaunching it would put the same wrong daemon back.
+        if (pin) _daemonPath ??= actual;
 
         DaemonSourcePath = actual ?? "";
         // Read the version off the connected daemon's own binary (no RPC — the daemon doesn't report it).
         // Falls back to the sibling managed assembly for a native apphost (macOS #140). Best-effort:
         // cross-session/elevated processes may hide their path, leaving it blank. (#296)
-        DaemonVersion = actual != null ? Domain.DaemonVersion.Read(actual) : "";
+        DaemonVersion = actual != null ? _daemonLifecycle.ReadVersion(actual) : "";
+        var gate = OtdVersion.Gate(DaemonVersion, ExpectedVersion);
+        DaemonVersionNote = DaemonVersionCopy.Note(gate, DaemonVersion, ExpectedVersion) ?? "";
 
         if (actual == null)
         {

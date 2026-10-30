@@ -64,6 +64,12 @@ public interface IDaemonLifecycleService : IDaemonProcessLocator
     /// effectively a singleton anyway.</summary>
     void StopAll();
 
+    /// <summary>The version stamped on the daemon executable at <paramref name="executablePath"/>, or ""
+    /// if none can be read. The daemon doesn't report its version over RPC, so this is where the version
+    /// rule (#1042) gets the one fact it turns on. A seam because the answer is a property of a file a
+    /// test's fake daemon doesn't have; the default is the real read, so only a fake that wants a particular
+    /// version overrides it.</summary>
+    string ReadVersion(string executablePath) => Domain.DaemonVersion.Read(executablePath);
 }
 
 /// <inheritdoc />

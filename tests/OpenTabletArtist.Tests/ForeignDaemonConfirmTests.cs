@@ -29,6 +29,7 @@ public class ForeignDaemonConfirmTests
         public void StopAll() => StopAllCount++;
         public string? PathOf(int processId) => null;
         public string? SingleRunningDaemonPath() => null;
+        public string ReadVersion(string executablePath) => HealthService.ExpectedOtdVersion;
     }
 
     private sealed class FakeStore : IPresetStore

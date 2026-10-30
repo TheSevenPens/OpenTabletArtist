@@ -20,17 +20,29 @@ namespace OpenTabletArtist.ViewModels;
 /// and a launcher for OTD's own UX. The status card moved here off the Home dashboard, which now shows
 /// the daemon only when there's a problem.
 ///
+/// The page is plain status: what is running, whose it is, which version, where it lives. It used to be a
+/// diagram of this app joined to the daemon by a wire, and that did not work (#1043).
+///
 /// On Linux it also surfaces whether OTD is installed as a system RPM package (the normal Fedora/RHEL
 /// install) versus run from source — checked on-demand so it never touches the status-poll path.
 /// </summary>
 public sealed partial class DaemonViewModel : ObservableObject, IDisposable
 {
     private readonly HealthService? _health;
+    private readonly Func<string, string, Task> _showError;
+    private readonly string _baseDirectory;
 
-    public DaemonViewModel(DaemonStatusViewModel status, HealthService? health = null)
+    /// <param name="showError">Shows an error dialog (title, message). Left null, nothing is shown, which is
+    /// only right for a test that is not about the dialog.</param>
+    /// <param name="baseDirectory">The app's own folder, where the bundled daemon is looked for. The running
+    /// app's, unless a test supplies another.</param>
+    public DaemonViewModel(DaemonStatusViewModel status, HealthService? health = null,
+        Func<string, string, Task>? showError = null, string? baseDirectory = null)
     {
         Status = status;
         _health = health;
+        _showError = showError ?? ((_, _) => Task.CompletedTask);
+        _baseDirectory = baseDirectory ?? AppContext.BaseDirectory;
         if (_health is not null)
         {
             _health.Issues.CollectionChanged += (_, _) => RefreshDaemonIssues();
@@ -53,18 +65,45 @@ public sealed partial class DaemonViewModel : ObservableObject, IDisposable
                 OnPropertyChanged(nameof(ShowInstallRuntime));
             }
 
-            // Which daemon is answering decides whether there is a settings window to offer, and so
-            // whether the card holding that button has anything in it at all. Without this the card is
-            // decided once and then keeps its answer: connect to a daemon that ships its own window and
-            // the button never appears; disconnect from one and an empty card stays on screen (#936).
-            if (e.PropertyName is nameof(DaemonStatusViewModel.DaemonSourcePath))
+            // The plain-status lines are computed from several facts, so each of them has to re-ask.
+            if (e.PropertyName is nameof(DaemonStatusViewModel.IsConnected)
+                or nameof(DaemonStatusViewModel.IsDaemonRefused)
+                or nameof(DaemonStatusViewModel.ShowDaemonActivity)
+                or nameof(DaemonStatusViewModel.DaemonActivityText))
+                OnPropertyChanged(nameof(StatusText));
+            if (e.PropertyName is nameof(DaemonStatusViewModel.IsConnected)
+                or nameof(DaemonStatusViewModel.IsDaemonRefused)
+                or nameof(DaemonStatusViewModel.IsAppOwnedDaemon)
+                or nameof(DaemonStatusViewModel.IsForeignDaemon))
             {
-                OnPropertyChanged(nameof(OtdUxPath));
-                OnPropertyChanged(nameof(CanOpenOtdUx));
-                OnPropertyChanged(nameof(ShowDriverCard));
+                OnPropertyChanged(nameof(OwnerText));
+                OnPropertyChanged(nameof(HasOwnerText));
             }
         };
+        Process.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName is nameof(DaemonProcessViewModel.IsRunning)) OnPropertyChanged(nameof(StatusText));
+        };
     }
+
+    /// <summary>One line on where things stand with the daemon, in the order a person would check: attached,
+    /// running but declined, mid-operation, running but not connected, not running at all.</summary>
+    public string StatusText =>
+        Status.IsConnected ? "Connected"
+        : Status.IsDaemonRefused ? "Running, but not connected: wrong version"
+        : Status.ShowDaemonActivity ? Status.DaemonActivityText
+        : Process.IsRunning ? "Running, not connected"
+        : "Not running";
+
+    /// <summary>Whose daemon is answering. Empty when there is none to describe. A refused daemon is
+    /// described too: it is the one the reader is being told about.</summary>
+    public string OwnerText =>
+        !(Status.IsConnected || Status.IsDaemonRefused) ? ""
+        : Status.IsAppOwnedDaemon ? "Bundled with OpenTabletArtist"
+        : Status.IsForeignDaemon ? "Another OpenTabletDriver, not the one OpenTabletArtist starts"
+        : "Couldn't be identified";
+
+    public bool HasOwnerText => OwnerText.Length > 0;
 
     /// <summary>Shared daemon status + controls (the same instance the Home problem card uses).</summary>
     public DaemonStatusViewModel Status { get; }
@@ -99,10 +138,11 @@ public sealed partial class DaemonViewModel : ObservableObject, IDisposable
     /// <remarks>
     /// OTA launches only the copy it ships. A driver the artist installed is reached by starting it —
     /// OTA connects to whatever holds the pipe — so pointing OTA at a location, and clearing that
-    /// location again, no longer exist. What is left is the macOS install offer and the button that
-    /// opens the connected driver's own window.
+    /// location again, no longer exist. What is left is the macOS install offer. The button that opens
+    /// OpenTabletDriver's own window used to live here too, behind a condition; it is always on the page
+    /// now (#1043), so this card is only there when there is something to install.
     /// </remarks>
-    public bool ShowDriverCard => ShowInstallCard || CanOpenOtdUx;
+    public bool ShowDriverCard => ShowInstallCard;
 
     // --- "Install it for me": fetch the pinned official release -----------------------------------
 
@@ -269,29 +309,30 @@ public sealed partial class DaemonViewModel : ObservableObject, IDisposable
         Avalonia.Threading.Dispatcher.UIThread.Post(() => InstallProgress = percent);
 
     /// <summary>
-    /// OpenTabletDriver's own settings window, if the connected driver ships one (#otd-ux-button).
+    /// Opens OpenTabletDriver's own settings window, or says plainly that it can't be found (#1043).
     /// </summary>
     /// <remarks>
-    /// Read through the daemon OTA is connected to, so the window that opens belongs to the driver on
-    /// this page rather than to some other copy on the machine. Absent for a daemon running from a build
-    /// tree or a packaged install without a UX, which is why this is a property rather than a button
-    /// that is always shown and sometimes does nothing.
-    /// </remarks>
-    public string? OtdUxPath => DaemonExePaths.UxBeside(Status.DaemonSourcePath);
-
-    public bool CanOpenOtdUx => OtdUxPath is not null;
-
-    /// <summary>
-    /// Opens OpenTabletDriver's own settings window.
-    /// </summary>
-    /// <remarks>
+    /// Always on offer. It used to appear only when the connected daemon had a window beside it, on the
+    /// reasoning that a button which sometimes does nothing is worse than none; but then the page gave no
+    /// sign the window existed, or why it was missing. Now it is always there and an unfindable window gets
+    /// an error that names every place that was looked.
+    ///
     /// Worth knowing what this invites: OTD's UX is a second settings editor on the same daemon, and
     /// this app's whole model is that there is one. Editing there will make OTA notice an outside change
     /// and pause until the artist reloads — which is correct behaviour rather than a malfunction, and
     /// the tooltip says so rather than letting it look like one.
     /// </remarks>
     [RelayCommand]
-    private void OpenOtdUx() => PlatformShell.RunApp(OtdUxPath);
+    private async Task OpenOtdUx()
+    {
+        var lookup = DaemonExePaths.FindUx(Status.DaemonSourcePath, _baseDirectory);
+        if (lookup.Path is null)
+        {
+            await _showError("Can't open OpenTabletDriver", lookup.NotFoundMessage());
+            return;
+        }
+        PlatformShell.RunApp(lookup.Path);
+    }
 
     /// <summary>Reveal a daemon executable's folder in the OS file manager.
     ///

@@ -1,94 +1,126 @@
-using System;
-using System.IO;
-using OpenTabletArtist.Domain;
+using System.Threading.Tasks;
 using OpenTabletArtist.ViewModels;
 using Xunit;
 
 namespace OpenTabletArtist.Tests;
 
 /// <summary>
-/// That the driver card is on screen exactly when it has something in it (#725, #900).
+/// What the Daemon page says about the daemon, and what its OpenTabletDriver button does (#1043).
 /// </summary>
 ///
 /// <remarks>
 /// <para>
-/// This exists because of a composition bug, and the bug is worth keeping in mind even though the
-/// feature that carried it is gone. The card's condition was <c>ShowLocateCard || ShowInstallCard</c>,
-/// and the offer it was meant to hold applied in exactly the state that made both false. So the button
-/// rendered never, and the sentence saying the offer could not be taken yet rendered always. Both
-/// halves were unit-tested and correct; nothing tested the two together.
+/// This file began as a test that the driver card was on screen exactly when it had something in it
+/// (#725, #900), after a composition bug in which both halves were unit-tested and correct and nothing
+/// tested the two together. Most of that went with the daemon picker, and the rest with the page's
+/// redesign: the card is now only the macOS install offer, and OpenTabletDriver's own window has a button
+/// that is always on the page instead of one that came and went with the connected daemon.
 /// </para>
 /// <para>
-/// Most of what this file used to cover went with the daemon picker (#daemon-bundled-only): OTA launches
-/// only the copy it ships, so there is no chosen location, nothing to clear, and no way back to the
-/// bundled copy to offer. What is left is the same question asked of a much smaller card.
+/// So what is asserted here is the plain status the page shows and the one place the button can fail.
 /// </para>
 /// </remarks>
 public class DriverCardVisibilityTests
 {
-    /// <summary>A card with nothing to say is not on screen.</summary>
-    /// <remarks>
-    /// On Windows the install offer is never made (it is macOS-only), so a daemon that ships no settings
-    /// window of its own leaves the card empty. An empty bordered card reads as something that failed to
-    /// load.
-    /// </remarks>
+    /// <summary>A card with nothing to say is not on screen. On Windows the install offer is never made
+    /// (it is macOS-only), and an empty bordered card reads as something that failed to load.</summary>
     [Fact]
-    public void WithNothingToOffer_TheCardIsHidden()
+    public void WithNothingToInstall_TheCardIsHidden()
     {
-        using var install = new TempInstall();
-        using var page = PageOn(install.Daemon);
+        using var page = PageOn(new FakeConnectionState { IsConnected = true });
 
-        Assert.False(page.CanOpenOtdUx, "this daemon ships no settings window");
+        if (System.OperatingSystem.IsMacOS()) return;   // the install offer exists there
         Assert.False(page.ShowDriverCard);
     }
 
-    /// <summary>And a card with one thing in it is.</summary>
-    [Fact]
-    public void WhenTheDriverShipsItsOwnWindow_TheCardIsOnScreen()
+    [Theory]
+    [InlineData(true, false, "Connected")]
+    [InlineData(false, true, "Running, but not connected: wrong version")]
+    public void TheStatusLineFollowsWhatTheDaemonIsDoing(bool connected, bool refused, string expected)
     {
-        using var install = new TempInstall();
-        install.Add(DaemonExePaths.UxExeName);
-        using var page = PageOn(install.Daemon);
+        var connection = new FakeConnectionState { IsConnected = connected, IsDaemonRefused = refused };
+        using var page = PageOn(connection);
 
-        Assert.True(page.CanOpenOtdUx);
-        Assert.True(page.ShowDriverCard, "the button has nowhere to render without its card");
+        Assert.Equal(expected, page.StatusText);
     }
 
-    private static DaemonViewModel PageOn(string daemonPath)
+    /// <summary>Not connected and not refused, the line falls back to whether a process exists at all. That
+    /// is read off the machine, so the test asks the page what it saw rather than assuming no daemon is
+    /// running on whatever box this runs on.</summary>
+    [Fact]
+    public void WithNothingConnected_TheLineSaysWhetherAProcessIsThere()
+    {
+        using var page = PageOn(new FakeConnectionState());
+
+        Assert.Equal(page.Process.IsRunning ? "Running, not connected" : "Not running", page.StatusText);
+    }
+
+    /// <summary>The status follows the connection as it changes, rather than being decided once.</summary>
+    [Fact]
+    public void TheStatusLineIsRaisedWhenTheConnectionChanges()
+    {
+        var connection = new FakeConnectionState();
+        using var page = PageOn(connection);
+        var raised = 0;
+        page.PropertyChanged += (_, e) => { if (e.PropertyName == nameof(DaemonViewModel.StatusText)) raised++; };
+
+        connection.IsDaemonRefused = true;
+        connection.IsConnected = true;
+
+        Assert.True(raised >= 2, "both changes move the line, and the page has to be told");
+    }
+
+    /// <summary>A refused daemon is described too: it is the one the reader is being told about.</summary>
+    [Theory]
+    [InlineData(DaemonOwnershipKind.Owned, "Bundled with OpenTabletArtist")]
+    [InlineData(DaemonOwnershipKind.External, "Another OpenTabletDriver, not the one OpenTabletArtist starts")]
+    [InlineData(DaemonOwnershipKind.Unknown, "Couldn't be identified")]
+    public void TheOwnerIsNamedForAConnectedOrRefusedDaemon(DaemonOwnershipKind kind, string expected)
     {
         var connection = new FakeConnectionState
         {
-            IsConnected = true,
-            DaemonSourcePath = daemonPath,
+            IsDaemonRefused = true,
+            Ownership = kind switch
+            {
+                DaemonOwnershipKind.Owned => OpenTabletArtist.Domain.DaemonOwnership.Owned,
+                DaemonOwnershipKind.External => OpenTabletArtist.Domain.DaemonOwnership.External,
+                _ => OpenTabletArtist.Domain.DaemonOwnership.Unknown,
+            },
         };
-        return new DaemonViewModel(new DaemonStatusViewModel(connection));
+        using var page = PageOn(connection);
+
+        Assert.True(page.HasOwnerText);
+        Assert.Equal(expected, page.OwnerText);
     }
 
-    /// <summary>A folder holding a daemon, and whatever else a test wants beside it.</summary>
-    private sealed class TempInstall : IDisposable
+    [Fact]
+    public void NoDaemonMeansNoOwnerLine()
     {
-        private readonly string _root;
+        using var page = PageOn(new FakeConnectionState());
 
-        public TempInstall()
-        {
-            _root = Path.Combine(Path.GetTempPath(), $"ota-drivercard-{Guid.NewGuid():N}");
-            Directory.CreateDirectory(_root);
-            Daemon = Add(DaemonExePaths.DaemonExeName);
-        }
-
-        public string Daemon { get; }
-
-        public string Add(string fileName)
-        {
-            var path = Path.Combine(_root, fileName);
-            File.WriteAllText(path, "");
-            return path;
-        }
-
-        public void Dispose()
-        {
-            try { Directory.Delete(_root, recursive: true); }
-            catch (IOException) { /* a temp folder that outlives the test is not a failure */ }
-        }
+        Assert.False(page.HasOwnerText);
     }
+
+    public enum DaemonOwnershipKind { Owned, External, Unknown }
+
+    /// <summary>The one way the button can fail: nothing to open. It says so in a dialog, naming where it
+    /// looked, and opens nothing.</summary>
+    [Fact]
+    public async Task WhenNoOpenTabletDriverWindowIsFound_AnErrorSaysSo()
+    {
+        var shown = new System.Collections.Generic.List<(string Title, string Message)>();
+        var nowhere = System.IO.Path.Combine(System.IO.Path.GetTempPath(), $"ota-nowhere-{System.Guid.NewGuid():N}");
+        using var page = new DaemonViewModel(new DaemonStatusViewModel(new FakeConnectionState()),
+            showError: (title, message) => { shown.Add((title, message)); return Task.CompletedTask; },
+            baseDirectory: nowhere);
+
+        await page.OpenOtdUxCommand.ExecuteAsync(null);
+
+        var error = Assert.Single(shown);
+        Assert.Equal("Can't open OpenTabletDriver", error.Title);
+        Assert.Contains(OpenTabletArtist.Domain.DaemonExePaths.UxExeName, error.Message);
+    }
+
+    private static DaemonViewModel PageOn(FakeConnectionState connection) =>
+        new(new DaemonStatusViewModel(connection));
 }

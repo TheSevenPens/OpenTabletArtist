@@ -40,7 +40,8 @@ public sealed partial class DaemonStatusViewModel : ObservableObject, IDisposabl
         if (e.PropertyName is nameof(IsConnected) or nameof(ShowDaemonActivity) or nameof(HasDaemonOperationError)
             or nameof(ConnectStalled) or nameof(IsDaemonExeMissing))
             OnPropertyChanged(nameof(ShowDaemonProblem));
-        if (e.PropertyName is nameof(IsConnected) or nameof(DaemonStatusText) or nameof(ConnectStalled))
+        if (e.PropertyName is nameof(IsConnected) or nameof(DaemonStatusText) or nameof(ConnectStalled)
+            or nameof(IsDaemonRefused))
             OnPropertyChanged(nameof(HomeProblemText));
         if (e.PropertyName is nameof(IsConnected) or nameof(ShowDaemonActivity))
             OnPropertyChanged(nameof(ShowDisconnectedLabel));
@@ -62,6 +63,14 @@ public sealed partial class DaemonStatusViewModel : ObservableObject, IDisposabl
     public string DaemonSourceDisplayPath => Domain.ExecutablePath.BundleOrSelf(_session.DaemonSourcePath);
     public string DaemonVersion => _session.DaemonVersion;
     public bool HasDaemonVersion => _session.HasDaemonVersion;
+    public bool IsAppOwnedDaemon => _session.IsAppOwnedDaemon;
+    public bool IsForeignDaemon => _session.IsForeignDaemon;
+    /// <summary>A daemon answers but the app declined to attach to it over its version (#1042).</summary>
+    public bool IsDaemonRefused => _session.IsDaemonRefused;
+    public string DaemonRefusalReason => _session.DaemonRefusalReason;
+    /// <summary>A tolerated revision difference, said in a sentence; empty otherwise.</summary>
+    public string DaemonVersionNote => _session.DaemonVersionNote;
+    public bool HasDaemonVersionNote => _session.HasDaemonVersionNote;
     public bool CanStartDaemon => _session.CanStartDaemon;
     public bool IsDaemonBusy => _session.IsDaemonBusy;
     public bool ShowDaemonActivity => _session.ShowDaemonActivity;
@@ -103,6 +112,7 @@ public sealed partial class DaemonStatusViewModel : ObservableObject, IDisposabl
         get
         {
             if (IsConnected) return DaemonStatusText;
+            if (IsDaemonRefused) return "Not connected: the running daemon is the wrong version";
             if (ConnectStalled) return "Still trying to reach the daemon…";
             return "Not connected to daemon";
         }

@@ -51,14 +51,30 @@ public static class HealthEvaluator
                     evidence: new HealthEvidence { ManagedButNotSelected = snapshot.DaemonIsManagedButNotSelected });
             if (snapshot.DaemonSourceUnknown)
                 Add(HealthCheckCodes.DaemonSourceUnknown, HealthSeverity.Recommendation);
-            if (!string.IsNullOrEmpty(snapshot.DaemonVersion) && !string.IsNullOrEmpty(snapshot.ExpectedOtdVersion)
-                && !OtdVersion.SameRelease(snapshot.DaemonVersion, snapshot.ExpectedOtdVersion))
-                Add(HealthCheckCodes.DaemonVersionMismatch, HealthSeverity.Recommendation,
-                    evidence: new HealthEvidence
-                    {
-                        ActualVersion = snapshot.DaemonVersion,
-                        ExpectedVersion = snapshot.ExpectedOtdVersion,
-                    });
+        }
+
+        // The version rule (#1042). A refused daemon is not connected, but it is the one being talked
+        // about, so it is judged here as well. A consumer that supplies no expected version asks for no
+        // comparison.
+        if ((snapshot.DaemonConnected || snapshot.DaemonRefused) && !string.IsNullOrEmpty(snapshot.ExpectedOtdVersion))
+        {
+            var gate = OtdVersion.Gate(snapshot.DaemonVersion, snapshot.ExpectedOtdVersion);
+            // A version nobody could read is reported only for a daemon the consumer refused over it. A
+            // consumer that carries on with such a daemon (a diagnostics run against a live pipe) has not
+            // declared it a problem, and this library does not decide that for it.
+            var report = gate != DaemonVersionGate.Match
+                && (gate != DaemonVersionGate.Unreadable || snapshot.DaemonRefused);
+            if (report)
+                Add(HealthCheckCodes.DaemonVersionMismatch, gate switch
+                {
+                    DaemonVersionGate.Mismatch or DaemonVersionGate.Unreadable => HealthSeverity.Broken,
+                    DaemonVersionGate.OlderRevision => HealthSeverity.Recommendation,
+                    _ => HealthSeverity.Information,
+                }, evidence: new HealthEvidence
+                {
+                    ActualVersion = snapshot.DaemonVersion,
+                    ExpectedVersion = snapshot.ExpectedOtdVersion,
+                });
         }
 
         foreach (var tablet in snapshot.Tablets)

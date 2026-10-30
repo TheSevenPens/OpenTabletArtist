@@ -9,12 +9,12 @@ using OpenTabletDriver.Desktop;
 namespace OpenTabletArtist.ViewModels;
 
 /// <summary>
-/// The DAEMON PROCESS card (Daemon page, left column): whether a daemon process is running, which one it is
-/// (ownership + path), its version and whether that matches the OTD build OTA ships, its process uptime, and
-/// the Start/Stop controls. Process facts (running/path/uptime) come from <see cref="DaemonProcess"/> — a
-/// direct process lookup, so they're accurate even when OTA isn't connected — while ownership/version come
-/// from the shared <see cref="DaemonStatusViewModel"/> (known only while connected). Polls once a second, but
-/// only while the card is on screen (StartPolling/StopPolling from the view).
+/// The process facts on the Daemon page: whether a daemon process is running, how long it has been up, and
+/// whether its version matches the OTD build OTA ships. Process facts (running/uptime) come from
+/// <see cref="DaemonProcess"/> — a direct process lookup, so they're accurate even when OTA isn't connected —
+/// while ownership/version come from the shared <see cref="DaemonStatusViewModel"/> (known only while
+/// connected or refused). Polls once a second, but only while the page is on screen (StartPolling/StopPolling
+/// from the view).
 /// </summary>
 public sealed partial class DaemonProcessViewModel : ObservableObject, IDisposable
 {
@@ -56,8 +56,6 @@ public sealed partial class DaemonProcessViewModel : ObservableObject, IDisposab
         {
             Refresh();       // connect/disconnect changes the running state
             RaiseVersion();
-            OnPropertyChanged(nameof(ProcessLine));
-            OnPropertyChanged(nameof(HasProcessLine));
         }
     }
 
@@ -68,8 +66,6 @@ public sealed partial class DaemonProcessViewModel : ObservableObject, IDisposab
         _startTime = info.StartTime;
         OnPropertyChanged(nameof(ProcessUptime));
         OnPropertyChanged(nameof(ShowProcessUptime));
-        OnPropertyChanged(nameof(ProcessLine));
-        OnPropertyChanged(nameof(HasProcessLine));
     }
 
     private void RaiseVersion()
@@ -84,27 +80,6 @@ public sealed partial class DaemonProcessViewModel : ObservableObject, IDisposab
 
     /// <summary>Show the uptime line only when a process is running with a readable start time.</summary>
     public bool ShowProcessUptime => IsRunning && _startTime != null;
-
-    /// <summary>The daemon's version and how long it has been up, as one line. Either half can be
-    /// unavailable — a version can't always be read, and a process start time can't either — so the line
-    /// carries whichever it has and disappears when it has neither.</summary>
-    public string ProcessLine
-    {
-        get
-        {
-            var version = _status.HasDaemonVersion ? $"v{_status.DaemonVersion}" : "";
-            var uptime = ShowProcessUptime ? $"up {ProcessUptime}" : "";
-            return (version, uptime) switch
-            {
-                ("", "") => "",
-                ("", _) => uptime,
-                (_, "") => version,
-                _ => $"{version} · {uptime}",
-            };
-        }
-    }
-
-    public bool HasProcessLine => !string.IsNullOrEmpty(ProcessLine);
 
     /// <summary>True when the connected daemon's version is the same release as the bundled build.</summary>
     public bool VersionMatches => DaemonVersion.SameRelease(BuiltAgainstVersion, _status.DaemonVersion);

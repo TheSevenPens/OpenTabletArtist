@@ -94,6 +94,9 @@ public sealed partial class HealthService : ObservableObject, IDisposable
     private void OnConnectionChanged(object? sender, PropertyChangedEventArgs e)
     {
         if (e.PropertyName is nameof(IConnectionState.IsConnected)
+            // Refusing a daemon moves this and not IsConnected, so without it the card explaining why
+            // nothing is connected would not appear until something else happened to re-run the catalog.
+            or nameof(IConnectionState.IsDaemonRefused)
             or nameof(IConnectionState.ConnectionStatus)
             or nameof(IConnectionState.IsDaemonExeMissing)
             or nameof(IConnectionState.IsForeignDaemon)
@@ -230,6 +233,7 @@ public sealed partial class HealthService : ObservableObject, IDisposable
         var inputs = collected with
         {
             DaemonConnected = _connection.IsConnected,
+            DaemonRefused = _connection.IsDaemonRefused,
             ForeignDaemon = _connection.IsForeignDaemon,
             DaemonIsManagedButNotSelected = _connection.DaemonIsManagedButNotSelected,
             DaemonSourceUnknown = _connection.ShowDaemonSourceUnknown,
