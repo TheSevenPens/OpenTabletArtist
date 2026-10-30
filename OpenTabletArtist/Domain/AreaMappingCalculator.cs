@@ -101,8 +101,14 @@ public static class AreaMappingCalculator
 
         footW = perp ? height : width;
         footH = perp ? width : height;
-        centerX = Math.Clamp(centerX, footW / 2f, fullWidth - footW / 2f);
-        centerY = Math.Clamp(centerY, footH / 2f, fullHeight - footH / 2f);
+        centerX = ClampCentre(centerX, footW, fullWidth);
+        centerY = ClampCentre(centerY, footH, fullHeight);
         return new TabletArea(width, height, centerX, centerY);
     }
+
+    // Keep a footprint of size foot inside [0, full]. The shrink-to-fit above multiplies by a float ratio, so a
+    // footprint meant to fill the tablet exactly can come out an ulp wider than it; the bounds would then cross,
+    // and Math.Clamp throws when min > max. A footprint that fills the tablet is simply centred on it.
+    private static float ClampCentre(float centre, float foot, float full) =>
+        Math.Clamp(centre, Math.Min(foot / 2f, full / 2f), Math.Max(full - foot / 2f, full / 2f));
 }

@@ -268,7 +268,8 @@ public sealed class PressureCurveChart : Control
 
         // Inverse of Apply()'s softness→exponent mapping.
         double softness = exponent <= 1 ? 1 - exponent : 1 / exponent - 1;
-        softness = Math.Clamp(Round2(softness), -0.95, 0.95);
+        // The slider's range, not wider: past it the slider would clamp the node's value and write that back.
+        softness = Math.Clamp(Round2(softness), -PressureCurveSettings.MaxSoftness, PressureCurveSettings.MaxSoftness);
 
         if (softness != c.Softness)
             Curve = c with { Softness = softness };
