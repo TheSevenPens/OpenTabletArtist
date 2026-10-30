@@ -47,8 +47,13 @@ public sealed class ProfileSwitchService
             // unsaved changes (which are the preset itself) is skipped, unless input is waiting to be submitted.
             // Only the question: the apply still happens, because it reads the daemon first and reports a
             // pause, a pending apply or an outside change, none of which the local document can know.
+            // The stamp is taken before the comparison and checked in the same step as the decision, with no wait
+            // between that check and the apply: an edit submitted while the comparison waited for the daemon
+            // makes its answer about a document that is gone, however the workspace itself reports it (#1060).
+            var stamp = _settings.Stamp;
             var nothingToLose = !await _settings.WouldChangeLoadedAsync(
                     PresetCompletion.Complete(settings, _settings.CurrentSettings))
+                && _settings.Stamp == stamp
                 && HasPendingInput?.Invoke() != true;
             if (!nothingToLose && BeforeReplaceAsync is { } confirm && !await confirm(false)) return false;
             var outcome = await _settings.ApplyLoadedSettingsAsync(

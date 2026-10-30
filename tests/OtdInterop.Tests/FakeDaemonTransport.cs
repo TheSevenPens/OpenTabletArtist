@@ -248,10 +248,14 @@ internal sealed class FakeDaemonTransport : IDaemonTransport, IDaemonSettingsCha
     public static AppInfo Reporting(string settingsFile) =>
         new() { AppDataDirectory = "A", SettingsFile = settingsFile };
 
+    /// <summary>When set, replaces <see cref="GetTabletsAsync"/>, so a test can hold the answer open and do
+    /// something else while a comparison that needs it is waiting.</summary>
+    public Func<Task<JArray>>? GetTabletsHandler { get; set; }
+
     public Task<JArray> GetTabletsAsync()
     {
         Calls.Add(nameof(GetTabletsAsync));
-        return Task.FromResult(Tablets);
+        return GetTabletsHandler?.Invoke() ?? Task.FromResult(Tablets);
     }
 
     public Task<JArray> GetDevicesAsync()

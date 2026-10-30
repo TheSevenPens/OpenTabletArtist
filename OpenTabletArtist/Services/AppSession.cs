@@ -142,9 +142,21 @@ public interface IConnectionState : INotifyPropertyChanged
     Task RefreshAsync();
 }
 
+/// <summary>
+/// Which version of which settings document a decision was made against: the workspace itself, by identity,
+/// and its count of wholesale writes. Two stamps are equal only if no apply, adoption or restore happened
+/// between them and the workspace was not replaced (#1060).
+/// </summary>
+public readonly record struct SettingsStamp(object? Document, int Generation);
+
 /// <summary>The shared editable settings workspace. Applying never persists.</summary>
 public interface ISettingsCoordinator
 {
+    /// <summary>The stamp of the document now. A check that waits (for the daemon, for an answer) takes this
+    /// before and compares after, because anything submitted in between makes what it found about the
+    /// document untrue.</summary>
+    SettingsStamp Stamp { get; }
+
     Settings? CurrentSettings { get; }
     Task<SettingsApplyOutcome> ApplySettingsAsync(Settings settings);
 
@@ -1295,6 +1307,8 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
 
     public Task<SettingsApplyOutcome> ApplyLoadedSettingsAsync(Settings settings) =>
         ApplyThroughAsync(workspace => workspace.ApplyLoadedAsync(settings));
+
+    public SettingsStamp Stamp => new(_workspace, _workspace?.Generation ?? 0);
 
     public Task<bool> WouldChangeLoadedAsync(Settings settings) =>
         _workspace?.WouldChangeLoadedAsync(settings) ?? Task.FromResult(true);

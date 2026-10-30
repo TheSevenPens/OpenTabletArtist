@@ -1,5 +1,6 @@
 using System;
 using System.Threading.Tasks;
+using Newtonsoft.Json.Linq;
 using OpenTabletArtist.Services;
 using OpenTabletDriver.Desktop;
 using OpenTabletDriver.Desktop.Profiles;
@@ -84,6 +85,59 @@ public class SettingsWorkspaceTests
         var other = Document();
         other.Revision = "0.0.1";
         Assert.True(await workspace.WouldChangeLoadedAsync(other));
+    }
+
+    /// <summary>
+    /// The answer is about the document as it was when the question was put. Normalising waits for the daemon,
+    /// and an edit submitted in that wait changes the document, so a preset that equalled the old one is not
+    /// "nothing to lose" any more (#1060).
+    /// </summary>
+    [Fact]
+    public async Task WouldChangeLoaded_IsTrue_WhenAnEditIsSubmittedWhileItWaits()
+    {
+        var (session, daemon, _) = await Connected();
+        using var lifetime = session;
+        var workspace = new SettingsWorkspace(session.Settings!, false);
+        var release = new TaskCompletionSource<JArray>();
+        daemon.GetTabletsHandler = () => release.Task;
+
+        var comparing = workspace.WouldChangeLoadedAsync(Document());   // equal to what the workspace holds
+        var edit = workspace.Current!;
+        edit.LockUsableAreaTablet = true;
+        var applied = workspace.ApplyAsync(edit);
+        daemon.GetTabletsHandler = null;
+        release.SetResult([]);
+
+        Assert.True(await comparing, "an edit arrived while the comparison waited");
+        Assert.True((await applied).IsLive);
+    }
+
+    /// <summary>
+    /// The document having moved is enough, even if it ended up where it began: an edit and its undo leave an
+    /// equal document, but not one the question was asked about, and the artist is mid-way through editing it.
+    /// </summary>
+    [Fact]
+    public async Task WouldChangeLoaded_IsTrue_WhenTheDocumentMovedAndCameBack()
+    {
+        var (session, daemon, _) = await Connected();
+        using var lifetime = session;
+        var workspace = new SettingsWorkspace(session.Settings!, false);
+        var release = new TaskCompletionSource<JArray>();
+        daemon.GetTabletsHandler = () => release.Task;
+
+        var comparing = workspace.WouldChangeLoadedAsync(Document());
+        var there = workspace.Current!;
+        there.LockUsableAreaTablet = true;
+        var first = workspace.ApplyAsync(there);
+        var back = workspace.Current!;
+        back.LockUsableAreaTablet = false;
+        var second = workspace.ApplyAsync(back);
+        daemon.GetTabletsHandler = null;
+        release.SetResult([]);
+
+        Assert.True(await comparing, "the document moved while the comparison waited");
+        Assert.True((await first).IsLive);
+        Assert.True((await second).IsLive);
     }
 
     /// <summary>Applied-but-unsaved still counts as idle.</summary>

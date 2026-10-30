@@ -90,10 +90,16 @@ public sealed class SettingsWorkspace
     /// </remarks>
     public async Task<bool> WouldChangeLoadedAsync(Settings source)
     {
-        if (_draft is not { } draft) return true;
+        if (_draft is null) return true;
         var copy = SettingsCodec.Clone(source);
         OtaSettingsPolicy.Prepare(copy, _owned);
+        // Normalising waits for the daemon, and anything submitted meanwhile changes the document this answer
+        // is about: an edit that has been applied (or is queued behind the wait) would be overwritten by a load
+        // that was told it had nothing to lose. So the answer is "would change" if the document moved, and the
+        // comparison is against the document as it is now, not as it was before the wait (#1060).
+        var generation = Generation;
         var loaded = await _session.AsLoadedAsync(copy);
+        if (Generation != generation || _draft is not { } draft) return true;
         return loaded is null || !SettingsCodec.Same(loaded, draft);
     }
 
