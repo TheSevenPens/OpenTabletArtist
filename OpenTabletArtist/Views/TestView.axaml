@@ -56,6 +56,17 @@
                 <Border Classes="DynChip" IsVisible="{Binding PositionSmoothingActive}">
                     <TextBlock Text="Position smoothing" />
                 </Border>
+                <!-- The way to the settings the chips name (#1044). Always there, unlike the chips, which are
+                     only drawn for what is active: a straight curve with no smoothing has no chip, and is exactly
+                     when you want to open the pressure tab and shape one. -->
+                <Button Command="{Binding OpenPressureCommand}" Background="Transparent" BorderThickness="0"
+                        Padding="0" Cursor="Hand" VerticalAlignment="Center"
+                        AutomationProperties.Name="Adjust pressure curve and smoothing"
+                        ToolTip.Tip="Open the Pen page's pressure tab, where the curve and the smoothing are">
+                    <TextBlock Text="Adjust pressure curve and smoothing"
+                               Foreground="{DynamicResource AccentBrush}" TextDecorations="Underline"
+                               VerticalAlignment="Center" />
+                </Button>
             </WrapPanel>
 
             <!-- Pointer-only mode paints nothing, so active dynamics are invisible — warn (#183). -->

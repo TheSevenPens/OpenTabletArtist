@@ -293,10 +293,23 @@
                                 SmallChange="{TemplateBinding SmallChange}"
                                 LargeChange="{TemplateBinding LargeChange}"
                                 Value="{Binding Value, RelativeSource={RelativeSource TemplatedParent}, Mode=TwoWay}" />
-                        <TextBlock Grid.Column="2" x:Name="PART_Value" Text="{TemplateBinding ValueText}"
-                                   Width="{TemplateBinding ValueWidth}" MinWidth="36"
-                                   IsVisible="{TemplateBinding ShowValue}" TextAlignment="Right"
-                                   VerticalAlignment="Center" Foreground="{DynamicResource TextSecondaryBrush}" />
+                        <!-- The readout and the reset button share one cell: a slider with no default (the Theme
+                             sliders) draws the readout alone, exactly as before, because a hidden button in
+                             a stack takes no room (#1048). -->
+                        <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+                            <TextBlock x:Name="PART_Value" Text="{TemplateBinding ValueText}"
+                                       Width="{TemplateBinding ValueWidth}" MinWidth="36"
+                                       IsVisible="{TemplateBinding ShowValue}" TextAlignment="Right"
+                                       VerticalAlignment="Center" Foreground="{DynamicResource TextSecondaryBrush}" />
+                            <!-- Always drawn once the slider has a default, and dimmed rather than hidden while the
+                                 value is on it: UI that appears and disappears under your hand is worse than a
+                                 quiet icon that is simply not available. -->
+                            <c:IconButton x:Name="PART_Reset" Icon="{StaticResource IconUndo}" IconSize="14"
+                                          IsVisible="{TemplateBinding HasDefault}"
+                                          IsEnabled="{TemplateBinding CanReset}"
+                                          ToolTip.Tip="{TemplateBinding ResetTip}"
+                                          AutomationProperties.Name="{TemplateBinding ResetTip}" />
+                        </StackPanel>
                     </Grid>
                 </ControlTemplate>
             </Setter>
