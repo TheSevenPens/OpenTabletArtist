@@ -95,6 +95,20 @@ public sealed class MonitorCycleHotkeys : IMonitorCycleHotkey, IDisposable
         return false;
     }
 
+    /// <summary>Whether <paramref name="claimed"/> is the Shift variant this hotkey registered for
+    /// <paramref name="monitorChord"/>. Pure, so the decision is testable without Win32.</summary>
+    internal static bool OwnsBackChord(HotkeyChord? monitorChord, HotkeyChord claimed) =>
+        monitorChord is not null && BackChord(monitorChord) == claimed;
+
+    /// <summary>Let go of the backwards hotkey when a preset is being given the same chord. The backwards
+    /// hotkey is registered without being asked for, so it gives way to a shortcut that is.</summary>
+    public void ReleaseBackChordIfClaimed(HotkeyChord claimed)
+    {
+        if (_backId == 0 || !OwnsBackChord(GetChord(), claimed)) return;
+        _hotkeys.Unregister(_backId);
+        _backId = 0;
+    }
+
     private void Unregister()
     {
         if (_id != 0) { _hotkeys.Unregister(_id); _id = 0; }
