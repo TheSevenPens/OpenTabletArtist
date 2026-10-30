@@ -159,6 +159,21 @@ public class HomeLayoutTests
         page.Close();
     }
 
+    /// <summary>A check that failed outright says so, instead of "checking" for good (#1060).</summary>
+    [AvaloniaFact]
+    public void TheHealthCard_SaysItCouldNotCheck_WhenTheHealthCheckFails()
+    {
+        var page = HomeAt(1280, _ => Task.FromException<OtdHealth.Collector.HealthAnalysisReport>(new InvalidOperationException("boom")),
+            out _, out _, out _, out _);
+
+        var texts = VisibleTexts(page.View);
+
+        Assert.Contains("Couldn't check your setup", texts);
+        Assert.DoesNotContain("Checking your setup", texts);
+        Assert.DoesNotContain("Everything's working fine", texts);
+        page.Close();
+    }
+
     [AvaloniaTheory]
     [InlineData(null, "Everything's working fine")]
     [InlineData(HealthSeverity.Information, "Worth a look")]
@@ -250,13 +265,18 @@ public class HomeLayoutTests
     /// <summary>Home at a given window width, with the health check either answered (with nothing found) or
     /// never answering.</summary>
     internal static Shown HomeAt(double width, bool reported, out HealthService health, out TabletsOverviewViewModel tablets,
-        out Opened opened, out FakeConnectionState connection)
+        out Opened opened, out FakeConnectionState connection) =>
+        HomeAt(width, reported
+                ? _ => Task.FromResult(new OtdHealth.Collector.HealthAnalysisReport(new OtdHealth.HealthSnapshot(), [], []))
+                : _ => new TaskCompletionSource<OtdHealth.Collector.HealthAnalysisReport>().Task,
+            out health, out tablets, out opened, out connection);
+
+    /// <summary>Home with a health check that does whatever <paramref name="collect"/> says.</summary>
+    internal static Shown HomeAt(double width, Func<System.Threading.CancellationToken, Task<OtdHealth.Collector.HealthAnalysisReport>> collect,
+        out HealthService health, out TabletsOverviewViewModel tablets, out Opened opened, out FakeConnectionState connection)
     {
         connection = new FakeConnectionState { IsConnected = true, DaemonVersion = "0.6.8.1" };
-        health = new HealthService(connection, new FakeDeviceData(), new DriverConflictMonitor(),
-            reported
-                ? _ => Task.FromResult(new OtdHealth.Collector.HealthAnalysisReport(new OtdHealth.HealthSnapshot(), [], []))
-                : _ => new TaskCompletionSource<OtdHealth.Collector.HealthAnalysisReport>().Task);
+        health = new HealthService(connection, new FakeDeviceData(), new DriverConflictMonitor(), collect);
         health.Issues.Clear();
         var counter = new Opened();
         opened = counter;

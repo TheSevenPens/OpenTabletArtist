@@ -247,6 +247,65 @@ public class HealthBadgeTests
         Assert.Equal(HealthBadgeTier.Healthy, badge.Tier);   // no badge is drawn for it
     }
 
+    /// <summary>
+    /// A check that failed outright is not one that has not answered yet: it said "checking" for good (#1060).
+    /// </summary>
+    [Fact]
+    public void WhenTheHealthCheckFails_TheCardSaysItCouldNotCheck_NotThatItIsChecking()
+    {
+        var (badge, health, _) = MakeWith(_ => Task.FromException<OtdHealth.Collector.HealthAnalysisReport>(
+            new InvalidOperationException("a probe blew up")));
+
+        Assert.True(health.CollectionFailed);
+        Assert.True(badge.CouldNotCheck);
+        Assert.False(badge.IsChecking);
+        Assert.False(badge.IsAllClear);
+        Assert.Equal("Couldn't check your setup", badge.CardHeadline);
+        Assert.Equal("COULD NOT CHECK", badge.CardEyebrow);
+        Assert.Equal("Health: could not check.", badge.Summary);
+    }
+
+    /// <summary>The next check that works clears it: it is a statement about the last attempt, not a verdict.</summary>
+    [Fact]
+    public async Task ASuccessfulCheck_AfterAFailedOne_ClearsIt()
+    {
+        var calls = 0;
+        var (badge, health, _) = MakeWith(_ => ++calls == 1
+            ? Task.FromException<OtdHealth.Collector.HealthAnalysisReport>(new InvalidOperationException("first fails"))
+            : Task.FromResult(new OtdHealth.Collector.HealthAnalysisReport(new OtdHealth.HealthSnapshot(), [], [])));
+        Assert.True(badge.CouldNotCheck);
+
+        health.Refresh();
+        await health.LatestAnalysisAsync();
+
+        Assert.False(health.CollectionFailed);
+        Assert.False(badge.CouldNotCheck);
+        Assert.True(badge.IsAllClear);
+        Assert.Equal("Everything's working fine", badge.CardHeadline);
+    }
+
+    /// <summary>
+    /// A check that was replaced by a newer one did not fail, even if it ends in an error after it was replaced:
+    /// the newer one is the one that will say. The old check is held open until the newer one has started, so its
+    /// error arrives after the reset and not before it.
+    /// </summary>
+    [Fact]
+    public async Task ACheckReplacedByANewerOne_IsNotAFailure_EvenIfItErrorsAfterwards()
+    {
+        var old = new TaskCompletionSource<OtdHealth.Collector.HealthAnalysisReport>();
+        var calls = 0;
+        var (badge, health, _) = MakeWith(_ => ++calls == 1 ? old.Task : Task.FromResult(new OtdHealth.Collector.HealthAnalysisReport(new OtdHealth.HealthSnapshot(), [], [])));
+
+        health.Refresh();                                              // starts the newer check, replacing the old
+        old.SetException(new InvalidOperationException("the old check dies late"));
+        await Task.Yield();
+        await health.LatestAnalysisAsync();
+
+        Assert.False(health.CollectionFailed, "the replaced check is not a failure");
+        Assert.False(badge.CouldNotCheck);
+        Assert.True(badge.IsAllClear);
+    }
+
     [Fact]
     public void OnceTheHealthCheckHasAnswered_ANothingFoundIsAnAllClear()
     {
@@ -284,6 +343,16 @@ public class HealthBadgeTests
         health.Issues.Clear();
         Assert.Equal("Everything's working fine", badge.CardHeadline);
         Assert.False(badge.CardIsSevere);
+    }
+
+    /// <summary>A badge over a health service whose check does what <paramref name="collect"/> says.</summary>
+    private static (HealthBadgeViewModel Badge, HealthService Health, FakeConnectionState Connection) MakeWith(
+        Func<CancellationToken, Task<OtdHealth.Collector.HealthAnalysisReport>> collect)
+    {
+        var connection = new FakeConnectionState { IsConnected = true };
+        var health = new HealthService(connection, new FakeDeviceData(), new DriverConflictMonitor(), collect);
+        health.Issues.Clear();
+        return (new HealthBadgeViewModel(health, new DaemonStatusViewModel(connection)), health, connection);
     }
 
     private static (HealthBadgeViewModel Badge, HealthService Health, FakeConnectionState Connection) Make(

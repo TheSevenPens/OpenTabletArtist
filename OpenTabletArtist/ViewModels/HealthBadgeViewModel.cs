@@ -51,6 +51,13 @@ public sealed partial class HealthBadgeViewModel : ObservableObject, IDisposable
     /// claim that a check came back empty, so it is not made before one has come back (#1060).</summary>
     [ObservableProperty] private bool _isChecking;
 
+    /// <summary>No finding, and the check that was run did not produce a report. Said as such rather than left
+    /// on "checking" for good.</summary>
+    [ObservableProperty] private bool _couldNotCheck;
+
+    /// <summary>A report came back and it was empty: the only state that may say everything is fine.</summary>
+    [ObservableProperty] private bool _isAllClear;
+
     /// <summary>There is at least one finding. Home's health card is a tinted alert when there is, and a
     /// plain all-clear card when there is not.</summary>
     public bool HasFindings => Count > 0;
@@ -74,6 +81,7 @@ public sealed partial class HealthBadgeViewModel : ObservableObject, IDisposable
     {
         if (e.PropertyName is nameof(HealthService.HasIssues)
             or nameof(HealthService.Analysis)
+            or nameof(HealthService.CollectionFailed)
             or nameof(DaemonStatusViewModel.ShowDaemonProblem)
             or nameof(DaemonStatusViewModel.ShowDaemonActivity)
             or nameof(DaemonStatusViewModel.IsDaemonRefused)
@@ -84,11 +92,14 @@ public sealed partial class HealthBadgeViewModel : ObservableObject, IDisposable
     private void Recompute()
     {
         var badge = Summarize(_health.Issues.Select(i => i.Severity), DaemonDown(_daemon));
-        IsChecking = IsStillChecking(badge.Count, _health.Analysis is not null);
+        var hasReport = _health.Analysis is not null;
+        IsChecking = IsStillChecking(badge.Count, hasReport, _health.CollectionFailed);
+        CouldNotCheck = IsUnchecked(badge.Count, hasReport, _health.CollectionFailed);
+        IsAllClear = badge.Count == 0 && !IsChecking && !CouldNotCheck;
         Tier = badge.Tier;
         Count = badge.Count;
-        Summary = IsChecking ? "Health: checking." : SummaryFor(badge.Tier, badge.Count);
-        var card = IsChecking ? CheckingCard : CardFor(badge.Tier, badge.Count);
+        Summary = IsChecking ? "Health: checking." : CouldNotCheck ? "Health: could not check." : SummaryFor(badge.Tier, badge.Count);
+        var card = IsChecking ? CheckingCard : CouldNotCheck ? CouldNotCheckCard : CardFor(badge.Tier, badge.Count);
         CardEyebrow = card.Eyebrow;
         CardHeadline = card.Headline;
         CardLine = card.Line;
@@ -97,8 +108,18 @@ public sealed partial class HealthBadgeViewModel : ObservableObject, IDisposable
         CardSeverity = card.Severity;
     }
 
-    /// <summary>Nothing is known yet: no finding, and no report from the health check to say there are none.</summary>
-    internal static bool IsStillChecking(int count, bool hasReport) => count == 0 && !hasReport;
+    /// <summary>Nothing is known yet: no finding, and no report from the health check to say there are none, and
+    /// the check has not failed.</summary>
+    internal static bool IsStillChecking(int count, bool hasReport, bool failed = false) =>
+        count == 0 && !hasReport && !failed;
+
+    /// <summary>Nothing is known, and the check that was run failed to produce a report.</summary>
+    internal static bool IsUnchecked(int count, bool hasReport, bool failed) => count == 0 && !hasReport && failed;
+
+    internal static readonly (string Eyebrow, string Headline, string Line, string Button, bool Severe, AlertSeverity Severity)
+        CouldNotCheckCard = ("COULD NOT CHECK", "Couldn't check your setup",
+            "The check didn't finish. It runs again when something changes.", "Open health page", false,
+            AlertSeverity.Information);
 
     internal static readonly (string Eyebrow, string Headline, string Line, string Button, bool Severe, AlertSeverity Severity)
         CheckingCard = ("CHECKING", "Checking your setup", "This takes a moment.", "Open health page", false,

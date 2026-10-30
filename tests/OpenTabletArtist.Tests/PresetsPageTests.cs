@@ -155,4 +155,23 @@ public class PresetsPageTests : IDisposable
         await vm.UpdatePresetCommand.ExecuteAsync("Inking");
         Assert.NotEqual(before, File.ReadAllText(path));
     }
+
+    /// <summary>
+    /// The dialog says "your current settings", so the preset gets the settings as they are when the artist
+    /// answers, not as they were when the question was put. An edit applied while it was open is in them (#1060).
+    /// </summary>
+    [Fact]
+    public async Task Update_SavesTheSettingsAsTheyAreWhenAnswered_NotWhenAsked()
+    {
+        Write("Inking");
+        _coordinator.CurrentSettings = new Settings { LockUsableAreaTablet = false };
+        var vm = await Page();
+        _dialogs.ConfirmResult = true;
+        _dialogs.DuringConfirm = () => _coordinator.CurrentSettings = new Settings { LockUsableAreaTablet = true };
+
+        await vm.UpdatePresetCommand.ExecuteAsync("Inking");
+
+        new PresetStore(NullOtdLog.Instance).TryLoad(Path.Combine(_dir, "Inking.json"), out var saved);
+        Assert.True(saved!.LockUsableAreaTablet, "the edit made while the question was open is in the preset");
+    }
 }
