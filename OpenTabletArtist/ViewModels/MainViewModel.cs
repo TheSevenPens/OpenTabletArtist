@@ -719,4 +719,6 @@ public record ConfigurationItem(string Name, string FileName, string Path, strin
 /// Plain-property record so Avalonia bindings can resolve Name/LastModified directly
 /// (JObject indexer bindings stopped rendering for TextBlock.Text in Avalonia 12).
 /// </summary>
-public record PresetInfo(string Name, string Path, string Content, string LastModified);
+/// <param name="IsLastLoaded">This is the preset most recently loaded in this session (from the page, the
+/// tray or a hotkey). "Last loaded" rather than "active": the settings may have been changed since.</param>
+public record PresetInfo(string Name, string Path, string Content, string LastModified, bool IsLastLoaded = false);
