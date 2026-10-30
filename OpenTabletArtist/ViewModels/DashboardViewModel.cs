@@ -5,20 +5,26 @@ using OpenTabletArtist.Services;
 namespace OpenTabletArtist.ViewModels;
 
 /// <summary>
-/// View model for the Dashboard -- the application's home page. The tablets overview, the presets you can
-/// switch between, and the folded-in About content.
+/// View model for the Dashboard -- the application's home page. Your tablets on the left; on the right, in
+/// that order, About, a one-card health summary, the presets you can switch between, and the daemon.
 /// </summary>
 /// <remarks>
-/// Health is not here any more (#1050). Its detail moved to the Health page, and Home carries nothing of it
-/// beyond what the top-bar chip already says on every page. Home used to give up its whole right-hand column
-/// to the findings.
+/// Health's detail is not here (#1050): it moved to the Health page, and Home says only how strongly to act, in
+/// one card that is the same size in every state and never lists a finding. Home used to give up its whole
+/// right-hand column to them.
 /// </remarks>
 public partial class DashboardViewModel : ObservableObject, IDisposable
 {
-    public DashboardViewModel(IDialogService dialogs, TabletsOverviewViewModel tablets, PresetsViewModel presets)
+    private readonly Action _openHealth;
+
+    public DashboardViewModel(IDialogService dialogs, TabletsOverviewViewModel tablets, PresetsViewModel presets,
+        HealthBadgeViewModel health, DaemonStatusViewModel daemon, Action openHealth)
     {
         TabletsOverview = tablets;
         Presets = presets;
+        Health = health;
+        Daemon = daemon;
+        _openHealth = openHealth;
         // The RESOURCES "Supported tablets" link opens the same in-app catalog the old Home card did,
         // highlighting whichever tablet is currently detected (#155).
         About = new AboutViewModel(dialogs,
@@ -33,7 +39,18 @@ public partial class DashboardViewModel : ObservableObject, IDisposable
     /// tray use.</summary>
     public PresetsViewModel Presets { get; }
 
-    /// <summary>The About content (what-is / help / resources / version), shown in Home's left column --
+    /// <summary>What Home's health card says: the worst tier and how many findings, in a sentence. The findings
+    /// themselves are on the Health page.</summary>
+    public HealthBadgeViewModel Health { get; }
+
+    /// <summary>The daemon in one line, for the daemon card. The full status and controls are on the Daemon page.</summary>
+    public DaemonStatusViewModel Daemon { get; }
+
+    /// <summary>Go to the Health page: the health card's one button.</summary>
+    [RelayCommand]
+    private void OpenHealth() => _openHealth();
+
+    /// <summary>The About content (what-is / help / resources / version), first in Home's right column --
     /// the standalone About page was folded into Home. Home owns its own instance (constructed with the
     /// dialog service so its RESOURCES "Supported tablets" link can open the in-app catalog).</summary>
     public AboutViewModel About { get; }

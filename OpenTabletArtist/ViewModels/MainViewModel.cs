@@ -238,7 +238,6 @@ public partial class MainViewModel : ObservableObject, IDisposable
         VMulti = new VMultiViewModel(dialogs, _health);
         // Shared daemon status/control surface for the Home problem card + the Daemon tab.
         _daemonStatus = new DaemonStatusViewModel(_session, () => OpenAdvancedTab(AdvancedTab.Daemon));
-        Dashboard = new DashboardViewModel(dialogs, TabletsOverview, Presets);
         // The Health page (#1050): the findings that used to fill Home's right-hand column. Its buttons
         // navigate, so it takes the shell's navigation as callbacks.
         HealthPage = new HealthPageViewModel(_session, _daemonStatus, _health, NavigateToTabletByName,
@@ -250,6 +249,8 @@ public partial class MainViewModel : ObservableObject, IDisposable
         // The badge on the HEALTH tab: the worst finding's tier and how many there are. The tab is in the top
         // bar, so health is clear from every page.
         HealthBadge = new HealthBadgeViewModel(_health, _daemonStatus);
+        Dashboard = new DashboardViewModel(dialogs, TabletsOverview, Presets, HealthBadge, _daemonStatus,
+            () => Navigate(HealthPage));
         Test = new TestViewModel(_session.Daemon, _session, () => _session.DaemonVersion,
             showRecordingReview: dialogs.ShowRecordingReviewAsync,
             showRecordingProblem: message => dialogs.ShowMessageAsync("Can't record", message));

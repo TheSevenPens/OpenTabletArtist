@@ -230,7 +230,12 @@ public class HealthBadgeViewTests
                 new NoHotkeys(), new ProfileSwitchService(coordinator, store, () => dir))
             { PresetDirectory = dir };
             await presets.LoadAsync();
-            var home = new DashboardViewModel(new FakeDialogService(), new TabletsOverviewViewModel(), presets);
+            var connection = new FakeConnectionState { IsConnected = true };
+            var health = new HealthService(connection, new FakeDeviceData(), new DriverConflictMonitor(),
+                _ => new TaskCompletionSource<OtdHealth.Collector.HealthAnalysisReport>().Task);
+            var daemon = new DaemonStatusViewModel(connection);
+            var home = new DashboardViewModel(new FakeDialogService(), new TabletsOverviewViewModel(), presets,
+                new HealthBadgeViewModel(health, daemon), daemon, () => { });
             var view = new DashboardView { DataContext = home };
             var window = HarnessTests.Show(view);
 

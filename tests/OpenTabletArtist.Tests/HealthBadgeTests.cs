@@ -167,6 +167,87 @@ public class HealthBadgeTests
         Assert.Equal(1, badge.Count);
     }
 
+    // --- Home's health card: one message per tier, no list -----------------------------------------------
+
+    /// <summary>Only the two tiers that ask for action get the loud button. A suggestion or a note must not
+    /// look like something to hurry.</summary>
+    [Theory]
+    [InlineData(HealthBadgeTier.Broken, true)]
+    [InlineData(HealthBadgeTier.Misconfigured, true)]
+    [InlineData(HealthBadgeTier.Recommendation, false)]
+    [InlineData(HealthBadgeTier.Information, false)]
+    [InlineData(HealthBadgeTier.Healthy, false)]
+    public void OnlyTheTiersThatAskForAction_GetTheLoudButton(HealthBadgeTier tier, bool severe) =>
+        Assert.Equal(severe, HealthBadgeViewModel.CardFor(tier, tier == HealthBadgeTier.Healthy ? 0 : 1).Severe);
+
+    /// <summary>Every state says its own thing: the headline and the sentence differ, so the card can be read
+    /// without the colour.</summary>
+    [Fact]
+    public void EveryTierHasItsOwnHeadlineAndSentence()
+    {
+        var cards = new[]
+        {
+            HealthBadgeViewModel.CardFor(HealthBadgeTier.Healthy, 0),
+            HealthBadgeViewModel.CardFor(HealthBadgeTier.Information, 1),
+            HealthBadgeViewModel.CardFor(HealthBadgeTier.Recommendation, 1),
+            HealthBadgeViewModel.CardFor(HealthBadgeTier.Misconfigured, 1),
+            HealthBadgeViewModel.CardFor(HealthBadgeTier.Broken, 1),
+        };
+
+        Assert.Equal(cards.Length, cards.Select(c => c.Headline).Distinct().Count());
+        Assert.Equal(cards.Length, cards.Select(c => c.Line).Distinct().Count());
+    }
+
+    /// <summary>The card never says which finding it is about: that is the Health page's job, and listing
+    /// them is what would make the card grow.</summary>
+    [Fact]
+    public void TheCard_NamesNoSpecificFinding_ButCountsThem()
+    {
+        var one = HealthBadgeViewModel.CardFor(HealthBadgeTier.Misconfigured, 1);
+        var many = HealthBadgeViewModel.CardFor(HealthBadgeTier.Misconfigured, 4);
+
+        Assert.Equal(one.Headline, many.Headline);
+        Assert.Equal(one.Line, many.Line);
+        Assert.EndsWith("1 FINDING", one.Eyebrow);
+        Assert.EndsWith("4 FINDINGS", many.Eyebrow);
+        Assert.StartsWith("MISCONFIGURED", many.Eyebrow);
+    }
+
+    [Fact]
+    public void WithNothingToReport_TheCardSaysEverythingIsWorking_WithNoCount()
+    {
+        var card = HealthBadgeViewModel.CardFor(HealthBadgeTier.Healthy, 0);
+
+        Assert.Equal("ALL CLEAR", card.Eyebrow);
+        Assert.Equal("Everything's working fine", card.Headline);
+    }
+
+    [Fact]
+    public void TheCardTintFollowsTheTierTheSameWayTheHealthPageDoes()
+    {
+        Assert.Equal(AlertSeverity.Error, HealthBadgeViewModel.CardFor(HealthBadgeTier.Broken, 1).Severity);
+        Assert.Equal(AlertSeverity.Warning, HealthBadgeViewModel.CardFor(HealthBadgeTier.Misconfigured, 1).Severity);
+        Assert.Equal(AlertSeverity.Neutral, HealthBadgeViewModel.CardFor(HealthBadgeTier.Recommendation, 1).Severity);
+        Assert.Equal(AlertSeverity.Information, HealthBadgeViewModel.CardFor(HealthBadgeTier.Information, 1).Severity);
+    }
+
+    [Fact]
+    public void TheCardFollowsTheCatalog_AsFindingsComeAndGo()
+    {
+        var (badge, health, _) = Make();
+        Assert.False(badge.HasFindings);
+        Assert.Equal("Everything's working fine", badge.CardHeadline);
+
+        health.Issues.Add(Issue("a", HealthSeverity.Broken));
+        Assert.True(badge.HasFindings);
+        Assert.Equal("Action needed", badge.CardHeadline);
+        Assert.True(badge.CardIsSevere);
+
+        health.Issues.Clear();
+        Assert.Equal("Everything's working fine", badge.CardHeadline);
+        Assert.False(badge.CardIsSevere);
+    }
+
     private static (HealthBadgeViewModel Badge, HealthService Health, FakeConnectionState Connection) Make()
     {
         var connection = new FakeConnectionState { IsConnected = true };

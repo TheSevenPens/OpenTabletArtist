@@ -46,6 +46,16 @@ public sealed partial class DaemonStatusViewModel : ObservableObject, IDisposabl
         if (e.PropertyName is nameof(IsConnected) or nameof(ShowDaemonActivity))
             OnPropertyChanged(nameof(ShowDisconnectedLabel));
         if (e.PropertyName is nameof(IsConnected)) OnPropertyChanged(nameof(RefreshActionLabel));
+        if (e.PropertyName is nameof(IsConnected) or nameof(ShowDaemonActivity) or nameof(DaemonActivityText)
+            or nameof(IsDaemonRefused) or nameof(DaemonRefusalReason) or nameof(DaemonVersion)
+            or nameof(IsAppOwnedDaemon) or nameof(IsForeignDaemon))
+        {
+            OnPropertyChanged(nameof(SummaryHeadline));
+            OnPropertyChanged(nameof(SummaryDetail));
+            OnPropertyChanged(nameof(SummaryIsOk));
+            OnPropertyChanged(nameof(SummaryIsBad));
+            OnPropertyChanged(nameof(SummaryIsBusy));
+        }
     }
 
     // --- Forwarded session state (see AppSession) ---
@@ -117,6 +127,37 @@ public sealed partial class DaemonStatusViewModel : ObservableObject, IDisposabl
             return "Not connected to daemon";
         }
     }
+
+    // --- The one-card summary on Home (#1050) ---
+
+    /// <summary>The state in a word or two: what the daemon card on Home leads with.</summary>
+    public string SummaryHeadline =>
+        IsDaemonRefused ? "Wrong version"
+        : IsConnected ? "Connected"
+        : ShowDaemonActivity ? DaemonActivityText
+        : "Not connected";
+
+    /// <summary>One line under it: which OpenTabletDriver, whose it is, or why there is none.</summary>
+    public string SummaryDetail
+    {
+        get
+        {
+            if (IsDaemonRefused) return DaemonRefusalReason;
+            if (ShowDaemonActivity && !IsConnected) return "";
+            if (!IsConnected) return "OpenTabletArtist can't reach OpenTabletDriver.";
+
+            var which = HasDaemonVersion ? $"OpenTabletDriver {DaemonVersion}" : "OpenTabletDriver";
+            return IsAppOwnedDaemon ? which + ", bundled with OpenTabletArtist"
+                : IsForeignDaemon ? which + ", not the one OpenTabletArtist starts"
+                : which;
+        }
+    }
+
+    /// <summary>The dot beside the headline: green when connected, red when it is not and nothing is trying,
+    /// neutral while a connect is in flight. A refused daemon is red.</summary>
+    public bool SummaryIsOk => IsConnected && !IsDaemonRefused;
+    public bool SummaryIsBad => (!IsConnected && !ShowDaemonActivity) || IsDaemonRefused;
+    public bool SummaryIsBusy => !IsConnected && ShowDaemonActivity && !IsDaemonRefused;
 
     /// <summary>"Fix" = start the daemon if needed and (re)connect. Same as the Start control.</summary>
     public IAsyncRelayCommand FixCommand => _session.StartDaemonCommand;

@@ -40,8 +40,29 @@ public sealed partial class HealthBadgeViewModel : ObservableObject, IDisposable
     }
 
     [ObservableProperty] private HealthBadgeTier _tier;
-    [ObservableProperty] private int _count;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasFindings))]
+    private int _count;
+
     [ObservableProperty] private string _summary = "";
+
+    /// <summary>There is at least one finding. Home's health card is a tinted alert when there is, and a
+    /// plain all-clear card when there is not.</summary>
+    public bool HasFindings => Count > 0;
+
+    // What Home's health card says (#1050). One card, one message per tier, no list: the card is the same
+    // size in every state, and the Health page it leads to has the findings themselves.
+    [ObservableProperty] private string _cardEyebrow = "";
+    [ObservableProperty] private string _cardHeadline = "";
+    [ObservableProperty] private string _cardLine = "";
+    [ObservableProperty] private string _cardButton = "";
+
+    /// <summary>The card asks for action (broken or misconfigured), so its button is the loud one.</summary>
+    [ObservableProperty] private bool _cardIsSevere;
+
+    /// <summary>Which alert tint the card wears; the same mapping the Health page's cards use.</summary>
+    [ObservableProperty] private AlertSeverity _cardSeverity = AlertSeverity.Information;
 
     private void OnIssuesChanged(object? sender, NotifyCollectionChangedEventArgs e) => Recompute();
 
@@ -61,6 +82,34 @@ public sealed partial class HealthBadgeViewModel : ObservableObject, IDisposable
         Tier = badge.Tier;
         Count = badge.Count;
         Summary = SummaryFor(badge.Tier, badge.Count);
+        var card = CardFor(badge.Tier, badge.Count);
+        CardEyebrow = card.Eyebrow;
+        CardHeadline = card.Headline;
+        CardLine = card.Line;
+        CardButton = card.Button;
+        CardIsSevere = card.Severe;
+        CardSeverity = card.Severity;
+    }
+
+    /// <summary>The words on Home's health card for a tier. The product speaks, never "I" or "we": what is
+    /// wrong, how strongly to act on it, and nothing about which finding it is.</summary>
+    internal static (string Eyebrow, string Headline, string Line, string Button, bool Severe, AlertSeverity Severity)
+        CardFor(HealthBadgeTier tier, int count)
+    {
+        var n = count == 1 ? "1 FINDING" : $"{count} FINDINGS";
+        return tier switch
+        {
+            HealthBadgeTier.Broken => ($"BROKEN \u00B7 {n}", "Action needed",
+                "Something isn't working. Fixing it is strongly recommended.", "Review and fix", true, AlertSeverity.Error),
+            HealthBadgeTier.Misconfigured => ($"MISCONFIGURED \u00B7 {n}", "Action recommended",
+                "Something isn't set up the way it should be. It's worth fixing soon.", "Review and fix", true, AlertSeverity.Warning),
+            HealthBadgeTier.Recommendation => ($"SUGGESTION \u00B7 {n}", "There is a way to improve things",
+                "Nothing is wrong. Take a look when you have a moment.", "Review", false, AlertSeverity.Neutral),
+            HealthBadgeTier.Information => ($"INFORMATION \u00B7 {n}", "Worth a look",
+                "Something's going on. Review it to make sure it's all right with you.", "Review", false, AlertSeverity.Information),
+            _ => ("ALL CLEAR", "Everything's working fine", "Nothing needs attention.", "Open health page", false,
+                AlertSeverity.Information),
+        };
     }
 
     /// <summary>Whether the daemon being unreachable is a finding of its own right now.</summary>
