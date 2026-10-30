@@ -89,4 +89,17 @@ public class HotkeyChordTests
         Assert.True(HotkeyChord.TryParse("Ctrl+Alt+D9", out var parsed));
         Assert.Equal(Key.D9, parsed!.Key);
     }
+
+    [Fact]
+    public void TheMonitorBackChord_IsTheSameChordWithShift()
+    {
+        var chord = new HotkeyChord(KeyModifiers.Control | KeyModifiers.Alt, Key.M);
+
+        Assert.Equal(new HotkeyChord(KeyModifiers.Control | KeyModifiers.Alt | KeyModifiers.Shift, Key.M),
+            MonitorCycleHotkeys.BackChord(chord));
+    }
+
+    [Fact]
+    public void AChordThatAlreadyHoldsShift_HasNoBackChord() =>
+        Assert.Null(MonitorCycleHotkeys.BackChord(new HotkeyChord(KeyModifiers.Control | KeyModifiers.Shift, Key.M)));
 }

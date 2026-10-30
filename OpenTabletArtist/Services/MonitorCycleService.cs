@@ -32,9 +32,10 @@ public sealed class MonitorCycleService
         _displays = displays ?? DisplayEnumerator.Enumerate;
     }
 
-    /// <summary>Remap the active tablet to the next monitor. Save remains explicit. No-ops (with a toast message)
-    /// when there's no active tablet, it isn't in an absolute mapping, or there's only one display.</summary>
-    public async Task CycleAsync()
+    /// <summary>Remap the active tablet to the next monitor, or with <paramref name="backwards"/> the previous one.
+    /// Save remains explicit. No-ops (with a toast message) when there's no active tablet, it isn't in an
+    /// absolute mapping, or there's only one display.</summary>
+    public async Task CycleAsync(bool backwards = false)
     {
         var settings = _settings.CurrentSettings;
         if (settings == null) { Cycled?.Invoke("No settings loaded yet"); return; }
@@ -53,10 +54,14 @@ public sealed class MonitorCycleService
         var displays = _displays();
         if (displays.Count < 2) { Cycled?.Invoke("Only one display connected"); return; }
 
-        // Next display after the currently-mapped one (wrap). If it's not on a whole monitor, start at 0.
+        // The display after (or before) the currently-mapped one, wrapping. If it's not on a whole monitor,
+        // forwards starts at the first display and backwards at the last.
         var current = DisplayMappingApplier.CurrentlyMapped(profile, displays);
         int idx = current == null ? -1 : IndexOf(displays, current.Number);
-        var next = displays[(idx + 1) % displays.Count];
+        int n = displays.Count;
+        var next = backwards
+            ? displays[idx < 0 ? n - 1 : (idx - 1 + n) % n]
+            : displays[(idx + 1) % n];
 
         if (!DisplayMappingApplier.ApplyToProfile(profile, _device.GetTabletDigitizer(tabletName), next, displays))
         {
