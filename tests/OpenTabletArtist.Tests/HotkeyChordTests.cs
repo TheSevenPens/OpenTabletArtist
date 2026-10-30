@@ -100,6 +100,18 @@ public class HotkeyChordTests
     }
 
     [Fact]
+    public void ThePresetChordThatCollidesWithTheBackChord_IsRecognisedAsTheMonitorHotkeys()
+    {
+        var monitor = new HotkeyChord(KeyModifiers.Control | KeyModifiers.Alt, Key.M);
+        var shifted = new HotkeyChord(KeyModifiers.Control | KeyModifiers.Alt | KeyModifiers.Shift, Key.M);
+
+        Assert.True(MonitorCycleHotkeys.OwnsBackChord(monitor, shifted));
+        Assert.False(MonitorCycleHotkeys.OwnsBackChord(monitor, monitor));   // the forward chord is asked for by name
+        Assert.False(MonitorCycleHotkeys.OwnsBackChord(monitor, shifted with { Key = Key.N }));
+        Assert.False(MonitorCycleHotkeys.OwnsBackChord(null, shifted));      // no monitor hotkey, nothing to release
+    }
+
+    [Fact]
     public void AChordThatAlreadyHoldsShift_HasNoBackChord() =>
         Assert.Null(MonitorCycleHotkeys.BackChord(new HotkeyChord(KeyModifiers.Control | KeyModifiers.Shift, Key.M)));
 }

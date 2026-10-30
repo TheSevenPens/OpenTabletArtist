@@ -218,6 +218,8 @@ public partial class MainViewModel : ObservableObject, IDisposable
         _profileHotkeys = new ProfileHotkeyManager(_globalHotkeys, _profileSwitch);
         _monitorCycle = new MonitorCycleService(_session, _session);
         _monitorHotkeys = new MonitorCycleHotkeys(_globalHotkeys, _monitorCycle);
+        // The monitor hotkey also holds its Shift variant; a preset given that chord takes it over.
+        _profileHotkeys.ChordClaimed = _monitorHotkeys.ReleaseBackChordIfClaimed;
         // Page VMs depend on the session through its role interfaces and on IDialogService,
         // and self-subscribe to the session's data load / connection state.
         DriverCleanup = new DriverCleanupViewModel(dialogs, _conflicts);

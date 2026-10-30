@@ -31,6 +31,10 @@ public sealed class ProfileHotkeyManager : IProfileHotkeys, IDisposable
     private readonly Dictionary<int, string> _idToSnapshot = new();
     private readonly Dictionary<string, int> _snapshotToId = new(StringComparer.OrdinalIgnoreCase);
 
+    /// <summary>Called with a chord just before it is registered for a snapshot, so a registration this app
+    /// made on its own (the monitor hotkey's backwards variant) can let go of it first.</summary>
+    public Action<HotkeyChord>? ChordClaimed { get; set; }
+
     public ProfileHotkeyManager(GlobalHotkeyService hotkeys, ProfileSwitchService profileSwitch)
     {
         _hotkeys = hotkeys;
@@ -80,6 +84,7 @@ public sealed class ProfileHotkeyManager : IProfileHotkeys, IDisposable
     {
         if (!chord.IsRegisterable) return HotkeySetResult.Invalid;
         Unregister(snapshot);
+        ChordClaimed?.Invoke(chord);
         int id = _hotkeys.TryRegister(chord);
         if (id == 0) return HotkeySetResult.Conflict;
         _idToSnapshot[id] = snapshot;
