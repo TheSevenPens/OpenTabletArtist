@@ -81,6 +81,23 @@ public class AreaMappingCalculatorTests
         Assert.Equal(600f / 336f, a.Width / a.Height, Precision);   // aspect kept
     }
 
+    [Theory]
+    [InlineData(125.84162f, 278.0939f, 27.540934f, 435.7389f, 270)]   // found by fuzzing: threw "min > max"
+    [InlineData(300f, 170f, 600f, 336f, 0)]
+    [InlineData(152.4f, 95.25f, 999.9f, 562.4f, 90)]
+    public void ClampArea_ShrinkingToFillTheTablet_DoesNotThrow_AndStaysOnIt(
+        float fullW, float fullH, float w, float h, int rot)
+    {
+        // A drag past the tablet edge shrinks the area to fit. The float scale can leave the footprint an ulp
+        // wider than the tablet, and the centre clamp used to throw for it in the middle of a pointer drag.
+        var a = AreaMappingCalculator.ClampArea(w, h, fullW / 2f, fullH / 2f, rot, fullW, fullH, 5f);
+        bool perp = rot % 180 != 0;
+        float footW = perp ? a.Height : a.Width, footH = perp ? a.Width : a.Height;
+        Assert.Equal(fullW / 2f, a.X, 3);
+        Assert.Equal(fullH / 2f, a.Y, 3);
+        Assert.True(footW <= fullW + 1e-3f && footH <= fullH + 1e-3f);
+    }
+
     [Fact]
     public void ClampArea_90_UsesTheRotatedFootprint()
     {

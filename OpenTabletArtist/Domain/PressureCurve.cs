@@ -27,6 +27,10 @@ public readonly record struct PressureCurveSettings(
 {
     public static PressureCurveSettings Default { get; } =
         new(Softness: 0, InputMinimum: 0, InputMaximum: 1, Minimum: 0, Maximum: 1, MinApproach: PressureMinApproach.Clamp);
+
+    /// <summary>The largest <see cref="Softness"/> either way. The Softness slider's literal range, the chart's
+    /// bend node and the filter's tooltip all stop here, so no editor can write a value another one would clamp.</summary>
+    public const double MaxSoftness = 0.9;
 }
 
 /// <summary>The Extended pressure curve: maps a normalized pressure in [0,1] to [0,1].</summary>

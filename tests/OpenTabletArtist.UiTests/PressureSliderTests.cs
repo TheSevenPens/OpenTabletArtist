@@ -1,6 +1,9 @@
 using System.Linq;
+using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
+using Avalonia.Input;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
 using OpenTabletArtist.Controls;
@@ -30,7 +33,7 @@ public class PressureSliderTests
         {
             Tablet = "Test Tablet",
             OutputMode = new PluginSettingStore("OpenTabletDriver.Desktop.Output.Windows.WindowsInk")
-                { Path = "VoiDPlugins.OutputMode.WindowsInkAbsoluteMode" },
+            { Path = "VoiDPlugins.OutputMode.WindowsInkAbsoluteMode" },
         };
         var settings = new Settings { Profiles = new ProfileCollection { profile } };
         PressureCurveProfile.Write(settings, "Test Tablet",
@@ -160,6 +163,36 @@ public class PressureSliderTests
         var (window, view, _) = DeadzonePage(Vm(0));
 
         Assert.DoesNotContain(view.GetVisualDescendants().OfType<TextBlock>(), t => t.Text?.StartsWith("deadzone") == true);
+        window.Close();
+    }
+
+    [AvaloniaTheory]
+    [InlineData(-1)]   // dragged to the top: as light as the curve goes
+    [InlineData(1)]    // dragged to the bottom: as firm as it goes
+    public void DraggingTheBendNodePastTheEnd_StopsWhereTheSliderStops(int direction)
+    {
+        var vm = Vm(0);
+        // Subscribed before the view binds, so this sees each value before the slider can answer it.
+        var seen = new System.Collections.Generic.List<double>();
+        vm.PropertyChanged += (_, e) => { if (e.PropertyName == nameof(vm.Softness)) seen.Add(vm.Softness); };
+        var view = new PenDetailView { DataContext = vm };
+        var window = HarnessTests.Show(view);
+        view.FindControl<RadioButton>("DynamicsTab")!.IsChecked = true;
+        Dispatcher.UIThread.RunJobs();
+        var chart = view.GetVisualDescendants().OfType<PressureCurveChart>().Single(c => c.IsEffectivelyVisible);
+
+        // A linear curve's bend node sits in the middle of the plot; the drag goes on past its edge.
+        var bend = chart.TranslatePoint(new Point(chart.Bounds.Width / 2, chart.Bounds.Height / 2), window)!.Value;
+        var end = chart.TranslatePoint(new Point(chart.Bounds.Width / 2, direction < 0 ? -20 : chart.Bounds.Height + 20), window)!.Value;
+        window.MouseDown(bend, MouseButton.Left);
+        window.MouseMove(end);
+        window.MouseUp(end, MouseButton.Left);
+        Dispatcher.UIThread.RunJobs();
+
+        // The node used to reach 0.95, which the slider then clamped to 0.9 and wrote back: the curve went out
+        // to 0.95 and back on every move, and was applied to the daemon both times.
+        Assert.Equal(-direction * PressureCurveSettings.MaxSoftness, vm.Softness, 6);
+        Assert.All(seen, v => Assert.InRange(Math.Abs(v), 0, PressureCurveSettings.MaxSoftness + 1e-9));
         window.Close();
     }
 }
