@@ -31,6 +31,7 @@ public partial class TestViewModel : ObservableObject, IDisposable
 {
     private readonly DaemonPenInputSource _driver;
     private readonly IDeviceData _deviceData;
+    private readonly Action<string, TabletDetailTab>? _openPen;
 
     // What the canvas draws is the pressure after the curve and smoothing, as on the Pen page's "processed"
     // canvas (and as the daemon's filter would deliver it). The settings are the profile's, and only while
@@ -42,13 +43,16 @@ public partial class TestViewModel : ObservableObject, IDisposable
     /// <param name="daemonVersion">The connected daemon's version, for the driver line of a saved recording.</param>
     /// <param name="showRecordingReview">Opens the save window when a recording is stopped.</param>
     /// <param name="showRecordingProblem">Says why Record could not start, in a message of its own.</param>
+    /// <param name="openPen">Opens the Pen page for a tablet on a given tab: where the link to the pressure settings goes (#1044).</param>
     public TestViewModel(
         IDaemonDebugSession daemon,
         IDeviceData deviceData,
         Func<string>? daemonVersion = null,
         Func<StrokeRecordingViewModel, Task>? showRecordingReview = null,
-        Func<string, Task>? showRecordingProblem = null)
+        Func<string, Task>? showRecordingProblem = null,
+        Action<string, TabletDetailTab>? openPen = null)
     {
+        _openPen = openPen;
         _driver = new DaemonPenInputSource(daemon);
         _driver.Sample += OnDriverSample;
         _driver.CountSamples = CountersEnabled; // the initializer doesn't go through OnCountersEnabledChanged
@@ -81,6 +85,19 @@ public partial class TestViewModel : ObservableObject, IDisposable
         RecomputeMapping();
         RefreshTabletStatus();
     }
+
+    /// <summary>The way from the canvas to the setting that shapes it (#1044). You scribble, see the pressure
+    /// feels wrong, and the curve and the smoothing are one click away, on the tablet this page is following.
+    /// It does nothing without a tablet, since there is no pen page to open.</summary>
+    [RelayCommand(CanExecute = nameof(CanOpenPressure))]
+    private void OpenPressure()
+    {
+        if (DetectedProfile()?.Profile.Tablet is { Length: > 0 } tablet) _openPen?.Invoke(tablet, TabletDetailTab.PenDynamics);
+    }
+
+    public bool CanOpenPressure => TabletDetected && _openPen != null;
+
+    partial void OnTabletDetectedChanged(bool value) => OpenPressureCommand.NotifyCanExecuteChanged();
 
     private void OnDeviceDataPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
     {
@@ -162,15 +179,15 @@ public partial class TestViewModel : ObservableObject, IDisposable
     partial void OnBrushModeChanged(PenBrushMode value) => OnPropertyChanged(nameof(PointerOnlyWithDynamics));
     partial void OnDynamicsActiveChanged(bool value) => OnPropertyChanged(nameof(PointerOnlyWithDynamics));
 
-    [ObservableProperty] [NotifyPropertyChangedFor(nameof(CanvasText))] private string _canvasXText = "—";
-    [ObservableProperty] [NotifyPropertyChangedFor(nameof(CanvasText))] private string _canvasYText = "—";
-    [ObservableProperty] [NotifyPropertyChangedFor(nameof(RawText))] private string _rawXText = "—";
-    [ObservableProperty] [NotifyPropertyChangedFor(nameof(RawText))] private string _rawYText = "—";
+    [ObservableProperty][NotifyPropertyChangedFor(nameof(CanvasText))] private string _canvasXText = "—";
+    [ObservableProperty][NotifyPropertyChangedFor(nameof(CanvasText))] private string _canvasYText = "—";
+    [ObservableProperty][NotifyPropertyChangedFor(nameof(RawText))] private string _rawXText = "—";
+    [ObservableProperty][NotifyPropertyChangedFor(nameof(RawText))] private string _rawYText = "—";
     [ObservableProperty] private string _pressureText = "—";
-    [ObservableProperty] [NotifyPropertyChangedFor(nameof(TiltText))] private string _tiltXText = "—";
-    [ObservableProperty] [NotifyPropertyChangedFor(nameof(TiltText))] private string _tiltYText = "—";
-    [ObservableProperty] [NotifyPropertyChangedFor(nameof(AzAltText))] private string _azimuthText = "—";
-    [ObservableProperty] [NotifyPropertyChangedFor(nameof(AzAltText))] private string _altitudeText = "—";
+    [ObservableProperty][NotifyPropertyChangedFor(nameof(TiltText))] private string _tiltXText = "—";
+    [ObservableProperty][NotifyPropertyChangedFor(nameof(TiltText))] private string _tiltYText = "—";
+    [ObservableProperty][NotifyPropertyChangedFor(nameof(AzAltText))] private string _azimuthText = "—";
+    [ObservableProperty][NotifyPropertyChangedFor(nameof(AzAltText))] private string _altitudeText = "—";
     [ObservableProperty] private string _twistText = "—";
     /// <summary>Driver-reported hover height (0–255), or "—" before the pen is in range.</summary>
     [ObservableProperty] private string _hoverText = "—";
@@ -353,7 +370,8 @@ public partial class TestViewModel : ObservableObject, IDisposable
     /// <summary>Whether the counters run at all. Off by default: with it off, the per-report path does no
     /// counting or timing, the daemon source skips its counter, and the "Reports" line is hidden — so they
     /// cost nothing until wanted. Set the environment variable <c>OTA_SCRIBBLE_COUNTERS=1</c> to turn them on.</summary>
-    [ObservableProperty] private bool _countersEnabled =
+    [ObservableProperty]
+    private bool _countersEnabled =
         Environment.GetEnvironmentVariable("OTA_SCRIBBLE_COUNTERS") == "1";
 
     partial void OnCountersEnabledChanged(bool value)

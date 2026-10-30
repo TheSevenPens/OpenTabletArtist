@@ -930,6 +930,7 @@
                         <ctrl:LabeledSlider Label="Max hover" LabelWidth="80"
                                             Minimum="1" Maximum="{Binding HoverDistanceMax}"
                                             Value="{Binding MaxHoverDistance}"
+                                            DefaultValue="{Binding MaxHoverDistanceDefault}"
                                             ValueTextOverride="{Binding MaxHoverDistanceText}"
                                             Monospace="True" ValueWidth="40"
                                             ToolTip.Tip="Lower = the cursor stops sooner as you lift the pen. Higher = allow more hover (255 = no limit)." />

@@ -1909,6 +1909,13 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
     [ObservableProperty] private double _positionSmoothing;
     [ObservableProperty] private bool _smoothAfterCurve = true;
 
+    // Where each slider's reset puts it back (#1048): OTA's recommended value where it has one, else OTD's. For the
+    // dynamics sliders the two are the same, a linear curve with no smoothing, which is a true no-op.
+    public double SoftnessDefault => PenDynamicsSettings.Default.Curve.Softness;
+    public double DeadzoneDefault => PenDynamicsSettings.Default.Curve.InputMinimum;
+    public double PressureSmoothingDefault => PenDynamicsSettings.Default.PressureSmoothing;
+    public double PositionSmoothingDefault => PenDynamicsSettings.Default.PositionSmoothing;
+
     public string PressureSmoothingText => PressureSmoothing.ToString("0.00");
     public string PositionSmoothingText => PositionSmoothing.ToString("0.00");
 
@@ -2400,6 +2407,9 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
 
     public const int DefaultMaxHoverDistance = 127; // sensible mid-point when first enabled (range 0-255)
     public int HoverDistanceMax => HoverProfile.MaxDistance;
+
+    /// <summary>The hover limit a reset goes back to: OTA's own recommendation, since OTD has no such filter (#1048).</summary>
+    public double MaxHoverDistanceDefault => DefaultMaxHoverDistance;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HoverControlsOpacity))]

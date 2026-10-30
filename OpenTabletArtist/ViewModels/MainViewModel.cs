@@ -253,7 +253,8 @@ public partial class MainViewModel : ObservableObject, IDisposable
             () => Navigate(HealthPage));
         Test = new TestViewModel(_session.Daemon, _session, () => _session.DaemonVersion,
             showRecordingReview: dialogs.ShowRecordingReviewAsync,
-            showRecordingProblem: message => dialogs.ShowMessageAsync("Can't record", message));
+            showRecordingProblem: message => dialogs.ShowMessageAsync("Can't record", message),
+            openPen: (name, tab) => NavigateToPenByName(name, tab));   // the link to the pressure settings (#1044)
         Log = new LogViewModel(_session.Daemon, _session);
         // Windows Ink moved to PLUGINS from the pivot now called VMULTI, so it is handed to that page —
         // and only

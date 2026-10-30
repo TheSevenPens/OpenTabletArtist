@@ -58,8 +58,31 @@ public class LabeledSlider : TemplatedControl
     public static readonly StyledProperty<double> ValueWidthProperty =
         AvaloniaProperty.Register<LabeledSlider, double>(nameof(ValueWidth), double.NaN);
 
+    /// <summary>The value a reset puts the slider back to (#1048). Null (the default) draws no reset button, which is
+    /// how the Theme sliders stay as they were. When set, the button is always drawn and only enabled once the value
+    /// has moved off it, so the row does not change shape as you drag.</summary>
+    public static readonly StyledProperty<double?> DefaultValueProperty =
+        AvaloniaProperty.Register<LabeledSlider, double?>(nameof(DefaultValue));
+
+    public static readonly DirectProperty<LabeledSlider, bool> HasDefaultProperty =
+        AvaloniaProperty.RegisterDirect<LabeledSlider, bool>(nameof(HasDefault), o => o.HasDefault);
+    public static readonly DirectProperty<LabeledSlider, bool> CanResetProperty =
+        AvaloniaProperty.RegisterDirect<LabeledSlider, bool>(nameof(CanReset), o => o.CanReset);
+    public static readonly DirectProperty<LabeledSlider, string> ResetTipProperty =
+        AvaloniaProperty.RegisterDirect<LabeledSlider, string>(nameof(ResetTip), o => o.ResetTip);
+
     public static readonly DirectProperty<LabeledSlider, string> ValueTextProperty =
         AvaloniaProperty.RegisterDirect<LabeledSlider, string>(nameof(ValueText), o => o.ValueText);
+
+    private bool _hasDefault, _canReset;
+    private string _resetTip = "";
+
+    /// <summary>There is a value to reset to, so the reset button is drawn.</summary>
+    public bool HasDefault { get => _hasDefault; private set => SetAndRaise(HasDefaultProperty, ref _hasDefault, value); }
+    /// <summary>The value is not the default, so a reset would change something.</summary>
+    public bool CanReset { get => _canReset; private set => SetAndRaise(CanResetProperty, ref _canReset, value); }
+    /// <summary>What the reset button's tooltip and screen-reader name say: it names the slider and the value.</summary>
+    public string ResetTip { get => _resetTip; private set => SetAndRaise(ResetTipProperty, ref _resetTip, value); }
 
     private string _valueText = "";
     /// <summary>The formatted readout shown on the right (Value formatted with ValueFormat).</summary>
@@ -85,16 +108,41 @@ public class LabeledSlider : TemplatedControl
     public string? ValueTextOverride { get => GetValue(ValueTextOverrideProperty); set => SetValue(ValueTextOverrideProperty, value); }
     public bool Monospace { get => GetValue(MonospaceProperty); set => SetValue(MonospaceProperty, value); }
     public double ValueWidth { get => GetValue(ValueWidthProperty); set => SetValue(ValueWidthProperty, value); }
+    public double? DefaultValue { get => GetValue(DefaultValueProperty); set => SetValue(DefaultValueProperty, value); }
 
     private Slider? _slider;
+    private Button? _reset;
 
     protected override void OnApplyTemplate(TemplateAppliedEventArgs e)
     {
         base.OnApplyTemplate(e);
         _slider = e.NameScope.Find<Slider>("PART_Slider");
+        if (_reset is not null) _reset.Click -= OnResetClick;
+        _reset = e.NameScope.Find<Button>("PART_Reset");
+        if (_reset is not null) _reset.Click += OnResetClick;
         ApplyTicks();
         UpdateValueText();
+        UpdateReset();
     }
+
+    // Back to the default. Clamped to the slider's own range, so a default outside it cannot write a value
+    // the slider would then clamp and write back.
+    private void OnResetClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        if (DefaultValue is { } d) Value = Math.Clamp(d, Minimum, Maximum);
+    }
+
+    private void UpdateReset()
+    {
+        HasDefault = DefaultValue is not null;
+        CanReset = DefaultValue is { } d && Math.Abs(Value - Math.Clamp(d, Minimum, Maximum)) > 1e-9;
+        ResetTip = DefaultValue is { } v
+            ? $"Reset {(string.IsNullOrEmpty(Label) ? "this setting" : Label.ToLowerInvariant())} to {FormatDefault(v)}"
+            : "";
+    }
+
+    // The default as the readout would show it, so the tip and the readout agree.
+    private string FormatDefault(double v) => v.ToString(ValueFormat, CultureInfo.CurrentCulture);
 
     protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
     {
@@ -104,6 +152,11 @@ public class LabeledSlider : TemplatedControl
             UpdateValueText();
         else if (change.Property == TicksProperty)
             ApplyTicks();
+
+        if (change.Property == ValueProperty || change.Property == DefaultValueProperty
+            || change.Property == MinimumProperty || change.Property == MaximumProperty
+            || change.Property == LabelProperty || change.Property == ValueFormatProperty)
+            UpdateReset();
     }
 
     private void UpdateValueText() =>

@@ -107,6 +107,7 @@
                     <ctrl:LabeledSlider Label="Softness" LabelWidth="130" Margin="0,10,0,0"
                                         Minimum="-0.9" Maximum="0.9"
                                         Value="{Binding Softness}" ValueFormat="0.00"
+                                        DefaultValue="{Binding SoftnessDefault}"
                                         SmallChange="0.02" LargeChange="0.1"
                                         Ticks="-0.9,-0.45,0,0.45,0.9" TickPlacement="BottomRight"
                                         IsEnabled="{Binding CanEditPressure}"
@@ -119,6 +120,7 @@
                     <ctrl:LabeledSlider Label="Deadzone" LabelWidth="130" Margin="0,10,0,0"
                                         Minimum="0" Maximum="1"
                                         Value="{Binding Deadzone}" ValueFormat="0.00"
+                                        DefaultValue="{Binding DeadzoneDefault}"
                                         SmallChange="0.01" LargeChange="0.05"
                                         Ticks="0,0.25,0.5,0.75,1" TickPlacement="BottomRight"
                                         IsEnabled="{Binding CanEditPressure}"
@@ -130,6 +132,7 @@
                                         Minimum="0" Maximum="{Binding PressureSmoothingMax}"
                                         Ticks="0,0.1,0.2,0.3,0.4,0.5" TickPlacement="BottomRight"
                                         Value="{Binding PressureSmoothing}"
+                                        DefaultValue="{Binding PressureSmoothingDefault}"
                                         ValueTextOverride="{Binding PressureSmoothingText}"
                                         Monospace="True" ValueWidth="44" />
 
