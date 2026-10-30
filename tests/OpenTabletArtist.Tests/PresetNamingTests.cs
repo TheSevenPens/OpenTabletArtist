@@ -69,4 +69,28 @@ public class PresetNamingTests
     {
         Assert.Equal("Preset copy 2", PresetNaming.NextCopyName("Preset", ["preset COPY"]));
     }
+
+    [Theory]
+    [InlineData("Inking")]
+    [InlineData("Krita - soft")]
+    [InlineData("v1.2 final")]
+    [InlineData("Console")]   // only the bare device names are reserved
+    public void InvalidNameReason_AcceptsAnOrdinaryName(string name) =>
+        Assert.Null(PresetNaming.InvalidNameReason(name));
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("a/b")]
+    [InlineData("a\\b")]
+    [InlineData("..")]
+    [InlineData(".")]
+    [InlineData("C:")]
+    [InlineData("what?")]
+    [InlineData("tab\there")]
+    [InlineData("nul")]
+    [InlineData("COM1.backup")]
+    [InlineData("trailing.")]
+    [InlineData("trailing ")]
+    public void InvalidNameReason_RefusesWhatIsNotOneWindowsFileName(string name) =>
+        Assert.NotNull(PresetNaming.InvalidNameReason(name));
 }

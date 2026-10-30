@@ -163,26 +163,46 @@ public partial class PresetsViewModel : ObservableObject, IDisposable
         var oldPath = Path.Combine(PresetDirectory, $"{name}.json");
         if (!File.Exists(oldPath)) return;
 
-        var newName = await _dialogs.ShowInputAsync(
+        var newName = (await _dialogs.ShowInputAsync(
             "Rename Preset",
             "Enter a new name for this preset:",
-            name);
+            name))?.Trim();
 
-        if (!string.IsNullOrWhiteSpace(newName) && newName != name)
+        if (string.IsNullOrEmpty(newName) || newName == name) return;
+
+        // The name becomes a file name. Unchecked, "a/b" or "..\x" moved the preset out of its folder (or threw
+        // out of the command), and a name Windows refuses threw from File.Move.
+        if (PresetNaming.InvalidNameReason(newName) is { } why)
         {
-            var newPath = Path.Combine(PresetDirectory, $"{newName}.json");
-            if (!File.Exists(newPath))
-            {
-                File.Move(oldPath, newPath);
-                _hotkeys.RenameSnapshot(name, newName); // carry the hotkey mapping across (#320)
-                await LoadAsync();
-            }
-            else
-            {
-                await _dialogs.ShowMessageAsync("Rename",
-                    $"A profile named \"{newName}\" already exists.");
-            }
+            await _dialogs.ShowMessageAsync("Rename", why);
+            return;
         }
+
+        var newPath = Path.Combine(PresetDirectory, $"{newName}.json");
+        // A change of case alone ("preset" to "Preset") names the same file on Windows, so File.Exists says it
+        // is taken; it isn't taken by anything but this preset. On a case-sensitive file system a real second
+        // file of that name makes the move fail, and that is reported below.
+        bool caseOnly = string.Equals(newName, name, StringComparison.OrdinalIgnoreCase);
+        if (!caseOnly && File.Exists(newPath))
+        {
+            await _dialogs.ShowMessageAsync("Rename",
+                $"A profile named \"{newName}\" already exists.");
+            return;
+        }
+
+        try
+        {
+            File.Move(oldPath, newPath);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            AppLog.Warn($"Failed to rename preset {oldPath} to {newPath}.", ex);
+            await _dialogs.ShowMessageAsync("Rename",
+                $"Couldn't rename the profile \"{name}\": {ex.Message}");
+            return;
+        }
+        _hotkeys.RenameSnapshot(name, newName); // carry the hotkey mapping across (#320)
+        await LoadAsync();
     }
 
     [RelayCommand]
