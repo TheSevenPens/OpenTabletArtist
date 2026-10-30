@@ -31,10 +31,11 @@
                        Foreground="{DynamicResource TextPrimaryBrush}" />
 
             <!-- What caused it. Not "somebody else edited them": the driver does this to itself, and
-                 attaching a tablet it has not seen is the commonest way. This sentence used to live in
-                 the footer line, which is now four words. -->
+                 attaching a tablet it has not seen is the commonest way. When it was the artist's own
+                 change that did not take, it says so instead of blaming "something". This sentence used
+                 to live in the footer line, which is now four words. -->
             <TextBlock TextWrapping="Wrap" Foreground="{DynamicResource TextPrimaryBrush}"
-                       Text="Something changed the OTD daemon's settings while you were working. Attaching a new tablet can cause this, as can another settings app." />
+                       Text="{Binding SettingsSession.SettingsPauseCauseText}" />
 
             <!-- And what pressing the button will cost, which never fitted in the footer at all.
                  Reloading takes the driver's current values: anything typed and not yet submitted goes,

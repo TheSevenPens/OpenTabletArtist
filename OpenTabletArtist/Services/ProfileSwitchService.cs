@@ -39,6 +39,8 @@ public sealed class ProfileSwitchService
                 return false;
             }
             if (BeforeReplaceAsync is { } confirm && !await confirm(false)) return false;
+            // After the prompt, so it is today's profiles that fill the gaps and not those from before it.
+            PresetCompletion.AddMissingProfiles(settings, _settings.CurrentSettings);
             var outcome = await _settings.ApplySettingsAsync(settings);
             if (!outcome.IsLive)
             {

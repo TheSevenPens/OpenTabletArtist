@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 using OpenTabletArtist.Services;
 using OtdInterop;
@@ -38,6 +39,27 @@ public class ProfileSwitchServiceTests
         Assert.True(await service.SwitchToAsync("Draw"));
         Assert.Equal(1, settings.ApplyCalls);
         Assert.Equal("Draw", announced);
+    }
+
+    /// <summary>
+    /// What was applied includes the plugged-in tablet's current profile when the preset predates it.
+    /// Without it the daemon generates one and the apply reads back as rejected.
+    /// </summary>
+    [Fact]
+    public async Task APresetWithoutTheConnectedTablet_IsAppliedWithThatTabletsCurrentProfile()
+    {
+        var (service, settings, _) = Open();
+        settings.CurrentSettings = new OpenTabletDriver.Desktop.Settings
+        {
+            Profiles = new OpenTabletDriver.Desktop.Profiles.ProfileCollection
+            {
+                new OpenTabletDriver.Desktop.Profiles.Profile { Tablet = "Wacom PTK-670", OutputMode = TestOtd.Output() },
+            },
+        };
+
+        Assert.True(await service.SwitchToAsync("Draw"));
+
+        Assert.Equal(["Wacom PTK-670"], settings.Applied!.Profiles.Select(p => p.Tablet));
     }
 
     [Theory]
