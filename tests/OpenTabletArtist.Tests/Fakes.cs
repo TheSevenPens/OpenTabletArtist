@@ -392,7 +392,16 @@ internal sealed class FakeSettingsCoordinator : ISettingsCoordinator
     public SettingsRestoreOutcome RestoreResult { get; set; } = SettingsRestoreOutcome.Restored;
     public bool DaemonAccepts { get; set; } = true;
     public bool Changes { get; set; } = true;
-    public Task<bool> WouldChangeLoadedAsync(Settings settings) => Task.FromResult(Changes);
+    public SettingsStamp Stamp { get; set; }
+
+    /// <summary>Runs inside <see cref="WouldChangeLoadedAsync"/>, so a test can do what the artist might do while the
+    /// comparison is waiting.</summary>
+    public Action? DuringComparison { get; set; }
+    public Task<bool> WouldChangeLoadedAsync(Settings settings)
+    {
+        DuringComparison?.Invoke();
+        return Task.FromResult(Changes);
+    }
 
     public Task<SettingsApplyOutcome> ApplySettingsAsync(Settings settings)
     {

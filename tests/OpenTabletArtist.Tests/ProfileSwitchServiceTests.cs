@@ -103,6 +103,34 @@ public class ProfileSwitchServiceTests
         Assert.False(announced);
     }
 
+    /// <summary>
+    /// Anything submitted while the comparison waits makes its answer untrue, so the question is asked even
+    /// though the answer was "nothing to lose" (#1060). The workspace has its own guard; this is the service's
+    /// own, which does not depend on it.
+    /// </summary>
+    [Fact]
+    public async Task AnEditSubmittedWhileTheComparisonWaits_StillAsks() =>
+        await AssertAsksWhenTheStampMoves(new SettingsStamp(null, 1));   // an apply happened meanwhile
+
+    /// <summary>A workspace replaced during the wait (a reconnect) is a different document, whatever its count.</summary>
+    [Fact]
+    public async Task AWorkspaceReplacedWhileTheComparisonWaits_StillAsks() =>
+        await AssertAsksWhenTheStampMoves(new SettingsStamp(new object(), 0));
+
+    private static async Task AssertAsksWhenTheStampMoves(SettingsStamp moved)
+    {
+        var (service, settings, _) = Open();
+        settings.Changes = false;
+        settings.DuringComparison = () => settings.Stamp = moved;
+        var asked = false;
+        service.BeforeReplaceAsync = _ => { asked = true; return Task.FromResult(false); };
+
+        Assert.False(await service.SwitchToAsync("Draw"));
+
+        Assert.True(asked);
+        Assert.Equal(0, settings.ApplyCalls);
+    }
+
     /// <summary>Input typed and not yet submitted would be thrown away by the load, so the question is asked
     /// even when the submitted document equals the preset.</summary>
     [Fact]
