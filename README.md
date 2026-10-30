@@ -1,6 +1,6 @@
 # OpenTabletArtist
 
-An alternative experience for  for [OpenTabletDriver](https://opentabletdriver.net/) 
+An alternative experience for [OpenTabletDriver](https://opentabletdriver.net/) 
 
 ## Try it now
 

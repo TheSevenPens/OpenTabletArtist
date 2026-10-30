@@ -22,7 +22,9 @@ public static class Dialogs
         if (parent is null) return UnsavedSettingsChoice.Cancel;
         if (parent is MainWindow main) main.BringToFront();
         var choice = UnsavedSettingsChoice.Cancel;
-        var cancel = new Button { Content = "Cancel" };
+        // Escape is Cancel, the choice that changes nothing. Enter is deliberately nothing: both other
+        // choices act, and neither should happen on a stray keypress.
+        var cancel = new Button { Content = "Cancel", IsCancel = true };
         var discard = new Button { Content = "Continue without saving" };
         var save = new Button { Content = "Save" };
         var dialog = new AppWindow
@@ -66,7 +68,8 @@ public static class Dialogs
         parent ??= GetMainWindow();
 
         var copyBtn = new Button { Content = "Copy", Padding = new Thickness(18, 8), FontSize = 13 };
-        var okBtn = new Button { Content = "OK", Padding = new Thickness(24, 8), FontSize = 13 };
+        // Enter and Escape both close it: there is nothing to decide, only to acknowledge.
+        var okBtn = new Button { Content = "OK", Padding = new Thickness(24, 8), FontSize = 13, IsDefault = true, IsCancel = true };
 
         var dialog = new AppWindow
         {
@@ -167,8 +170,9 @@ public static class Dialogs
                         Children =
                         {
                             // Windows convention: the affirmative action goes first/left (#502).
+                            // Escape answers No. Enter is not Yes: these ask before deleting things.
                             new Button { Content = "Yes", Padding = new Thickness(24, 8), FontSize = 13 },
-                            new Button { Content = "No", Padding = new Thickness(24, 8), FontSize = 13 }
+                            new Button { Content = "No", Padding = new Thickness(24, 8), FontSize = 13, IsCancel = true }
                         }
                     }
                 }
@@ -228,8 +232,9 @@ public static class Dialogs
                         Children =
                         {
                             // Windows convention: the affirmative action goes first/left (#502).
-                            new Button { Content = "OK", Padding = new Thickness(24, 8), FontSize = 13 },
-                            new Button { Content = "Cancel", Padding = new Thickness(24, 8), FontSize = 13 }
+                            // Enter is OK and Escape is Cancel, so a name can be typed and confirmed without the mouse.
+                            new Button { Content = "OK", Padding = new Thickness(24, 8), FontSize = 13, IsDefault = true },
+                            new Button { Content = "Cancel", Padding = new Thickness(24, 8), FontSize = 13, IsCancel = true }
                         }
                     }
                 }
@@ -243,6 +248,12 @@ public static class Dialogs
 
         cancelBtn.Click += (_, _) => dialog.Close();
         okBtn.Click += (_, _) => { result = textBox.Text; dialog.Close(); };
+        // Open ready to type over: the box has focus and the current text is selected, as in a file rename.
+        dialog.Opened += (_, _) =>
+        {
+            textBox.Focus();
+            textBox.SelectAll();
+        };
 
         if (parent != null)
             await dialog.ShowDialog(parent);

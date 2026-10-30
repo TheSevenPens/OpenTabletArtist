@@ -23,7 +23,8 @@ public static class DaemonVersion
         catch { return ""; }
     }
 
-    /// <summary>Compare numeric major.minor.patch, ignoring the fourth component and suffixes.</summary>
+    /// <summary>Compare numeric major.minor.patch.revision, ignoring suffixes. The fourth part counts: 0.6.8.1
+    /// is not 0.6.8 (see <see cref="OtdHealth.OtdVersion.SameRelease"/>).</summary>
     public static bool SameRelease(string a, string b) => OtdHealth.OtdVersion.SameRelease(a, b);
 
 }

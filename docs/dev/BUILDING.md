@@ -5,7 +5,6 @@ for building and running from source.
 
 ## Prerequisites
 
-- **.NET 10 SDK** — builds and runs the app.
 - **.NET 10 SDK** — the app, the bundled OpenTabletDriver daemon (from 0.6.8) and our pen-dynamics plugin all target `net10.0`.
 - **Git** — OpenTabletDriver is a submodule, so clone recursively.
 - **Windows** for the full experience (VMulti / Windows Ink are Windows-only). The app builds and runs on
