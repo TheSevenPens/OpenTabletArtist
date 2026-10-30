@@ -22,7 +22,7 @@ public class AdvancedRailTests
             new[]
             {
                 AdvancedTab.Daemon, AdvancedTab.CustomTabletConfigs, AdvancedTab.Diagnostics,
-                AdvancedTab.Plugins, AdvancedTab.Console,
+                AdvancedTab.Plugins, AdvancedTab.Console, AdvancedTab.Filters,
             }.OrderBy(t => t),
             System.Enum.GetValues<AdvancedTab>().OrderBy(t => t));
     }

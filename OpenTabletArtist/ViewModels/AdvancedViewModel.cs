@@ -47,13 +47,16 @@ public partial class AdvancedViewModel : ObservableObject
     private readonly DiagnosticsViewModel _diagnostics;
     // Held to re-scan the config folder on entry (the daemon's real path may arrive after construction).
     private readonly CustomTabletConfigsViewModel _configs;
+    // Held to rebuild the list on entry: it should show what is saved now, not what was when the app started.
+    private readonly FiltersViewModel _filters;
 
     public AdvancedViewModel(
         DaemonViewModel daemon, CustomTabletConfigsViewModel configs,
-        DiagnosticsViewModel diagnostics, LogViewModel log, PluginsViewModel plugins)
+        DiagnosticsViewModel diagnostics, LogViewModel log, PluginsViewModel plugins, FiltersViewModel filters)
     {
         _diagnostics = diagnostics;
         _configs = configs;
+        _filters = filters;
 
         // Daemon status + version get their own tab; the Console log is its own tab beside it. The VMULTI
         // pivot is gone: it held one card, and that card moved to SETTINGS → DRIVERS beside driver cleanup
@@ -65,29 +68,38 @@ public partial class AdvancedViewModel : ObservableObject
             new("CONSOLE", AdvancedTab.Console, log),
             new("CONFIGS", AdvancedTab.CustomTabletConfigs, configs),
             new("DIAGNOSTICS", AdvancedTab.Diagnostics, diagnostics),
+            new("FILTERS", AdvancedTab.Filters, filters),
             new("PLUGINS", AdvancedTab.Plugins, plugins),
         };
         Tabs = tabs;
         _allTabs = tabs;
         UpdateSelection();
 
-        // Diagnostics is a developer view: hidden unless Settings → Dev → Interface turns it on.
+        // Diagnostics and Filters are developer views: hidden unless Settings → Dev → Interface turns them on.
         _diagnosticsItem = tabs.First(t => t.Tab == AdvancedTab.Diagnostics);
-        ApplyDiagnosticsVisibility();
+        _filtersItem = tabs.First(t => t.Tab == AdvancedTab.Filters);
+        ApplyDeveloperTabs();
         DeveloperSettings.Instance.PropertyChanged += (_, e) =>
         {
-            if (e.PropertyName == nameof(DeveloperSettings.ShowDiagnosticsTab)) ApplyDiagnosticsVisibility();
+            if (e.PropertyName is nameof(DeveloperSettings.ShowDiagnosticsTab) or nameof(DeveloperSettings.ShowFiltersTab))
+                ApplyDeveloperTabs();
         };
     }
 
     private readonly AdvancedTabItem _diagnosticsItem;
+    private readonly AdvancedTabItem _filtersItem;
 
-    private void ApplyDiagnosticsVisibility()
+    private void ApplyDeveloperTabs()
     {
-        var show = DeveloperSettings.Instance.ShowDiagnosticsTab;
-        _diagnosticsItem.IsVisible = show;
+        Apply(_diagnosticsItem, DeveloperSettings.Instance.ShowDiagnosticsTab);
+        Apply(_filtersItem, DeveloperSettings.Instance.ShowFiltersTab);
+    }
+
+    private void Apply(AdvancedTabItem item, bool show)
+    {
+        item.IsVisible = show;
         // Turning it off while it is the open tab would leave the page showing a tab the rail no longer lists.
-        if (!show && SelectedTab == AdvancedTab.Diagnostics) SelectedTab = AdvancedTab.Daemon;
+        if (!show && SelectedTab == item.Tab) SelectedTab = AdvancedTab.Daemon;
     }
 
     /// <summary>The advanced subpages, a single flat list (no owner grouping).</summary>
@@ -125,6 +137,10 @@ public partial class AdvancedViewModel : ObservableObject
         // Re-scan the config folder on entry — the daemon's real path may have arrived since construction.
         if (newValue == AdvancedTab.CustomTabletConfigs)
             _configs.RefreshConfigurationsCommand.Execute(null);
+
+        // Rebuild the filters on entry: a filter switched on or off from the Pen page since would otherwise be stale.
+        if (newValue == AdvancedTab.Filters)
+            _filters.Refresh();
     }
 
     private void UpdateSelection()

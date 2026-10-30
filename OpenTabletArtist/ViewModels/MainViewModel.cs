@@ -86,6 +86,9 @@ public partial class MainViewModel : ObservableObject, IDisposable
     public DiagnosticsViewModel Diagnostics { get; }
     public DashboardViewModel Dashboard { get; }
 
+    /// <summary>Every tablet's filters, the Filters tab on the Advanced page (#1049).</summary>
+    public FiltersViewModel Filters { get; }
+
     /// <summary>The Health page: every finding, worst first (#1050).</summary>
     public HealthPageViewModel HealthPage { get; }
 
@@ -267,7 +270,8 @@ public partial class MainViewModel : ObservableObject, IDisposable
 
         // The ADVANCED page groups OpenTabletDriver's own surfaces behind one page-menu entry, with
         // its own tab menu, like the tablet page. It shares the sub-view models built above.
-        Advanced = new AdvancedViewModel(Daemon, Configs, Diagnostics, Log, Plugins);
+        Filters = new FiltersViewModel(_session);
+        Advanced = new AdvancedViewModel(Daemon, Configs, Diagnostics, Log, Plugins, Filters);
         // The Console tab manages its own scroll, so the outer scroll toggles as the ADVANCED tab changes
         // (not just when the top-level page changes) — re-evaluate ContentScrollBarVisibility on tab switch.
         Advanced.PropertyChanged += (_, e) =>
@@ -690,6 +694,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
         Diagnostics.Dispose();    // stops debugging + unsubscribes connection sync
         Dashboard.Dispose();      // cancels VMulti install/uninstall token + unsubscribes
         HealthPage.Dispose();     // unsubscribes from the health catalog + daemon status
+        Filters.Dispose();        // unsubscribes DataLoaded
         HealthBadge.Dispose();    // unsubscribes from the health catalog + daemon status
         Presets.Dispose();        // unsubscribes DataLoaded
         Hotkeys.Dispose();        // unsubscribes DataLoaded
