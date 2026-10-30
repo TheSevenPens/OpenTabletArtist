@@ -90,6 +90,29 @@ public class PresetsPageTests : IDisposable
         Assert.Equal(new[] { "Sketching" }, vm.Presets.Where(p => p.IsLastLoaded).Select(p => p.Name).ToArray());
     }
 
+    /// <summary>The marker is a name, so it follows the file when the preset is renamed. Left behind, it named
+    /// nothing, and a later preset given the old name was marked as the one loaded (#1060).</summary>
+    [Fact]
+    public async Task RenamingTheMarkedPreset_MovesTheMarker_AndFreesTheOldName()
+    {
+        Write("Inking", "Sketching");
+        var dialogs = new FakeDialogService { InputResult = "Painting" };
+        var vm = new PresetsViewModel(new PresetStore(NullOtdLog.Instance), _coordinator, new FakeDeviceData(),
+            dialogs, new NoHotkeys(), _switch)
+        { PresetDirectory = _dir };
+        await vm.LoadAsync();
+        await vm.LoadPresetCommand.ExecuteAsync("Inking");
+
+        await vm.RenamePresetCommand.ExecuteAsync("Inking");
+
+        Assert.Equal(new[] { "Painting" }, vm.Presets.Where(p => p.IsLastLoaded).Select(p => p.Name).ToArray());
+
+        // Something else now takes the old name; it was never loaded.
+        Write("Inking");
+        await vm.LoadAsync();
+        Assert.False(vm.Presets.Single(p => p.Name == "Inking").IsLastLoaded);
+    }
+
     [Fact]
     public async Task TheMarker_SurvivesARescan()
     {

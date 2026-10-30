@@ -22,6 +22,14 @@ public interface IOtdSettingsSession
     Task<SettingsReloadOutcome> RefreshAsync();
     /// <summary>Explicitly accept live settings and reread the saved baseline. Does not apply or save.</summary>
     Task<SettingsReloadOutcome> ReloadAsync();
+    /// <summary>Apply settings that came from a file (a saved preset) as the daemon would load them: its
+    /// button slots and wheel steps matched to each detected tablet, as <see cref="RestoreSavedAsync"/> does.
+    /// Otherwise the daemon's normal matching reads back as a rejection. Never saves.</summary>
+    Task<SettingsApplyOutcome> ApplyLoadedAsync(Settings source);
+    /// <summary><paramref name="source"/> as <see cref="ApplyLoadedAsync"/> would send it, without sending it:
+    /// matched to the detected tablets and stamped with the live revision. Null when that cannot be told
+    /// (not connected, or the tablets could not be read).</summary>
+    Task<Settings?> AsLoadedAsync(Settings source);
     /// <summary>Apply the saved file (or its last good backup). Never writes the saved file.</summary>
     Task<SettingsRestoreOutcome> RestoreSavedAsync();
 }

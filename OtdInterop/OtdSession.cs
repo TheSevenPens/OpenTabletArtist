@@ -180,8 +180,9 @@ public sealed class OtdSession : IDisposable
     /// would lead to the next one.
     /// </para>
     /// <para>
-    /// The pin is forgotten only when this connection set it. A connection that was already held read-only
-    /// against an earlier daemon never pinned anything, so refusing it must not release that earlier one.
+    /// The pin is forgotten only when this connection set it, and a connection pins only by adopting the
+    /// daemon's settings. A connection that was held read-only against an earlier daemon, or whose settings
+    /// could not be read, never pinned anything, so refusing it must not release an earlier one.
     /// The transport stays open: there is no way to let go of a daemon's pipe short of closing the session,
     /// and the caller still wants to find the process to stop it.
     /// </para>
@@ -226,8 +227,6 @@ public sealed class OtdSession : IDisposable
             }
             else
             {
-                _targetPath ??= path;
-                _targetSettingsPath ??= info.SettingsFile;
                 var settings = new SettingsCoordinator(_channel, _store, info.SettingsFile);
                 var loaded = await settings.ReloadAsync().ConfigureAwait(false);
                 if (_disposed || channel != _channel.Incarnation) { settings.Dispose(); return; }
@@ -237,6 +236,11 @@ public sealed class OtdSession : IDisposable
                     {
                         if (_disposed || channel != _channel.Incarnation) { settings.Dispose(); return; }
                         _settings = settings;
+                        // Pinned once settings were adopted, not before: a daemon whose settings could not be
+                        // read has given this session nothing to protect, and pinning it first left a refused
+                        // daemon (or a failed read) holding the pin against its replacement (#1060).
+                        _targetPath ??= path;
+                        _targetSettingsPath ??= info.SettingsFile;
                         _problem = "";
                     }
                 }

@@ -1,4 +1,7 @@
 using System;
+using System.IO;
+using System.Runtime.CompilerServices;
+using System.Text.RegularExpressions;
 using OpenTabletArtist.Dynamics;
 using OpenTabletDriver.Desktop.Binding;
 using OpenTabletDriver.Plugin.Tablet;
@@ -12,7 +15,10 @@ namespace OpenTabletArtist.Tests;
 /// handler. Before, the curve saw raw pressure and the threshold remapped its output; now the threshold
 /// takes its share off the bottom and rescales, and the curve shapes what is left.
 ///
-/// Runs the two real filters in the order the daemon builds them. OTA exposes no activation threshold, so
+/// Runs the two real filters in the order the daemon is ASSUMED to build them: these tests wire the filters
+/// themselves and never touch the daemon's pipeline, so on their own they say nothing about what it does. The
+/// assumption is pinned by <see cref="TheDaemonPutsTheRewriteFilterFirst"/>, which reads the pinned daemon's
+/// source (#1060). OTA exposes no activation threshold, so
 /// the default (1%) is what nearly every profile has; these tests use a clearly non-default one so the
 /// order is visible.
 ///
@@ -59,6 +65,35 @@ public class DynamicsFilterAfterPressureRewriteTests
 
         return ((ITabletReport)emitted!).Pressure;
     }
+
+    /// <summary>
+    /// The order the tests above assume, read from the daemon that is pinned. This is the daemon's source text,
+    /// not its behaviour: it fails when the submodule moves to a daemon that builds the pipeline differently,
+    /// which is the moment the assumption needs a person to look at it.
+    /// </summary>
+    [Fact]
+    public void TheDaemonPutsTheRewriteFilterFirst()
+    {
+        var path = Path.Combine(RepoRoot(), "external", "OpenTabletDriver", "OpenTabletDriver.Daemon", "DriverDaemon.cs");
+
+        Assert.True(BuildsRewriteFirst(File.ReadAllText(path)),
+            "OpenTabletDriver no longer prepends PressureRewriteFilter to the filters; re-check these tests' order");
+    }
+
+    /// <summary>And the check itself can say no: the same line with the filter last does not pass.</summary>
+    [Theory]
+    [InlineData("outputMode.Elements = elements.Prepend(pressureRewriteFilter).Append(bindingHandler).ToList();", true)]
+    [InlineData("outputMode.Elements = elements.Append(pressureRewriteFilter).Append(bindingHandler).ToList();", false)]
+    [InlineData("outputMode.Elements = elements.Prepend(bindingHandler).Append(pressureRewriteFilter).ToList();", false)]
+    [InlineData("", false)]
+    public void TheOrderCheck_AcceptsOnlyTheRewriteFilterFirst(string source, bool expected) =>
+        Assert.Equal(expected, BuildsRewriteFirst(source));
+
+    private static bool BuildsRewriteFirst(string daemonSource) =>
+        Regex.IsMatch(daemonSource, @"Elements\s*=\s*elements\s*\.Prepend\(\s*pressureRewriteFilter\s*\)");
+
+    private static string RepoRoot([CallerFilePath] string thisFile = "") =>
+        Path.GetFullPath(Path.Combine(Path.GetDirectoryName(thisFile)!, "..", ".."));
 
     [Fact]
     public void LinearCurve_PassesOnWhatTheThresholdLeft()

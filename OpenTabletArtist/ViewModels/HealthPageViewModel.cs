@@ -82,6 +82,7 @@ public partial class HealthPageViewModel : ObservableObject, IDisposable
 
             var (_, count) = HealthBadgeViewModel.Summarize(
                 Health.Issues.Select(i => i.Severity), HealthBadgeViewModel.DaemonDown(Daemon));
+            if (HealthBadgeViewModel.IsStillChecking(count, Health.Analysis is not null)) return "Checking…";
             return count switch
             {
                 0 => "Nothing needs attention.",
@@ -230,6 +231,7 @@ public partial class HealthPageViewModel : ObservableObject, IDisposable
     private void OnAttentionSourceChanged(object? sender, PropertyChangedEventArgs e)
     {
         if (e.PropertyName is nameof(HealthService.HasIssues)
+            or nameof(HealthService.Analysis)
             or nameof(DaemonStatusViewModel.ShowDaemonProblem)
             or nameof(DaemonStatusViewModel.ShowDaemonActivity)
             or nameof(DaemonStatusViewModel.IsDaemonRefused))

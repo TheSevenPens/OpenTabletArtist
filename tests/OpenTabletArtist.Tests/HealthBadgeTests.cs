@@ -231,6 +231,44 @@ public class HealthBadgeTests
         Assert.Equal(AlertSeverity.Information, HealthBadgeViewModel.CardFor(HealthBadgeTier.Information, 1).Severity);
     }
 
+    /// <summary>
+    /// Before the health check has answered there is no finding and also no all-clear: "everything's working
+    /// fine" is a claim that a check came back empty (#1060).
+    /// </summary>
+    [Fact]
+    public void BeforeTheHealthCheckHasAnswered_NothingIsClaimedAboutHealth()
+    {
+        var (badge, _, _) = Make(reported: false);
+
+        Assert.True(badge.IsChecking);
+        Assert.Equal("Checking your setup", badge.CardHeadline);
+        Assert.Equal("CHECKING", badge.CardEyebrow);
+        Assert.Equal("Health: checking.", badge.Summary);
+        Assert.Equal(HealthBadgeTier.Healthy, badge.Tier);   // no badge is drawn for it
+    }
+
+    [Fact]
+    public void OnceTheHealthCheckHasAnswered_ANothingFoundIsAnAllClear()
+    {
+        var (badge, _, _) = Make(reported: true);
+
+        Assert.False(badge.IsChecking);
+        Assert.Equal("Everything's working fine", badge.CardHeadline);
+        Assert.Equal("Health: all clear.", badge.Summary);
+    }
+
+    /// <summary>A finding is a finding whether or not the check has finished: it is never "checking".</summary>
+    [Fact]
+    public void AFindingIsNotChecking_EvenBeforeTheHealthCheckHasAnswered()
+    {
+        var (badge, health, _) = Make(reported: false);
+
+        health.Issues.Add(Issue("a", HealthSeverity.Misconfigured));
+
+        Assert.False(badge.IsChecking);
+        Assert.Equal("Action recommended", badge.CardHeadline);
+    }
+
     [Fact]
     public void TheCardFollowsTheCatalog_AsFindingsComeAndGo()
     {
@@ -248,13 +286,16 @@ public class HealthBadgeTests
         Assert.False(badge.CardIsSevere);
     }
 
-    private static (HealthBadgeViewModel Badge, HealthService Health, FakeConnectionState Connection) Make()
+    private static (HealthBadgeViewModel Badge, HealthService Health, FakeConnectionState Connection) Make(
+        bool reported = true)
     {
         var connection = new FakeConnectionState { IsConnected = true };
-        // A collection that never finishes, so nothing re-evaluates the catalog under the test and the
-        // findings are exactly the ones it adds.
+        // A collection that has answered with nothing to report, or (when asked) one that never finishes, so
+        // nothing re-evaluates the catalog under the test and the findings are exactly the ones it adds.
         var health = new HealthService(connection, new FakeDeviceData(), new DriverConflictMonitor(),
-            _ => new TaskCompletionSource<OtdHealth.Collector.HealthAnalysisReport>().Task);
+            reported
+                ? _ => Task.FromResult(new OtdHealth.Collector.HealthAnalysisReport(new OtdHealth.HealthSnapshot(), [], []))
+                : _ => new TaskCompletionSource<OtdHealth.Collector.HealthAnalysisReport>().Task);
         health.Issues.Clear();
         return (new HealthBadgeViewModel(health, new DaemonStatusViewModel(connection)), health, connection);
     }

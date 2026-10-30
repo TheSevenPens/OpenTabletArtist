@@ -147,11 +147,15 @@ public interface ISettingsCoordinator
 {
     Settings? CurrentSettings { get; }
     Task<SettingsApplyOutcome> ApplySettingsAsync(Settings settings);
+
+    /// <summary>Applies settings that came from a file, a saved preset, as the daemon would load them.</summary>
+    Task<SettingsApplyOutcome> ApplyLoadedSettingsAsync(Settings settings);
     Task<SettingsRestoreOutcome> RestoreDefaultAsync();
 
-    /// <summary>Whether applying <paramref name="settings"/> would change what is live. True when that
-    /// cannot be told, so a caller that skips work on false never skips it wrongly.</summary>
-    bool WouldChange(Settings settings);
+    /// <summary>Whether loading <paramref name="settings"/> from a file would change the workspace's own
+    /// document. True when that cannot be told. A prompt may skip itself on false; an apply must never be
+    /// skipped on it.</summary>
+    Task<bool> WouldChangeLoadedAsync(Settings settings);
 }
 
 /// <summary>Tablet/device data produced by the session's data load (#41 PR 2).</summary>
@@ -1289,7 +1293,11 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
     public Task<SettingsApplyOutcome> ApplySettingsAsync(Settings settings) =>
         ApplyThroughAsync(workspace => workspace.ApplyAsync(settings));
 
-    public bool WouldChange(Settings settings) => _workspace?.WouldChange(settings) ?? true;
+    public Task<SettingsApplyOutcome> ApplyLoadedSettingsAsync(Settings settings) =>
+        ApplyThroughAsync(workspace => workspace.ApplyLoadedAsync(settings));
+
+    public Task<bool> WouldChangeLoadedAsync(Settings settings) =>
+        _workspace?.WouldChangeLoadedAsync(settings) ?? Task.FromResult(true);
 
     public Task<SettingsApplyOutcome> ApplyProfileAsync(OpenTabletDriver.Desktop.Profiles.Profile profile) =>
         ApplyThroughAsync(workspace => workspace.ApplyProfileAsync(profile));

@@ -1,4 +1,5 @@
 using OpenTabletDriver.Desktop;
+using OtdInterop;
 using OpenTabletDriver.Desktop.Profiles;
 
 namespace OpenTabletArtist.Services;
@@ -23,6 +24,19 @@ namespace OpenTabletArtist.Services;
 /// </remarks>
 internal static class PresetCompletion
 {
+    /// <summary>
+    /// A copy of <paramref name="preset"/> with the profiles it lacks filled in from
+    /// <paramref name="current"/>. The preset itself is left as saved: filling it in place meant a second
+    /// pass saw the first pass's copies as the preset's own, and put back a tablet's profile as it was when
+    /// the first pass ran, over a change made since (#1060).
+    /// </summary>
+    public static Settings Complete(Settings preset, Settings? current)
+    {
+        var copy = SettingsCodec.Clone(preset);
+        AddMissingProfiles(copy, current);
+        return copy;
+    }
+
     /// <summary>
     /// Adds to <paramref name="preset"/> the profile <paramref name="current"/> holds for each tablet the
     /// preset has none for, and says how many that was. Nothing the preset does hold is changed.

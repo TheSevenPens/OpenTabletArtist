@@ -120,7 +120,8 @@ public class SliderResetTests
 
     // --- On the real pages ------------------------------------------------------------------------------
 
-    private static TabletDetailViewModel Vm(double softness = 0, double pressureSmoothing = 0, double positionSmoothing = 0)
+    private static TabletDetailViewModel Vm(double softness = 0, double pressureSmoothing = 0, double positionSmoothing = 0,
+        List<Settings>? submitted = null)
     {
         var profile = new Profile
         {
@@ -132,8 +133,16 @@ public class SliderResetTests
         PressureCurveProfile.Write(settings, "Test Tablet",
             new PenDynamicsSettings(new PressureCurveSettings(softness, 0, 1, 0, 1, PressureMinApproach.Clamp),
                 pressureSmoothing, positionSmoothing, true), enable: true);
-        return new TabletDetailViewModel(profile, settings, applyAction: _ => Task.FromResult(SettingsApplyOutcome.Live));
+        return new TabletDetailViewModel(profile, settings, applyAction: s =>
+        {
+            submitted?.Add(SettingsCodec.Clone(s));
+            return Task.FromResult(SettingsApplyOutcome.Live);
+        });
     }
+
+    /// <summary>What the last submitted document holds for the tablet's pen dynamics.</summary>
+    private static PenDynamicsSettings Saved(List<Settings> submitted) =>
+        PressureCurveProfile.Read(submitted[^1], "Test Tablet")!.Value.Dynamics;
 
     private static LabeledSlider Named(Control root, string label) =>
         root.GetVisualDescendants().OfType<LabeledSlider>().Single(s => s.Label == label);
@@ -141,9 +150,10 @@ public class SliderResetTests
     /// <summary>The pressure tab's three sliders each reset to a no-op, through the view model, so what the curve and
     /// the saved settings hold follows the click.</summary>
     [AvaloniaFact]
-    public void ThePressureSliders_EachResetThroughTheViewModel()
+    public async Task ThePressureSliders_EachResetThroughTheViewModel()
     {
-        var vm = Vm(softness: 0.5, pressureSmoothing: 0.3);
+        var submitted = new List<Settings>();
+        var vm = Vm(softness: 0.5, pressureSmoothing: 0.3, submitted: submitted);
         var view = new DynamicsView { DataContext = vm };
         var window = HarnessTests.Show(view);
 
@@ -155,20 +165,32 @@ public class SliderResetTests
             Assert.True(Reset(slider).IsEnabled, $"{label} is not off its default");
         }
 
+        // One at a time, each flushed on its own: the document holds both settings, so a click on one that
+        // reached the daemon would otherwise be carried by the other's write and its own loss go unseen.
+        submitted.Clear();   // only what the click causes
         PenButtonCardTests.Click(window, Reset(Named(view, "Softness")));
-        PenButtonCardTests.Click(window, Reset(Named(view, "Pressure smoothing")));
-
+        await vm.FlushPendingEditsAsync();
         Assert.Equal(0, vm.Softness, 6);
+        Assert.NotEmpty(submitted);   // it reached the document that is submitted to the daemon
+        Assert.Equal(0, Saved(submitted).Curve.Softness, 6);
+        Assert.Equal(0.3, Saved(submitted).PressureSmoothing, 6);   // and nothing else was touched
+
+        submitted.Clear();
+        PenButtonCardTests.Click(window, Reset(Named(view, "Pressure smoothing")));
+        await vm.FlushPendingEditsAsync();
         Assert.Equal(0, vm.PressureSmoothing, 6);
+        Assert.NotEmpty(submitted);
+        Assert.Equal(0, Saved(submitted).PressureSmoothing, 6);
         Assert.False(Reset(Named(view, "Softness")).IsEnabled);
         Assert.True(Named(view, "Deadzone").HasDefault);
         window.Close();
     }
 
     [AvaloniaFact]
-    public void ThePositionSmoothingSlider_ResetsToo()
+    public async Task ThePositionSmoothingSlider_ResetsToo()
     {
-        var vm = Vm(positionSmoothing: 0.2);
+        var submitted = new List<Settings>();
+        var vm = Vm(positionSmoothing: 0.2, submitted: submitted);
         var view = new PenDetailView { DataContext = vm };
         var window = HarnessTests.Show(view);
         vm.RequestTab(TabletDetailTab.PenBehavior);
@@ -177,9 +199,14 @@ public class SliderResetTests
         var slider = Named(view, "Position smoothing");
         Assert.True(Reset(slider).IsEnabled);
 
+        submitted.Clear();
+
         PenButtonCardTests.Click(window, Reset(slider));
+        await vm.FlushPendingEditsAsync();
 
         Assert.Equal(0, vm.PositionSmoothing, 6);
+        Assert.NotEmpty(submitted);
+        Assert.Equal(0, Saved(submitted).PositionSmoothing, 6);
         window.Close();
     }
 

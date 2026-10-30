@@ -46,6 +46,23 @@ public class PresetCompletionTests
         Assert.Same(held, Assert.Single(preset.Profiles));
     }
 
+    /// <summary>
+    /// The preset as saved is never filled in itself: a second pass over a filled-in preset took the first
+    /// pass's copies for the preset's own and put a tablet back as it was (#1060).
+    /// </summary>
+    [Fact]
+    public void Complete_FillsACopy_AndLeavesThePresetAsSaved()
+    {
+        var preset = Of(Profile("Wacom PTK-870"));
+        var mine = Profile("Wacom PTK-670");
+
+        var completed = PresetCompletion.Complete(preset, Of(mine));
+
+        Assert.Equal(["Wacom PTK-870", "Wacom PTK-670"], completed.Profiles.Select(p => p.Tablet));
+        Assert.Equal(["Wacom PTK-870"], preset.Profiles.Select(p => p.Tablet));
+        Assert.NotSame(preset, completed);
+    }
+
     [Fact]
     public void WithNothingCurrent_ThePresetIsLeftAsItIs()
     {

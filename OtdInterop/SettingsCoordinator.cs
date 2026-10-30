@@ -189,6 +189,43 @@ internal sealed class SettingsCoordinator : IOtdSettingsSession, IDisposable
         return RunAsync(() => ApplyCoreAsync(copy), SettingsApplyOutcome.Disconnected);
     }
 
+    public Task<SettingsApplyOutcome> ApplyLoadedAsync(Settings source)
+    {
+        Settings copy;
+        try { copy = SettingsCodec.Clone(source); }
+        catch (Exception ex) { return Task.FromResult(SettingsApplyOutcome.Failed(ex)); }
+        return RunAsync(async () =>
+        {
+            if (_paused) return SettingsApplyOutcome.ChangedElsewhere;
+            if (Published.Current is not { } live) return SettingsApplyOutcome.Disconnected;
+            Settings loaded;
+            try { loaded = await LoadedAsync(copy, live).ConfigureAwait(false); }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                return IsConnected ? SettingsApplyOutcome.CouldNotCheck with { Error = ex }
+                    : SettingsApplyOutcome.Disconnected;
+            }
+            return await ApplyCoreAsync(loaded).ConfigureAwait(false);
+        }, SettingsApplyOutcome.Disconnected);
+    }
+
+    public Task<Settings?> AsLoadedAsync(Settings source) => RunAsync<Settings?>(async () =>
+    {
+        if (Published.Current is not { } live) return null;
+        try { return await LoadedAsync(SettingsCodec.Clone(source), live).ConfigureAwait(false); }
+        catch (Exception ex) when (ex is not OperationCanceledException) { return null; }
+    }, null);
+
+    /// <summary>What the daemon would hold after loading <paramref name="source"/>: its profiles matched to the
+    /// detected tablets, the revision stamped, and the areas made valid.</summary>
+    private async Task<Settings> LoadedAsync(Settings source, Settings live)
+    {
+        var tablets = await DetectedTabletsAsync().ConfigureAwait(false);
+        var loaded = DaemonLoadNormalizer.AsLoaded(source, live, tablets)!;
+        ProfileSanitizer.EnsureValidAbsoluteAreas(loaded);
+        return loaded;
+    }
+
     private async Task<SettingsApplyOutcome> ApplyCoreAsync(Settings requested)
     {
         if (_paused) return SettingsApplyOutcome.ChangedElsewhere;

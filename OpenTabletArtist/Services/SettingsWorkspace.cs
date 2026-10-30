@@ -57,7 +57,15 @@ public sealed class SettingsWorkspace
     /// </remarks>
     public int Generation { get; private set; }
 
-    public Task<SettingsApplyOutcome> ApplyAsync(Settings requested)
+    public Task<SettingsApplyOutcome> ApplyAsync(Settings requested) => ApplyAsync(requested, fromFile: false);
+
+    /// <summary>
+    /// Applies settings that came from a file, a saved preset, the way the daemon would load them. Everything
+    /// else about it is <see cref="ApplyAsync(Settings)"/>.
+    /// </summary>
+    public Task<SettingsApplyOutcome> ApplyLoadedAsync(Settings source) => ApplyAsync(source, fromFile: true);
+
+    private Task<SettingsApplyOutcome> ApplyAsync(Settings requested, bool fromFile)
     {
         if (IsPaused || _saving) return Task.FromResult(SettingsApplyOutcome.ChangedElsewhere);
         var copy = SettingsCodec.Clone(requested);
@@ -65,20 +73,28 @@ public sealed class SettingsWorkspace
         _draft = copy;
         var edit = ++_edit;
         Generation++;
-        return _pending = ApplyCoreAsync(copy, edit);
+        return _pending = ApplyCoreAsync(copy, edit, fromFile);
     }
 
     /// <summary>
-    /// Whether applying <paramref name="requested"/> would change the document. Weighed the way an apply
-    /// weighs it, after the same preparation, so a request that is already what is live reads as no change
-    /// even when the preparation would have rewritten the raw copy.
+    /// Whether loading <paramref name="source"/> from a file would change this workspace's document. Weighed
+    /// the way the load is made: prepared, then matched to the tablets and stamped as the daemon would load
+    /// it. Compared raw, a preset saved under an older revision always differs from what it left behind, which
+    /// is the document it was applied as.
     /// </summary>
-    public bool WouldChange(Settings requested)
+    /// <remarks>
+    /// This is the workspace's own draft, not the daemon: it can be behind the daemon (between refreshes), it is
+    /// the requested document after a failed apply, and it says nothing of a pause or a pending apply. It
+    /// answers "is there anything of mine to lose", which is what a prompt needs, and must never stand in for
+    /// an apply. An apply reads the daemon first (#1060). True when that cannot be told.
+    /// </remarks>
+    public async Task<bool> WouldChangeLoadedAsync(Settings source)
     {
-        if (_draft is null) return true;
-        var copy = SettingsCodec.Clone(requested);
+        if (_draft is not { } draft) return true;
+        var copy = SettingsCodec.Clone(source);
         OtaSettingsPolicy.Prepare(copy, _owned);
-        return !SettingsCodec.Same(copy, _draft);
+        var loaded = await _session.AsLoadedAsync(copy);
+        return loaded is null || !SettingsCodec.Same(loaded, draft);
     }
 
     public Task<SettingsApplyOutcome> ApplyProfileAsync(Profile profile)
@@ -91,9 +107,9 @@ public sealed class SettingsWorkspace
         return ApplyAsync(settings);
     }
 
-    private async Task<SettingsApplyOutcome> ApplyCoreAsync(Settings requested, int edit)
+    private async Task<SettingsApplyOutcome> ApplyCoreAsync(Settings requested, int edit, bool fromFile)
     {
-        var outcome = await _session.ApplyAsync(requested);
+        var outcome = await (fromFile ? _session.ApplyLoadedAsync(requested) : _session.ApplyAsync(requested));
         if (edit == _edit)
         {
             _failed = !outcome.IsLive;
