@@ -84,7 +84,7 @@ public partial class HealthPageViewModel : ObservableObject, IDisposable
                 Health.Issues.Select(i => i.Severity), HealthBadgeViewModel.DaemonDown(Daemon));
             if (HealthBadgeViewModel.IsStillChecking(count, Health.Analysis is not null, Health.CollectionFailed))
                 return "Checking…";
-            if (HealthBadgeViewModel.IsUnchecked(count, Health.Analysis is not null, Health.CollectionFailed))
+            if (HealthBadgeViewModel.IsUnchecked(count, Health.CollectionFailed))
                 return "Couldn't check.";
             return count switch
             {
