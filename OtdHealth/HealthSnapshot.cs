@@ -82,6 +82,10 @@ public sealed record HealthSnapshot
     public HealthPlatform Platform { get; init; }
     /// <summary>Whether the daemon currently answers.</summary>
     public bool DaemonConnected { get; init; }
+    /// <summary>A daemon answers but the consumer declined to attach to it (#1042), so it is not
+    /// <see cref="DaemonConnected"/>. Daemon version findings are still reported for it: the version is why
+    /// it was declined, and the reader needs to be told.</summary>
+    public bool DaemonRefused { get; init; }
     /// <summary>The connected daemon is external according to the consumer's ownership policy.</summary>
     public bool ForeignDaemon { get; init; }
     /// <summary>The external daemon is another managed copy rather than an independent installation.</summary>

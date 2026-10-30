@@ -64,6 +64,11 @@ public interface IDaemonLifecycleService : IDaemonProcessLocator
     /// effectively a singleton anyway.</summary>
     void StopAll();
 
+    /// <summary>The version stamped on the daemon executable at <paramref name="executablePath"/>, or ""
+    /// if none can be read. The daemon doesn't report its version over RPC, so this is where the version
+    /// rule (#1042) gets the one fact it turns on. A seam because the answer is a property of a file a
+    /// test's fake daemon doesn't have.</summary>
+    string ReadVersion(string executablePath);
 }
 
 /// <inheritdoc />
@@ -92,6 +97,8 @@ public class DaemonLifecycleService : IDaemonLifecycleService
     }
 
     public bool IsRunning() => Process.GetProcessesByName(ProcessName).Length > 0;
+
+    public string ReadVersion(string executablePath) => Domain.DaemonVersion.Read(executablePath);
 
     public bool HasBundledDaemon() => File.Exists(DaemonExePaths.BundledPath(AppContext.BaseDirectory));
 

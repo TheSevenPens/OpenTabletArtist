@@ -37,8 +37,10 @@ public class HealthEvaluatorTests
     // A user's own OpenTabletDriver is whatever release they installed; OTA links OTD's types and the RPC
     // is loosely typed, so the two versions being different is worth surfacing on Home.
 
+    // A different release is not a recommendation any more: the app declines to attach to it (#1042), so
+    // it is Broken, and it is a card of its own rather than a row among the user-supplied daemon's.
     [Fact]
-    public void DaemonFromADifferentRelease_IsRecommendation_AndNamesBothVersions()
+    public void DaemonFromADifferentRelease_IsBroken_AndNamesBothVersions()
     {
         var issue = Assert.Single(HealthEvaluator.Evaluate(Healthy() with
         {
@@ -46,14 +48,46 @@ public class HealthEvaluatorTests
             ExpectedOtdVersion = "0.6.7.0",
         }));
 
-        Assert.Equal("otd.driver", issue.Id);
-        Assert.Equal(HealthSeverity.Recommendation, issue.Severity);
+        Assert.Equal("otd.versionBlocked", issue.Id);
+        Assert.Equal(HealthSeverity.Broken, issue.Severity);
         Assert.Equal(RemediationArea.Daemon, issue.Remediation!.Area);
 
-        // Both numbers still have to be on screen — that pairing is the whole content of the row.
+        // Both numbers still have to be on screen — that pairing is the whole content of the card.
+        Assert.Contains("0.6.6.2", issue.Detail);
+        Assert.Contains("0.6.7.0", issue.Detail);
+    }
+
+    // The same release on another revision works, and says so: an older one more strongly than a newer one.
+    [Theory]
+    [InlineData("0.6.7.0", "0.6.7.2", HealthSeverity.Recommendation)]
+    [InlineData("0.6.7.2", "0.6.7.0", HealthSeverity.Information)]
+    public void ADifferentRevisionOfTheSameRelease_IsARowNotABlock(string daemon, string expected, HealthSeverity severity)
+    {
+        var issue = Assert.Single(HealthEvaluator.Evaluate(Healthy() with
+        {
+            DaemonVersion = daemon,
+            ExpectedOtdVersion = expected,
+        }));
+
+        Assert.Equal("otd.driver", issue.Id);
+        Assert.Equal(severity, issue.Severity);
         var row = Assert.Single(issue.Links!);
-        Assert.Contains("0.6.6.2", row.Setting);
-        Assert.Contains("0.6.7.0", row.Setting);
+        Assert.Contains(daemon, row.Setting);
+        Assert.Contains(expected, row.Setting);
+    }
+
+    // A daemon the app declined is not connected, and the card has to be there anyway: it is why.
+    [Fact]
+    public void ARefusedDaemonShowsItsCardWhileNotConnected()
+    {
+        var issue = Assert.Single(HealthEvaluator.Evaluate(Healthy() with
+        {
+            DaemonConnected = false,
+            DaemonRefused = true,
+            DaemonVersion = "0.6.6.2",
+            ExpectedOtdVersion = "0.6.7.0",
+        }));
+        Assert.Equal("otd.versionBlocked", issue.Id);
     }
 
     // The daemon binary reports "0.6.7" where OTA's assembly version is "0.6.7.0" — same release, and
@@ -68,16 +102,33 @@ public class HealthEvaluatorTests
         }));
     }
 
-    [Theory]
-    [InlineData("", "0.6.7.0")]   // daemon version unreadable (cross-session / elevated process)
-    [InlineData("0.6.6.2", "")]   // our own version unknown
-    public void UnknownVersionsRaiseNothing(string daemon, string expected)
+    // Our own version unknown means nothing to compare against, so nothing is said.
+    [Fact]
+    public void AnUnknownExpectedVersionRaisesNothing()
     {
         Assert.Empty(HealthEvaluator.Evaluate(Healthy() with
         {
-            DaemonVersion = daemon,
-            ExpectedOtdVersion = expected,
+            DaemonVersion = "0.6.6.2",
+            ExpectedOtdVersion = "",
         }));
+    }
+
+    // The daemon's version cannot be read (a cross-session or elevated process): nothing can be said to
+    // match, so the app declines rather than guesses (#1042). It is the refusal that raises the card, which
+    // is why a daemon the app is still connected to raises nothing here.
+    [Fact]
+    public void AnUnreadableDaemonVersionIsBroken_WhenTheAppRefusedIt()
+    {
+        var issue = Assert.Single(HealthEvaluator.Evaluate(Healthy() with
+        {
+            DaemonConnected = false,
+            DaemonRefused = true,
+            DaemonVersion = "",
+            ExpectedOtdVersion = "0.6.7.0",
+        }));
+        Assert.Equal("otd.versionBlocked", issue.Id);
+        Assert.Equal(HealthSeverity.Broken, issue.Severity);
+        Assert.Contains("couldn't read", issue.Detail);
     }
 
     [Fact]
@@ -209,8 +260,8 @@ public class HealthEvaluatorTests
         {
             ForeignDaemon = true,
             DaemonSourceUnknown = true,
-            DaemonVersion = "0.6.6.2",
-            ExpectedOtdVersion = "0.6.7.0",
+            DaemonVersion = "0.6.7.0",
+            ExpectedOtdVersion = "0.6.7.2",
         }));
 
         Assert.Equal("otd.driver", issue.Id);
@@ -224,8 +275,8 @@ public class HealthEvaluatorTests
         var issue = Assert.Single(HealthEvaluator.Evaluate(Healthy() with
         {
             ForeignDaemon = true,
-            DaemonVersion = "0.6.6.2",
-            ExpectedOtdVersion = "0.6.7.0",
+            DaemonVersion = "0.6.7.0",
+            ExpectedOtdVersion = "0.6.7.2",
         }));
 
         Assert.Equal(HealthSeverity.Recommendation, issue.Severity);

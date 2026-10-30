@@ -57,6 +57,7 @@ internal static class HealthCollectionAdapter
         IsMacOS = s.Platform == HealthPlatform.MacOS,
         IsLinux = s.Platform == HealthPlatform.Linux,
         DaemonConnected = s.DaemonConnected,
+        DaemonRefused = s.DaemonRefused,
         ForeignDaemon = s.ForeignDaemon,
         DaemonIsManagedButNotSelected = s.DaemonIsManagedButNotSelected,
         DaemonSourceUnknown = s.DaemonSourceUnknown,

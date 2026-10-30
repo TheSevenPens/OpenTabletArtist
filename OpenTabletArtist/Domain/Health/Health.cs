@@ -150,6 +150,9 @@ public sealed record HealthInputs
     public bool IsMacOS { get; init; }
     /// <summary>Connected to the daemon right now.</summary>
     public bool DaemonConnected { get; init; }
+    /// <summary>A daemon answers, but this app declined to attach to it because of its version (#1042).
+    /// Not <see cref="DaemonConnected"/>; the version finding is still reported for it.</summary>
+    public bool DaemonRefused { get; init; }
     /// <summary>Connected, but to a daemon this app didn't launch.</summary>
     public bool ForeignDaemon { get; init; }
 
@@ -360,6 +363,7 @@ public static class HealthEvaluator
             : i.IsLinux ? OtdHealth.HealthPlatform.Linux
             : i.IsMacOS ? OtdHealth.HealthPlatform.MacOS : OtdHealth.HealthPlatform.Unspecified,
         DaemonConnected = i.DaemonConnected,
+        DaemonRefused = i.DaemonRefused,
         ForeignDaemon = i.ForeignDaemon,
         DaemonIsManagedButNotSelected = i.DaemonIsManagedButNotSelected,
         DaemonSourceUnknown = i.DaemonSourceUnknown,

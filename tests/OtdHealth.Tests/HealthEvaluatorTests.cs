@@ -37,7 +37,10 @@ public class HealthEvaluatorTests
         yield return [Healthy(HealthPlatform.MacOS) with { DaemonCannotOpenTablet = true }, "otd.permissionsMissing", HealthSeverity.Broken];
         yield return [Healthy() with { ForeignDaemon = true }, "daemon.foreign", HealthSeverity.Information];
         yield return [Healthy() with { DaemonSourceUnknown = true }, "daemon.sourceUnknown", HealthSeverity.Recommendation];
-        yield return [Healthy() with { DaemonVersion = "0.6.6", ExpectedOtdVersion = "0.6.7" }, "daemon.versionMismatch", HealthSeverity.Recommendation];
+        yield return [Healthy() with { DaemonVersion = "0.6.6", ExpectedOtdVersion = "0.6.7" }, "daemon.versionMismatch", HealthSeverity.Broken];
+        yield return [Healthy() with { DaemonConnected = false, DaemonRefused = true, DaemonVersion = "", ExpectedOtdVersion = "0.6.7" }, "daemon.versionMismatch", HealthSeverity.Broken];
+        yield return [Healthy() with { DaemonVersion = "0.6.7", ExpectedOtdVersion = "0.6.7.1" }, "daemon.versionMismatch", HealthSeverity.Recommendation];
+        yield return [Healthy() with { DaemonVersion = "0.6.7.1", ExpectedOtdVersion = "0.6.7" }, "daemon.versionMismatch", HealthSeverity.Information];
 
         var linux = new HealthSnapshot { Platform = HealthPlatform.Linux };
         yield return [linux with { LinuxUdevRulesMissing = true }, "linux.udevRules", HealthSeverity.Broken];
@@ -158,23 +161,63 @@ public class HealthEvaluatorTests
         }));
     }
 
+    // No expected version means the consumer asked for no comparison. An unreadable daemon version against
+    // an expected one is a finding only for a daemon the consumer refused (#1042), covered below: a
+    // consumer that carries on with such a daemon, as a diagnostics run does, has not called it a problem.
     [Theory]
+    [InlineData("", "")]
     [InlineData("", "0.6.7")]
     [InlineData("0.6.7", "")]
     [InlineData("0.6.7", "0.6.7.0")]
     [InlineData("0.6.7+abc", "0.6.7.0")]
-    public void UnknownOrEquivalentVersionsDoNotRaiseFindings(string actual, string expected) =>
+    public void MatchingOrUncomparedVersionsDoNotRaiseFindings(string actual, string expected) =>
         Assert.Empty(HealthEvaluator.Evaluate(Healthy() with { DaemonVersion = actual, ExpectedOtdVersion = expected }));
 
-    // OpenTabletDriver 0.6.8.1 is a Windows crash fix over 0.6.8, so a daemon on the older one has to read as
-    // out of date rather than as the same release.
-    [Fact]
-    public void AFourthPartDifferenceRaisesTheVersionFinding()
+    // OpenTabletDriver 0.6.8.1 is a Windows crash fix over 0.6.8, so a daemon on the older revision reads as
+    // out of date rather than as the same release, and more strongly than a newer one does. Neither blocks.
+    [Theory]
+    [InlineData("0.6.8", "0.6.8.1", HealthSeverity.Recommendation)]
+    [InlineData("0.6.8.1", "0.6.8", HealthSeverity.Information)]
+    public void ARevisionDifferenceRaisesTheVersionFindingWithoutBlocking(string actual, string expected, HealthSeverity severity)
     {
-        var findings = HealthEvaluator.Evaluate(Healthy() with { DaemonVersion = "0.6.8", ExpectedOtdVersion = "0.6.8.1" });
+        var findings = HealthEvaluator.Evaluate(Healthy() with { DaemonVersion = actual, ExpectedOtdVersion = expected });
         var mismatch = Assert.Single(findings, f => f.Code == HealthCheckCodes.DaemonVersionMismatch);
-        Assert.Equal("0.6.8", mismatch.Evidence!.ActualVersion);
-        Assert.Equal("0.6.8.1", mismatch.Evidence!.ExpectedVersion);
+        Assert.Equal(severity, mismatch.Severity);
+        Assert.Equal(actual, mismatch.Evidence!.ActualVersion);
+        Assert.Equal(expected, mismatch.Evidence!.ExpectedVersion);
+    }
+
+    // A daemon the consumer refused is not connected, and it is exactly the one the finding is about.
+    [Theory]
+    [InlineData("0.6.7", HealthSeverity.Broken)]
+    [InlineData("", HealthSeverity.Broken)]
+    [InlineData("0.6.8", null)]
+    public void ARefusedDaemonIsJudgedOnItsVersionEvenThoughItIsNotConnected(string actual, HealthSeverity? severity)
+    {
+        var findings = HealthEvaluator.Evaluate(Healthy() with
+        {
+            DaemonConnected = false,
+            DaemonRefused = true,
+            DaemonVersion = actual,
+            ExpectedOtdVersion = "0.6.8",
+        });
+        if (severity is null) { Assert.Empty(findings); return; }
+        Assert.Equal(severity, Assert.Single(findings, f => f.Code == HealthCheckCodes.DaemonVersionMismatch).Severity);
+    }
+
+    [Fact]
+    public void ARefusedDaemonDoesNotReportTheOtherConnectedOnlyFindings()
+    {
+        var findings = HealthEvaluator.Evaluate(Healthy() with
+        {
+            DaemonConnected = false,
+            DaemonRefused = true,
+            ForeignDaemon = true,
+            DaemonSourceUnknown = true,
+            DaemonVersion = "0.6.7",
+            ExpectedOtdVersion = "0.6.8",
+        });
+        Assert.Equal([HealthCheckCodes.DaemonVersionMismatch], findings.Select(f => f.Code).ToArray());
     }
 
     [Theory]
