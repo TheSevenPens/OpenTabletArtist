@@ -315,6 +315,76 @@ public class ConnectionSessionTests
         Assert.Empty(daemon.Applied);
     }
 
+    /// <summary>A daemon the caller turned away must not become the one every later daemon is judged against.</summary>
+    /// <remarks>
+    /// Found by running the app against a real OpenTabletDriver of another version: it was refused, stopped
+    /// at the user's click, and the bundled daemon started in its place was then called "a different
+    /// OpenTabletDriver" and held read-only until the app was restarted.
+    /// </remarks>
+    [Fact]
+    public async Task ADeclinedDaemonIsNotThePinTheNextOneIsMeasuredAgainst()
+    {
+        var daemon = new FakeDaemonTransport { Settings = SettingsSessionTests.Document() };
+        var locator = new FakeProcessLocator { Path = "foreign.exe" };
+        using var session = FakeSession.Over(daemon, locator: locator);
+        daemon.Reconnect();
+        await session.InitializeAsync();
+        Assert.True(session.CanEditSettings);
+
+        session.Decline();
+
+        Assert.False(session.CanEditSettings);
+        Assert.Null(session.Settings);
+        Assert.NotEmpty(session.SettingsProblem);
+
+        // Gone: a note about that connection says nothing true about no connection.
+        daemon.RaiseDisconnected();
+        Assert.Equal("", session.SettingsProblem);
+
+        locator.Path = "bundled.exe";
+        daemon.AppInfo = FakeDaemonTransport.Reporting("bundled/settings.json");
+        daemon.Reconnect();
+        await session.InitializeAsync();
+
+        Assert.True(session.CanEditSettings);
+        Assert.Equal("", session.SettingsProblem);
+    }
+
+    /// <summary>Declining a connection that never set the pin leaves the earlier daemon's pin alone.</summary>
+    /// <remarks>
+    /// The pin is what stops a different daemon being adopted mid-session under unsaved edits. A refusal of
+    /// something that was never adopted has no claim on it.
+    /// </remarks>
+    [Fact]
+    public async Task DecliningADaemonThatWasNeverAdoptedKeepsTheEarlierPin()
+    {
+        var daemon = new FakeDaemonTransport { Settings = SettingsSessionTests.Document() };
+        var locator = new FakeProcessLocator { Path = "first.exe" };
+        using var session = FakeSession.Over(daemon, locator: locator);
+        daemon.Reconnect();
+        await session.InitializeAsync();
+        daemon.RaiseDisconnected();
+
+        locator.Path = "second.exe";
+        daemon.Reconnect();
+        await session.InitializeAsync();
+        Assert.Contains("Restart OpenTabletArtist", session.SettingsProblem);
+        session.Decline();
+        daemon.RaiseDisconnected();
+
+        locator.Path = "second.exe";
+        daemon.Reconnect();
+        await session.InitializeAsync();
+        Assert.False(session.CanEditSettings);
+        Assert.Contains("Restart OpenTabletArtist", session.SettingsProblem);
+
+        daemon.RaiseDisconnected();
+        locator.Path = "first.exe";
+        daemon.Reconnect();
+        await session.InitializeAsync();
+        Assert.True(session.CanEditSettings);
+    }
+
     [Fact]
     public async Task UnidentifiedDaemonIsReadOnlyAndMetadataCanBeRetried()
     {

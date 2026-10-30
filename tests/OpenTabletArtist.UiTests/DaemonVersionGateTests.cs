@@ -185,6 +185,37 @@ public class DaemonVersionGateTests
         Assert.False(session.IsDaemonRefused);
     }
 
+    /// <summary>The bundled daemon that replaces a refused one is used, not called "a different
+    /// OpenTabletDriver" and held read-only until the app restarts.</summary>
+    /// <remarks>
+    /// The test above gives both daemons one path, which is exactly what hid this: the library pins the first
+    /// daemon it adopts, so only two daemons that differ can show it. Found by running the app against a real
+    /// OpenTabletDriver 0.6.7.
+    /// </remarks>
+    [AvaloniaFact]
+    public async Task TheDaemonThatReplacesARefusedOne_IsUsed_NotCalledADifferentDriver()
+    {
+        var daemon = new FakeDaemonTransport { Settings = Settings() };
+        daemon.AppInfo = FakeDaemonTransport.Reporting("foreign/settings.json");
+        var locator = new FakeProcessLocator { Path = "foreign.exe" };
+        var lifecycle = new FakeLifecycle { Version = OtherRelease() };
+        using var session = new AppSession(
+            FakeSession.Over(daemon, new MemorySettingsFileStore(), locator), lifecycle);
+        daemon.Reconnect();
+        await PumpUntil(() => session.IsDaemonRefused);
+        daemon.RaiseDisconnected();
+        await PumpUntil(() => !session.IsDaemonRefused);
+
+        lifecycle.Version = null;
+        locator.Path = "bundled.exe";
+        daemon.AppInfo = FakeDaemonTransport.Reporting("bundled/settings.json");
+        daemon.Reconnect();
+        await PumpUntil(() => session.IsConnected);
+
+        Assert.True(session.CanEditSettings);
+        Assert.DoesNotContain("Restart OpenTabletArtist", session.SaveStatusText);
+    }
+
     /// <summary>A refused daemon must not become the one a later Start relaunches. Start and Restart
     /// relaunch the first daemon the app accepted, and pinning a refused one would put it straight back.</summary>
     [AvaloniaFact]

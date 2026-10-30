@@ -77,6 +77,8 @@ public sealed class OtdSession : IDisposable
     /// <summary>A loaded, unpaused settings session is available.</summary>
     public bool CanEditSettings => _settings is { IsConnected: true, IsPaused: false };
     private string _problem = "";
+    /// <summary>The current <see cref="_problem"/> is the one <see cref="Decline"/> wrote.</summary>
+    private bool _declined;
     /// <summary>Why settings are unavailable, or an empty string.</summary>
     public string SettingsProblem => _settings is { HasUnconfirmedWrite: true }
         ? "The last apply could not be confirmed. Restart the OTD daemon before editing or saving." : _problem;
@@ -101,12 +103,20 @@ public sealed class OtdSession : IDisposable
     private void OnConnected()
     {
         Retire();
+        // A new connection writes its own problem, so the declined note is no longer the one to clear.
+        lock (_state) _declined = false;
         _ = InitializeAsync();
     }
 
     private void OnDisconnected()
     {
         Retire();
+        // The note about a declined daemon describes that connection; with the daemon gone it would only
+        // say something false about whatever is not running.
+        lock (_state)
+        {
+            if (_declined) { _declined = false; _problem = ""; }
+        }
         if (!_disposed) Disconnected?.Invoke();
     }
 
@@ -156,6 +166,37 @@ public sealed class OtdSession : IDisposable
             return false;
         }
         return true;
+    }
+
+    /// <summary>
+    /// Lets go of the daemon that just connected, because the caller will not use it.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Initialization adopts the first daemon it can read and pins the session to it, and by the time the
+    /// caller hears about a connection that has already happened. A daemon the caller then refuses would
+    /// stay pinned, and the daemon it should have been replaced by would be called "a different
+    /// OpenTabletDriver" and held read-only until the application restarted -- the way out of a refusal
+    /// would lead to the next one.
+    /// </para>
+    /// <para>
+    /// The pin is forgotten only when this connection set it. A connection that was already held read-only
+    /// against an earlier daemon never pinned anything, so refusing it must not release that earlier one.
+    /// The transport stays open: there is no way to let go of a daemon's pipe short of closing the session,
+    /// and the caller still wants to find the process to stop it.
+    /// </para>
+    /// </remarks>
+    public void Decline()
+    {
+        bool adopted;
+        lock (_state) adopted = _settings is not null;
+        Retire();
+        lock (_state)
+        {
+            if (adopted) { _targetPath = null; _targetSettingsPath = null; }
+            _problem = "OpenTabletArtist is not using the running OpenTabletDriver.";
+            _declined = true;
+        }
     }
 
     /// <summary>Retry initial metadata/settings reads. A failed or replaced settings session is never migrated.</summary>

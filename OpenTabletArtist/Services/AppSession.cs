@@ -1820,6 +1820,10 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
     /// </remarks>
     private void RefuseDaemon(DaemonChange change, DaemonVersionGate gate)
     {
+        // Before anything else: the library has already adopted this daemon and pinned the session to it.
+        // Left alone, the bundled daemon the user starts next would be called a different one and held
+        // read-only until the app restarted.
+        _session.Decline();
         _workspace = null;
         Profiles = [];
         SettingsReplaced?.Invoke();
