@@ -16,44 +16,27 @@ public class HomeTabletsAndDaemonTests
 {
     // --- Tablets ----------------------------------------------------------------------------------------
 
+    /// <summary>One flat list: the plugged-in tablets first, then the remembered ones, each group in the order the
+    /// shell gave.</summary>
     [Fact]
-    public void TheListSplitsIntoPluggedInAndRemembered()
+    public void TheList_IsFlat_WithThePluggedInTabletsFirst()
     {
-        var overview = Overview(Tablet("A", true), Tablet("B", false), Tablet("C", false), Tablet("D", true));
+        var overview = Overview(Tablet("A", false), Tablet("B", true), Tablet("C", false), Tablet("D", true), Tablet("E", false));
 
-        Assert.Equal(["A", "D"], overview.Connected.Select(t => t.Name));
-        Assert.Equal(["B", "C"], overview.Remembered.Select(t => t.Name));
-        Assert.True(overview.HasConnected);
-        Assert.True(overview.HasRemembered);
+        Assert.Equal(["B", "D", "A", "C", "E"], overview.Ordered.Select(t => t.Name));
     }
 
-    /// <summary>The reason for the split: a machine that has met many tablets must not push the rest of Home
-    /// out of sight. The remembered ones stay closed until asked.</summary>
+    /// <summary>Nothing is hidden: a collapsible section for the remembered tablets did not work in practice, so every
+    /// tablet there is, is in the list.</summary>
     [Fact]
-    public void RememberedTablets_StartClosed_AndOpenOnRequest()
+    public void EveryKnownTablet_IsInTheList()
     {
-        var overview = Overview(Tablet("A", true), Tablet("B", false));
-        Assert.False(overview.IsRememberedExpanded);
-        Assert.Equal("show", overview.RememberedHint);
+        var tablets = Enumerable.Range(0, 9).Select(i => Tablet($"T{i}", i == 4)).ToArray();
 
-        overview.ToggleRememberedCommand.Execute(null);
+        var overview = Overview(tablets);
 
-        Assert.True(overview.IsRememberedExpanded);
-        Assert.Equal("hide", overview.RememberedHint);
-
-        overview.ToggleRememberedCommand.Execute(null);
-        Assert.False(overview.IsRememberedExpanded);
-    }
-
-    [Theory]
-    [InlineData(1, "1 remembered tablet")]
-    [InlineData(2, "2 remembered tablets")]
-    [InlineData(8, "8 remembered tablets")]
-    public void TheRememberedRowCountsThem(int remembered, string label)
-    {
-        var tablets = Enumerable.Range(0, remembered).Select(i => Tablet($"R{i}", false)).Append(Tablet("A", true)).ToArray();
-
-        Assert.Equal(label, Overview(tablets).RememberedLabel);
+        Assert.Equal(9, overview.Ordered.Count);
+        Assert.Equal("T4", overview.Ordered[0].Name);
     }
 
     /// <summary>Known tablets with none plugged in is said in words, not shown as an empty list. With no tablets
@@ -72,15 +55,14 @@ public class HomeTabletsAndDaemonTests
     }
 
     [Fact]
-    public void ARebuiltListReplacesBothHalves()
+    public void ARebuiltList_IsOrderedAgain()
     {
         var overview = Overview(Tablet("A", true), Tablet("B", false));
 
-        overview.Tablets = [Tablet("B", true)];
+        overview.Tablets = [Tablet("B", false), Tablet("C", true)];
 
-        Assert.Equal(["B"], overview.Connected.Select(t => t.Name));
-        Assert.Empty(overview.Remembered);
-        Assert.False(overview.HasRemembered);
+        Assert.Equal(["C", "B"], overview.Ordered.Select(t => t.Name));
+        Assert.True(overview.HasConnected);
     }
 
     private static TabletsOverviewViewModel Overview(params TabletOverviewItemViewModel[] tablets)
