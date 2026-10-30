@@ -3,11 +3,16 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:c="using:OpenTabletArtist.Controls">
 
-    <!-- Home (#1050): your tablets across the full width, then your presets, then the About content.
+    <!-- Home (#1050): the About content, then your tablets across the full width, then your presets.
          The health findings are not here: they have a page of their own, reached from the chip in the top
          bar, which is on every page. No page title; the highlighted "home" wordmark in the top bar names
          the section (Zune). Left-aligned block, capped so it stays a comfortable reading width. -->
     <StackPanel MaxWidth="1360" HorizontalAlignment="Left">
+        <!-- The folded-in About content (what-is, resources, version), rendered from the AboutViewModel via
+             the typed-nav DataTemplate so the markup isn't duplicated. First on the page: it is the short
+             preamble that introduces the tablets and presets below it. -->
+        <ContentControl Content="{Binding About}" Margin="0,0,0,18" />
+
         <!-- YOUR TABLETS: the former standalone Tablets page, merged into Home (#317). Each row opens
              the tablet page and carries detection timing + specs. -->
         <TextBlock Text="your tablets" Classes="Display" Margin="0,0,0,12" />
@@ -145,11 +150,5 @@
         <TextBlock Text="No presets yet. Save your settings as a preset on the Settings page."
                    TextWrapping="Wrap" Foreground="{DynamicResource TextMutedBrush}"
                    IsVisible="{Binding !Presets.HasPresets}" />
-
-        <!-- The folded-in About content (what-is · resources · version), rendered from the
-             AboutViewModel via the typed-nav DataTemplate so the markup isn't duplicated. It follows
-             the tablets and presets now: those are what Home is for, and this is the preamble you read
-             once. -->
-        <ContentControl Content="{Binding About}" Margin="0,18,0,0" />
     </StackPanel>
 </UserControl>

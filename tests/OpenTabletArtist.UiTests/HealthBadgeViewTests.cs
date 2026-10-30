@@ -21,80 +21,108 @@ using Xunit;
 namespace OpenTabletArtist.UiTests;
 
 /// <summary>
-/// The health indicator as it is drawn (#1050): the chip in the top bar, the Health page it opens, and the
+/// The health indicator as it is drawn (#1050): the badge on the Health tab, the Health page it leads to, and the
 /// presets that now sit where the findings used to be on Home.
 /// </summary>
-public class HealthChipViewTests
+public class HealthBadgeViewTests
 {
-    /// <summary>Each tier shows exactly one icon, and it is that tier's own. Colour is not enough to tell a
+    /// <summary>Each tier draws exactly one icon, and it is that tier's own. Colour is not enough to tell a
     /// suggestion from a misconfiguration, so the shape has to differ and has to actually be drawn.</summary>
     [AvaloniaTheory]
-    [InlineData(HealthChipTier.Healthy, "PART_IconHealthy")]
-    [InlineData(HealthChipTier.Information, "PART_IconInfo")]
-    [InlineData(HealthChipTier.Recommendation, "PART_IconSuggestion")]
-    [InlineData(HealthChipTier.Misconfigured, "PART_IconMisconfigured")]
-    [InlineData(HealthChipTier.Broken, "PART_IconBroken")]
-    public void EveryTier_DrawsExactlyItsOwnIcon(HealthChipTier tier, string expectedIcon)
+    [InlineData(HealthBadgeTier.Information, "PART_IconInfo")]
+    [InlineData(HealthBadgeTier.Recommendation, "PART_IconSuggestion")]
+    [InlineData(HealthBadgeTier.Misconfigured, "PART_IconMisconfigured")]
+    [InlineData(HealthBadgeTier.Broken, "PART_IconBroken")]
+    public void EveryTier_DrawsExactlyItsOwnIcon(HealthBadgeTier tier, string expectedIcon)
     {
-        var chip = new HealthChip { Tier = tier, Label = "x", Count = 2 };
-        var window = HarnessTests.Show(chip);
+        var tab = Tab(tier, 2);
+        var window = HarnessTests.Show(tab);
 
-        var drawn = chip.GetVisualDescendants().OfType<PathIcon>().Where(i => i.IsVisible).Select(i => i.Name).ToList();
+        var drawn = tab.GetVisualDescendants().OfType<PathIcon>().Where(i => i.IsEffectivelyVisible).Select(i => i.Name).ToList();
 
         Assert.Equal([expectedIcon], drawn);
         window.Close();
     }
 
+    /// <summary>A healthy app shows a plain word: no badge, no number, no icon.</summary>
     [AvaloniaFact]
-    public void TheNumber_IsShownWhenThereAreFindings_AndHiddenWhenThereAreNone()
+    public void WithNothingToCount_TheTabIsAPlainWord()
     {
-        var chip = new HealthChip { Tier = HealthChipTier.Broken, Label = "broken", Count = 4 };
-        var window = HarnessTests.Show(chip);
+        var tab = Tab(HealthBadgeTier.Healthy, 0);
+        var window = HarnessTests.Show(tab);
 
-        Assert.Contains(chip.GetVisualDescendants().OfType<TextBlock>(), t => t.Text == "4" && t.IsEffectivelyVisible);
-
-        chip.Count = 0;
-        chip.Tier = HealthChipTier.Healthy;
-        chip.Label = "healthy";
-        Dispatcher.UIThread.RunJobs();
-
-        Assert.DoesNotContain(chip.GetVisualDescendants().OfType<TextBlock>(), t => t.Text == "0" && t.IsEffectivelyVisible);
-        Assert.Contains(chip.GetVisualDescendants().OfType<TextBlock>(), t => t.Text == "healthy" && t.IsEffectivelyVisible);
+        Assert.DoesNotContain(tab.GetVisualDescendants().OfType<PathIcon>(), i => i.IsEffectivelyVisible);
+        Assert.DoesNotContain(tab.GetVisualDescendants().OfType<TextBlock>(), t => t.Text == "0" && t.IsEffectivelyVisible);
+        // The word is the theme's own ("Word"): a tab that never got the nav template would still show a word.
+        Assert.Contains(tab.GetVisualDescendants().OfType<TextBlock>(), t => t.Name == "Word" && t.Text == "health" && t.IsEffectivelyVisible);
         window.Close();
     }
 
-    /// <summary>The tiers are told apart by tint as well as shape, and information is the plain one.</summary>
     [AvaloniaFact]
-    public void EachTier_HasItsOwnBorder_AndInformationIsTheOneThatLooksCalm()
+    public void TheNumber_IsShownBesideTheWord_AndGoesWhenTheFindingsDo()
+    {
+        var tab = Tab(HealthBadgeTier.Broken, 4);
+        var window = HarnessTests.Show(tab);
+
+        var texts = tab.GetVisualDescendants().OfType<TextBlock>().Where(t => t.IsEffectivelyVisible).Select(t => t.Text).ToList();
+        Assert.Contains("health", texts);
+        Assert.Contains("4", texts);
+
+        tab.BadgeCount = 0;
+        tab.BadgeTier = HealthBadgeTier.Healthy;
+        Dispatcher.UIThread.RunJobs();
+
+        // The badge itself goes, not just the old number: no "0" in its place, no icon, no border.
+        Assert.DoesNotContain(tab.GetVisualDescendants().OfType<TextBlock>(), t => t.Text is "4" or "0" && t.IsEffectivelyVisible);
+        Assert.DoesNotContain(tab.GetVisualDescendants().OfType<Border>(), b => b.Name == "PART_Badge" && b.IsEffectivelyVisible);
+        window.Close();
+    }
+
+    /// <summary>The tiers are told apart by tint as well as shape.</summary>
+    [AvaloniaFact]
+    public void EachTier_HasItsOwnBorder()
     {
         var borders = new[]
         {
-            HealthChipTier.Healthy, HealthChipTier.Information, HealthChipTier.Recommendation,
-            HealthChipTier.Misconfigured, HealthChipTier.Broken,
+            HealthBadgeTier.Information, HealthBadgeTier.Recommendation,
+            HealthBadgeTier.Misconfigured, HealthBadgeTier.Broken,
         }.Select(tier =>
         {
-            var chip = new HealthChip { Tier = tier, Label = "x", Count = 1 };
-            var window = HarnessTests.Show(chip);
-            var border = chip.GetVisualDescendants().OfType<Border>().First().BorderBrush as Avalonia.Media.ISolidColorBrush;
+            var tab = Tab(tier, 1);
+            var window = HarnessTests.Show(tab);
+            var badge = tab.GetVisualDescendants().OfType<Border>().Single(b => b.Name == "PART_Badge");
+            var color = ((Avalonia.Media.ISolidColorBrush)badge.BorderBrush!).Color;
             window.Close();
-            return (tier, color: border!.Color);
+            return color;
         }).ToList();
 
-        Assert.Equal(borders.Count, borders.Select(b => b.color).Distinct().Count());
+        Assert.Equal(borders.Count, borders.Distinct().Count());
     }
 
+    /// <summary>The badge is part of the tab: pressing it is pressing the tab, so one click goes where the
+    /// word goes.</summary>
     [AvaloniaFact]
-    public void ClickingTheChip_RunsItsCommand()
+    public void ClickingTheBadge_RunsTheTabsCommand()
     {
         var ran = 0;
-        var chip = new HealthChip { Tier = HealthChipTier.Broken, Label = "broken", Count = 1, Command = new Command(() => ran++) };
-        var window = HarnessTests.Show(chip);
+        var tab = Tab(HealthBadgeTier.Broken, 1);
+        tab.Command = new Command(() => ran++);
+        var window = HarnessTests.Show(tab);
+        var badge = tab.GetVisualDescendants().OfType<Border>().Single(b => b.Name == "PART_Badge");
 
-        PenButtonCardTests.Click(window, chip);
+        PenButtonCardTests.Click(window, badge);
 
         Assert.Equal(1, ran);
         window.Close();
     }
+
+    private static NavTab Tab(HealthBadgeTier tier, int count) => new()
+    {
+        Theme = (Avalonia.Styling.ControlTheme)Avalonia.Application.Current!.FindResource("WordmarkNav")!,
+        Content = "health",
+        BadgeTier = tier,
+        BadgeCount = count,
+    };
 
     // --- The Health page --------------------------------------------------------------------------------
 
@@ -144,7 +172,7 @@ public class HealthChipViewTests
     }
 
     /// <summary>A refused daemon is one problem with one card, the one in the findings. The daemon card
-    /// steps aside, so the page shows what the chip counts and not twice that.</summary>
+    /// steps aside, so the page shows what the badge counts and not twice that.</summary>
     [AvaloniaFact]
     public void ARefusedDaemon_ShowsOneCard_NotTwo()
     {

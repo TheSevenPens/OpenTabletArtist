@@ -89,8 +89,8 @@ public partial class MainViewModel : ObservableObject, IDisposable
     /// <summary>The Health page: every finding, worst first (#1050).</summary>
     public HealthPageViewModel HealthPage { get; }
 
-    /// <summary>The top-bar health indicator, shown on every page (#1050).</summary>
-    public HealthChipViewModel HealthChip { get; }
+    /// <summary>What the badge on the HEALTH tab says: the worst finding's tier and how many there are (#1050).</summary>
+    public HealthBadgeViewModel HealthBadge { get; }
     public TestViewModel Test { get; }
     public LogViewModel Log { get; }
     public PluginsViewModel Plugins { get; }
@@ -247,9 +247,9 @@ public partial class MainViewModel : ObservableObject, IDisposable
             () => OpenSettingsTab(SettingsTab.Drivers),  // VMulti → SETTINGS → DRIVERS (#vmulti-to-drivers)
             () => OpenAdvancedTab(AdvancedTab.CustomTabletConfigs),
             NavigateToPenByName);                        // pen-behaviour "Fix" → PEN page (#pen-split)
-        // The top-bar chip, on every page: the worst finding's tier and how many there are. Clicking it opens
-        // the Health page.
-        HealthChip = new HealthChipViewModel(_health, _daemonStatus, () => Navigate(HealthPage));
+        // The badge on the HEALTH tab: the worst finding's tier and how many there are. The tab is in the top
+        // bar, so health is clear from every page.
+        HealthBadge = new HealthBadgeViewModel(_health, _daemonStatus);
         Test = new TestViewModel(_session.Daemon, _session, () => _session.DaemonVersion,
             showRecordingReview: dialogs.ShowRecordingReviewAsync,
             showRecordingProblem: message => dialogs.ShowMessageAsync("Can't record", message));
@@ -300,7 +300,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
         NavSections.Add(new NavLeafViewModel("TABLET", TabletPage));
         NavSections.Add(new NavLeafViewModel("PEN", PenPage));
         NavSections.Add(new NavLeafViewModel("SCRIBBLE", Test));
-        NavSections.Add(new NavLeafViewModel("HEALTH", HealthPage));
+        NavSections.Add(new NavLeafViewModel("HEALTH", HealthPage, badge: HealthBadge));
         NavSections.Add(new NavLeafViewModel("SETTINGS", Settings));
         NavSections.Add(new NavLeafViewModel("ADVANCED", Advanced));
 
@@ -688,7 +688,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
         Diagnostics.Dispose();    // stops debugging + unsubscribes connection sync
         Dashboard.Dispose();      // cancels VMulti install/uninstall token + unsubscribes
         HealthPage.Dispose();     // unsubscribes from the health catalog + daemon status
-        HealthChip.Dispose();     // unsubscribes from the health catalog + daemon status
+        HealthBadge.Dispose();    // unsubscribes from the health catalog + daemon status
         Presets.Dispose();        // unsubscribes DataLoaded
         Hotkeys.Dispose();        // unsubscribes DataLoaded
         Test.Dispose();           // stops the daemon debug stream if running
@@ -716,12 +716,16 @@ public partial class MainViewModel : ObservableObject, IDisposable
 /// entries hide themselves). Clicking it runs the shell's Navigate command with <see cref="Page"/>.</summary>
 public partial class NavLeafViewModel : ObservableObject
 {
-    public NavLeafViewModel(string label, ObservableObject page, bool isVisible = true)
+    public NavLeafViewModel(string label, ObservableObject page, bool isVisible = true, HealthBadgeViewModel? badge = null)
     {
         Label = label;
         Page = page;
+        Badge = badge;
         _isVisible = isVisible;
     }
+
+    /// <summary>The badge beside this tab's word, or null for a tab that has none (#1050).</summary>
+    public HealthBadgeViewModel? Badge { get; }
 
     public string Label { get; }
     public ObservableObject Page { get; }

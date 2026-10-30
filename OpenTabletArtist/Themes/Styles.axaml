@@ -108,82 +108,6 @@
             </Style>
         </ControlTheme>
 
-        <!-- HealthChip (#1050): the top-bar health indicator. A small square button whose tint, icon and word
-             follow the worst finding, with the number of findings after the word. The tint matches the
-             Alert cards it leads to (Broken red, Misconfigured amber, Recommendation blue); Information is
-             deliberately plain, since it says there is something to read and nothing is wrong. The label
-             and the count stay in the primary text colour whatever the tier, so contrast never depends on
-             a status colour; only the border, tint and icon carry it. -->
-        <ControlTheme x:Key="{x:Type c:HealthChip}" TargetType="c:HealthChip">
-            <Setter Property="Background" Value="{DynamicResource SuccessMutedBrush}" />
-            <Setter Property="BorderBrush" Value="{DynamicResource SuccessBrush}" />
-            <Setter Property="Foreground" Value="{DynamicResource SuccessBrush}" />
-            <Setter Property="BorderThickness" Value="1.5" />
-            <Setter Property="Padding" Value="10,5" />
-            <Setter Property="Cursor" Value="Hand" />
-            <Setter Property="Template">
-                <ControlTemplate>
-                    <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}"
-                            BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="0"
-                            Padding="{TemplateBinding Padding}">
-                        <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                            <Panel Width="16" Height="16" VerticalAlignment="Center">
-                                <PathIcon x:Name="PART_IconHealthy" Data="{StaticResource IconCheckCircle}" Width="16" Height="16"
-                                          Foreground="{TemplateBinding Foreground}" />
-                                <PathIcon x:Name="PART_IconInfo" Data="{StaticResource IconInformationOutline}" Width="16" Height="16"
-                                          Foreground="{TemplateBinding Foreground}" IsVisible="False" />
-                                <PathIcon x:Name="PART_IconSuggestion" Data="{StaticResource IconLightbulbOn}" Width="16" Height="16"
-                                          Foreground="{TemplateBinding Foreground}" IsVisible="False" />
-                                <PathIcon x:Name="PART_IconMisconfigured" Data="{StaticResource IconAlert}" Width="16" Height="16"
-                                          Foreground="{TemplateBinding Foreground}" IsVisible="False" />
-                                <PathIcon x:Name="PART_IconBroken" Data="{StaticResource IconAlertCircle}" Width="16" Height="16"
-                                          Foreground="{TemplateBinding Foreground}" IsVisible="False" />
-                            </Panel>
-                            <TextBlock Text="{TemplateBinding Label}" VerticalAlignment="Center"
-                                       FontFamily="{DynamicResource DisplayFontFamily}" FontWeight="SemiBold"
-                                       Foreground="{DynamicResource TextPrimaryBrush}" />
-                            <TextBlock Text="{TemplateBinding Count}" VerticalAlignment="Center"
-                                       FontFamily="{DynamicResource DisplayFontFamily}" FontWeight="SemiBold"
-                                       Foreground="{DynamicResource TextPrimaryBrush}"
-                                       IsVisible="{TemplateBinding HasCount}" />
-                        </StackPanel>
-                    </Border>
-                </ControlTemplate>
-            </Setter>
-            <Style Selector="^:pointerover">
-                <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
-            </Style>
-            <Style Selector="^[Tier=Information]">
-                <Setter Property="Background" Value="{DynamicResource GlassBgBrush}" />
-                <Setter Property="BorderBrush" Value="{DynamicResource DividerBrush}" />
-                <Setter Property="Foreground" Value="{DynamicResource NeutralBrush}" />
-            </Style>
-            <Style Selector="^[Tier=Recommendation]">
-                <Setter Property="Background" Value="{DynamicResource InfoMutedBrush}" />
-                <Setter Property="BorderBrush" Value="{DynamicResource InfoBrush}" />
-                <Setter Property="Foreground" Value="{DynamicResource InfoBrush}" />
-            </Style>
-            <Style Selector="^[Tier=Misconfigured]">
-                <Setter Property="Background" Value="{DynamicResource WarningMutedBrush}" />
-                <Setter Property="BorderBrush" Value="{DynamicResource WarningBrush}" />
-                <Setter Property="Foreground" Value="{DynamicResource WarningBrush}" />
-            </Style>
-            <Style Selector="^[Tier=Broken]">
-                <Setter Property="Background" Value="{DynamicResource ErrorMutedBrush}" />
-                <Setter Property="BorderBrush" Value="{DynamicResource ErrorBrush}" />
-                <Setter Property="Foreground" Value="{DynamicResource ErrorBrush}" />
-            </Style>
-            <!-- One icon per tier, so the tiers are told apart by shape as well as colour. -->
-            <Style Selector="^[Tier=Information] /template/ PathIcon#PART_IconHealthy"><Setter Property="IsVisible" Value="False" /></Style>
-            <Style Selector="^[Tier=Information] /template/ PathIcon#PART_IconInfo"><Setter Property="IsVisible" Value="True" /></Style>
-            <Style Selector="^[Tier=Recommendation] /template/ PathIcon#PART_IconHealthy"><Setter Property="IsVisible" Value="False" /></Style>
-            <Style Selector="^[Tier=Recommendation] /template/ PathIcon#PART_IconSuggestion"><Setter Property="IsVisible" Value="True" /></Style>
-            <Style Selector="^[Tier=Misconfigured] /template/ PathIcon#PART_IconHealthy"><Setter Property="IsVisible" Value="False" /></Style>
-            <Style Selector="^[Tier=Misconfigured] /template/ PathIcon#PART_IconMisconfigured"><Setter Property="IsVisible" Value="True" /></Style>
-            <Style Selector="^[Tier=Broken] /template/ PathIcon#PART_IconHealthy"><Setter Property="IsVisible" Value="False" /></Style>
-            <Style Selector="^[Tier=Broken] /template/ PathIcon#PART_IconBroken"><Setter Property="IsVisible" Value="True" /></Style>
-        </ControlTheme>
-
         <!-- Entity (object role): same look as Section, but marks a card representing a discrete object the
              user acts on (a tablet, button, wheel, preset, plugin). Structurally a Section subclass so
              shared styles like expressCard still apply. -->
@@ -490,16 +414,41 @@
              slot, and it left every unchecked word sitting in a box cut for a wider weight, which is what
              made the gaps along the bar uneven. With the weight fixed at Light there is nothing to
              reserve, so both the reserver and the uneven gaps go. -->
-        <ControlTheme x:Key="WordmarkNav" TargetType="RadioButton">
+        <ControlTheme x:Key="WordmarkNav" TargetType="c:NavTab">
             <Setter Property="Cursor" Value="Hand" />
             <Setter Property="Background" Value="Transparent" />
             <Setter Property="Template">
                 <ControlTemplate>
                     <Panel Background="{TemplateBinding Background}">
-                        <TextBlock x:Name="Word" Text="{TemplateBinding Content}"
-                                   FontFamily="{DynamicResource DisplayFontFamily}"
-                                   FontSize="{DynamicResource TypeNavSize}" FontWeight="Light" LetterSpacing="-0.3"
-                                   Foreground="{DynamicResource TextMutedBrush}" />
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <TextBlock x:Name="Word" Text="{TemplateBinding Content}"
+                                       FontFamily="{DynamicResource DisplayFontFamily}"
+                                       FontSize="{DynamicResource TypeNavSize}" FontWeight="Light" LetterSpacing="-0.3"
+                                       Foreground="{DynamicResource TextMutedBrush}" />
+                            <!-- The health badge (#1050): how many findings, tinted by the worst. Drawn only
+                                 while there is something to count. The number stays in the primary text colour
+                                 whatever the tier, so contrast never depends on a status colour; only the
+                                 border, tint and icon carry it. -->
+                            <Border x:Name="PART_Badge" IsVisible="{TemplateBinding HasBadge}"
+                                    VerticalAlignment="Center" BorderThickness="1.5" CornerRadius="0" Padding="6,1"
+                                    Background="{DynamicResource GlassBgBrush}" BorderBrush="{DynamicResource DividerBrush}">
+                                <StackPanel Orientation="Horizontal" Spacing="5">
+                                    <Panel Width="13" Height="13" VerticalAlignment="Center">
+                                        <PathIcon x:Name="PART_IconInfo" Classes="badgeIcon" Data="{StaticResource IconInformationOutline}"
+                                                  Width="13" Height="13" IsVisible="False" />
+                                        <PathIcon x:Name="PART_IconSuggestion" Classes="badgeIcon" Data="{StaticResource IconLightbulbOn}"
+                                                  Width="13" Height="13" IsVisible="False" />
+                                        <PathIcon x:Name="PART_IconMisconfigured" Classes="badgeIcon" Data="{StaticResource IconAlert}"
+                                                  Width="13" Height="13" IsVisible="False" />
+                                        <PathIcon x:Name="PART_IconBroken" Classes="badgeIcon" Data="{StaticResource IconAlertCircle}"
+                                                  Width="13" Height="13" IsVisible="False" />
+                                    </Panel>
+                                    <TextBlock Text="{TemplateBinding BadgeCount}" VerticalAlignment="Center"
+                                               FontFamily="{DynamicResource DisplayFontFamily}" FontSize="{DynamicResource TypeDetailSize}"
+                                               FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}" />
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
                     </Panel>
                 </ControlTemplate>
             </Setter>
@@ -509,6 +458,27 @@
             <Style Selector="^:checked /template/ TextBlock#Word">
                 <Setter Property="Foreground" Value="{DynamicResource AccentBrush}" />
             </Style>
+            <!-- Badge: tint + border + icon per tier, matching the Alert cards the Health page shows. -->
+            <Style Selector="^[BadgeTier=Information] /template/ PathIcon.badgeIcon"><Setter Property="Foreground" Value="{DynamicResource NeutralBrush}" /></Style>
+            <Style Selector="^[BadgeTier=Information] /template/ PathIcon#PART_IconInfo"><Setter Property="IsVisible" Value="True" /></Style>
+            <Style Selector="^[BadgeTier=Recommendation] /template/ Border#PART_Badge">
+                <Setter Property="Background" Value="{DynamicResource InfoMutedBrush}" />
+                <Setter Property="BorderBrush" Value="{DynamicResource InfoBrush}" />
+            </Style>
+            <Style Selector="^[BadgeTier=Recommendation] /template/ PathIcon.badgeIcon"><Setter Property="Foreground" Value="{DynamicResource InfoBrush}" /></Style>
+            <Style Selector="^[BadgeTier=Recommendation] /template/ PathIcon#PART_IconSuggestion"><Setter Property="IsVisible" Value="True" /></Style>
+            <Style Selector="^[BadgeTier=Misconfigured] /template/ Border#PART_Badge">
+                <Setter Property="Background" Value="{DynamicResource WarningMutedBrush}" />
+                <Setter Property="BorderBrush" Value="{DynamicResource WarningBrush}" />
+            </Style>
+            <Style Selector="^[BadgeTier=Misconfigured] /template/ PathIcon.badgeIcon"><Setter Property="Foreground" Value="{DynamicResource WarningBrush}" /></Style>
+            <Style Selector="^[BadgeTier=Misconfigured] /template/ PathIcon#PART_IconMisconfigured"><Setter Property="IsVisible" Value="True" /></Style>
+            <Style Selector="^[BadgeTier=Broken] /template/ Border#PART_Badge">
+                <Setter Property="Background" Value="{DynamicResource ErrorMutedBrush}" />
+                <Setter Property="BorderBrush" Value="{DynamicResource ErrorBrush}" />
+            </Style>
+            <Style Selector="^[BadgeTier=Broken] /template/ PathIcon.badgeIcon"><Setter Property="Foreground" Value="{DynamicResource ErrorBrush}" /></Style>
+            <Style Selector="^[BadgeTier=Broken] /template/ PathIcon#PART_IconBroken"><Setter Property="IsVisible" Value="True" /></Style>
         </ControlTheme>
 
         <!-- PivotTab: the Zune subpage pivot (redesign Phase 2) — big lowercase Inter Light headers

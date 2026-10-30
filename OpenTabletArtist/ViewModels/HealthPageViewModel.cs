@@ -67,7 +67,7 @@ public partial class HealthPageViewModel : ObservableObject, IDisposable
     public HealthService Health { get; }
 
     /// <summary>The line under the heading: how many findings, and that the worst come first. Counts them
-    /// the way the top-bar chip does, so the two never disagree about how many there are. It is also the
+    /// the way the badge on the Health tab does, so the two never disagree about how many there are. It is also the
     /// all-clear, and it counts the daemon too: the daemon problem card lives outside the health catalog
     /// by design (#317), so "no health issues" was never the same as "nothing is wrong", and with no driver
     /// at all the page once said "Nothing needs attention" directly above a warning card explaining that
@@ -80,8 +80,8 @@ public partial class HealthPageViewModel : ObservableObject, IDisposable
             // would be false by the time it finished.
             if (Daemon.ShowDaemonActivity) return "";
 
-            var (_, count) = HealthChipViewModel.Summarize(
-                Health.Issues.Select(i => i.Severity), HealthChipViewModel.DaemonDown(Daemon));
+            var (_, count) = HealthBadgeViewModel.Summarize(
+                Health.Issues.Select(i => i.Severity), HealthBadgeViewModel.DaemonDown(Daemon));
             return count switch
             {
                 0 => "Nothing needs attention.",
