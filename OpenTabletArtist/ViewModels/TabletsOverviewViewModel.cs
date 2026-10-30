@@ -23,43 +23,22 @@ public partial class TabletsOverviewViewModel : ObservableObject
     /// <summary>One row per known tablet, rebuilt by the shell on each data load.</summary>
     [ObservableProperty] private List<TabletOverviewItemViewModel> _tablets = [];
 
-    /// <summary>The tablets that are plugged in right now: the ones Home shows as cards (#1050).</summary>
+    /// <summary>Every known tablet in one flat list: the plugged-in ones first, then the remembered ones, each group in
+    /// the order the shell gave. Home shows exactly this (#1050). A collapsible section for the remembered ones was
+    /// tried and did not work in practice, so there is no hidden half.</summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasConnected))]
     [NotifyPropertyChangedFor(nameof(ShowNoneConnected))]
-    private List<TabletOverviewItemViewModel> _connected = [];
+    private List<TabletOverviewItemViewModel> _ordered = [];
 
-    /// <summary>The ones remembered from before. A machine that has met many tablets would otherwise push
-    /// everything else on Home out of sight, so they sit behind one row that opens (#1050).</summary>
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(HasRemembered))]
-    [NotifyPropertyChangedFor(nameof(RememberedLabel))]
-    private List<TabletOverviewItemViewModel> _remembered = [];
+    public bool HasConnected => Ordered.Any(t => t.IsDetected);
 
-    /// <summary>Whether the remembered tablets are listed. Not kept between runs: the list is something you
-    /// open to look something up, not a setting.</summary>
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(RememberedHint))]
-    private bool _isRememberedExpanded;
-
-    public bool HasConnected => Connected.Count > 0;
-    public bool HasRemembered => Remembered.Count > 0;
-
-    /// <summary>Tablets are known but none is plugged in: say so, since an empty card list reads as broken.</summary>
+    /// <summary>Tablets are known but none is plugged in: say so above the list, since a list of only remembered
+    /// tablets does not say that on its own.</summary>
     public bool ShowNoneConnected => HasTablets && !HasConnected;
 
-    public string RememberedLabel => Remembered.Count == 1 ? "1 remembered tablet" : $"{Remembered.Count} remembered tablets";
-
-    public string RememberedHint => IsRememberedExpanded ? "hide" : "show";
-
-    partial void OnTabletsChanged(List<TabletOverviewItemViewModel> value)
-    {
-        Connected = value.Where(t => t.IsDetected).ToList();
-        Remembered = value.Where(t => !t.IsDetected).ToList();
-    }
-
-    [RelayCommand]
-    private void ToggleRemembered() => IsRememberedExpanded = !IsRememberedExpanded;
+    partial void OnTabletsChanged(List<TabletOverviewItemViewModel> value) =>
+        Ordered = value.Where(t => t.IsDetected).Concat(value.Where(t => !t.IsDetected)).ToList();
 }
 
 /// <summary>One tablet on the overview: detection status + last-seen, navigable to its settings page.

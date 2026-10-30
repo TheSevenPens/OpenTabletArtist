@@ -93,14 +93,9 @@
         <!-- LEFT: your tablets. -->
         <StackPanel Grid.Column="0" MinWidth="0">
             <!-- YOUR TABLETS: the former standalone Tablets page, merged into Home (#317). Each row opens
-                 the tablet page and carries detection timing + specs. The plugged-in ones are cards; the
-                 ones merely remembered wait behind one row, because a machine that has met many tablets
-                 would otherwise push everything else out of sight. -->
+                 the tablet page and carries detection timing + specs. One flat list, plugged-in tablets first
+                 and the remembered ones below them. -->
             <TextBlock Text="your tablets" Classes="Display" Margin="0,0,0,12" />
-
-            <ItemsControl ItemsSource="{Binding TabletsOverview.Connected}"
-                          ItemTemplate="{StaticResource TabletCard}"
-                          IsVisible="{Binding TabletsOverview.HasConnected}" />
 
             <!-- Tablets are known but none is plugged in: say so rather than show an empty list. -->
             <StackPanel Spacing="4" Margin="0,0,0,12" IsVisible="{Binding TabletsOverview.ShowNoneConnected}">
@@ -121,34 +116,11 @@
                            Foreground="{DynamicResource TextMutedBrush}" TextWrapping="Wrap" />
             </StackPanel>
 
-            <!-- The remembered tablets: one row that opens and closes the list. -->
-            <StackPanel IsVisible="{Binding TabletsOverview.HasRemembered}">
-                <Button Command="{Binding TabletsOverview.ToggleRememberedCommand}"
-                        HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch"
-                        Padding="16,12" Margin="0,0,0,10" Background="Transparent"
-                        BorderBrush="{DynamicResource DividerBrush}" BorderThickness="1" Cursor="Hand"
-                        AutomationProperties.Name="{Binding TabletsOverview.RememberedLabel}"
-                        ToolTip.Tip="Show or hide the tablets you've used before">
-                    <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10">
-                        <Panel Width="16" Height="16" VerticalAlignment="Center">
-                            <PathIcon Data="{StaticResource IconChevronRight}" Width="16" Height="16"
-                                      Foreground="{DynamicResource TextSecondaryBrush}"
-                                      IsVisible="{Binding !TabletsOverview.IsRememberedExpanded}" />
-                            <PathIcon Data="{StaticResource IconChevronDown}" Width="16" Height="16"
-                                      Foreground="{DynamicResource TextSecondaryBrush}"
-                                      IsVisible="{Binding TabletsOverview.IsRememberedExpanded}" />
-                        </Panel>
-                        <TextBlock Grid.Column="1" Text="{Binding TabletsOverview.RememberedLabel}"
-                                   VerticalAlignment="Center"
-                                   Foreground="{DynamicResource TextSecondaryBrush}" />
-                        <TextBlock Grid.Column="2" Text="{Binding TabletsOverview.RememberedHint}"
-                                   Classes="Detail" VerticalAlignment="Center" />
-                    </Grid>
-                </Button>
-                <ItemsControl ItemsSource="{Binding TabletsOverview.Remembered}"
-                              ItemTemplate="{StaticResource TabletCard}"
-                              IsVisible="{Binding TabletsOverview.IsRememberedExpanded}" />
-            </StackPanel>
+            <!-- One flat list: the plugged-in tablets first, then the remembered ones, as the view model orders
+                 them. Every tablet is in view; nothing is behind a row that opens. -->
+            <ItemsControl ItemsSource="{Binding TabletsOverview.Ordered}"
+                          ItemTemplate="{StaticResource TabletCard}"
+                          IsVisible="{Binding TabletsOverview.HasTablets}" />
         </StackPanel>
 
         <!-- RIGHT: About, health, presets, daemon. The order is fixed. -->
