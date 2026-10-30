@@ -552,4 +552,36 @@ public class ExplicitSettingsTests
 
         Assert.Equal(expected, app.SaveStatusText);
     }
+
+    /// <summary>
+    /// What the pause panel gives as the cause. A change the artist made that the daemon did not keep is
+    /// theirs and is said to be: "something changed the settings while you were working" was the line a
+    /// preset load showed, with nothing else in motion.
+    /// </summary>
+    [AvaloniaTheory]
+    [InlineData(SettingsSaveState.ApplyFailed, "The change you just made did not take.")]
+    [InlineData(SettingsSaveState.ChangedElsewhere, "Something changed the OTD daemon's settings while you were working.")]
+    [InlineData(SettingsSaveState.CouldNotCheck, "Something changed the OTD daemon's settings while you were working.")]
+    public async Task ThePausePanelNamesTheCause(SettingsSaveState state, string expectedStart)
+    {
+        var (app, _, _) = await Open();
+        using var lifetime = app;
+
+        app.SaveState = state;
+
+        Assert.StartsWith(expectedStart, app.SettingsPauseCauseText);
+    }
+
+    [AvaloniaFact]
+    public async Task TheCauseTextFollowsTheState()
+    {
+        var (app, _, _) = await Open();
+        using var lifetime = app;
+        var changed = new System.Collections.Generic.List<string?>();
+        app.PropertyChanged += (_, e) => changed.Add(e.PropertyName);
+
+        app.SaveState = SettingsSaveState.ApplyFailed;
+
+        Assert.Contains(nameof(app.SettingsPauseCauseText), changed);
+    }
 }

@@ -391,6 +391,8 @@ internal sealed class FakeSettingsCoordinator : ISettingsCoordinator
     public SettingsApplyOutcome ApplyResult { get; set; } = SettingsApplyOutcome.Live;
     public SettingsRestoreOutcome RestoreResult { get; set; } = SettingsRestoreOutcome.Restored;
     public bool DaemonAccepts { get; set; } = true;
+    public bool Changes { get; set; } = true;
+    public bool WouldChange(Settings settings) => Changes;
 
     public Task<SettingsApplyOutcome> ApplySettingsAsync(Settings settings)
     {

@@ -38,7 +38,18 @@ public sealed class ProfileSwitchService
                 SwitchFailed?.Invoke(snapshotName);
                 return false;
             }
+            PresetCompletion.AddMissingProfiles(settings, _settings.CurrentSettings);
+            // Loading what is already live replaces nothing, so there is nothing to ask about and nothing to
+            // send: the second click on a preset is the same as the first, not a question about the first
+            // one's unsaved changes (which are the preset itself).
+            if (!_settings.WouldChange(settings))
+            {
+                Switched?.Invoke(snapshotName);
+                return true;
+            }
             if (BeforeReplaceAsync is { } confirm && !await confirm(false)) return false;
+            // Again after the prompt, so a tablet that turned up while it was open is covered too.
+            PresetCompletion.AddMissingProfiles(settings, _settings.CurrentSettings);
             var outcome = await _settings.ApplySettingsAsync(settings);
             if (!outcome.IsLive)
             {

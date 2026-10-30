@@ -68,6 +68,19 @@ public sealed class SettingsWorkspace
         return _pending = ApplyCoreAsync(copy, edit);
     }
 
+    /// <summary>
+    /// Whether applying <paramref name="requested"/> would change the document. Weighed the way an apply
+    /// weighs it, after the same preparation, so a request that is already what is live reads as no change
+    /// even when the preparation would have rewritten the raw copy.
+    /// </summary>
+    public bool WouldChange(Settings requested)
+    {
+        if (_draft is null) return true;
+        var copy = SettingsCodec.Clone(requested);
+        OtaSettingsPolicy.Prepare(copy, _owned);
+        return !SettingsCodec.Same(copy, _draft);
+    }
+
     public Task<SettingsApplyOutcome> ApplyProfileAsync(Profile profile)
     {
         var settings = Current;

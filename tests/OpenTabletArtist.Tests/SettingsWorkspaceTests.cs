@@ -61,6 +61,29 @@ public class SettingsWorkspaceTests
         Assert.Equal(3, daemon.Settings!.Profiles.Count);
     }
 
+    /// <summary>
+    /// A document that is already live would change nothing, and a different one would. This is what lets a
+    /// second click on a loaded preset skip the question about unsaved changes, which are the preset.
+    /// </summary>
+    [Fact]
+    public async Task WouldChange_IsFalseForWhatIsLive_AndTrueForAnythingElse()
+    {
+        var (session, _, _) = await Connected();
+        using var lifetime = session;
+        var workspace = new SettingsWorkspace(session.Settings!, false);
+
+        var edit = workspace.Current!;
+        edit.Profiles[0].BindingSettings.DisablePressure = true;
+        Assert.True((await workspace.ApplyAsync(edit)).IsLive);
+
+        Assert.False(workspace.WouldChange(edit), "what was just applied is live");
+        Assert.False(workspace.WouldChange(workspace.Current!));
+
+        var other = workspace.Current!;
+        other.Profiles[0].BindingSettings.DisablePressure = false;
+        Assert.True(workspace.WouldChange(other));
+    }
+
     /// <summary>Applied-but-unsaved still counts as idle.</summary>
     /// <remarks>
     /// Settings applied and not yet written to disk are live driver state. Their difference from the

@@ -53,10 +53,11 @@ public class SettingsPausedTests
         public bool SettingsPaused { get; init; }
         public bool SettingsBusy { get; init; }
         public string SaveStatusText { get; init; } = "";
+        public string SettingsPauseCauseText { get; init; } = "";
     }
 
     private static (PageState State, Border Panel, Button[] Buttons) Panel(
-        bool paused, bool busy = false, string status = "")
+        bool paused, bool busy = false, string status = "", string cause = "")
     {
         var state = new PageState
         {
@@ -65,6 +66,7 @@ public class SettingsPausedTests
                 SettingsPaused = paused,
                 SettingsBusy = busy,
                 SaveStatusText = status,
+                SettingsPauseCauseText = cause,
             },
         };
         var view = new SettingsPausedView();
@@ -130,9 +132,22 @@ public class SettingsPausedTests
 
         Assert.Contains("had not submitted yet will go", prose);
         Assert.Contains("editing stays off across the whole app", prose);
+    }
 
-        // And what caused it, which the footer line no longer has room for.
-        Assert.Contains("Attaching a new tablet can cause this", prose);
+    /// <summary>
+    /// And what caused it, which the footer line no longer has room for. The panel says what the session
+    /// says, so a pause the artist's own change brought on is not blamed on "something" (the session's
+    /// words for each cause are tested with the session).
+    /// </summary>
+    [AvaloniaFact]
+    public void ItSaysWhatTheSessionSaysCausedIt()
+    {
+        const string cause = "The change you just made did not take.";
+        var (_, panel, _) = Panel(paused: true, cause: cause);
+
+        var text = panel.GetVisualDescendants().OfType<TextBlock>().Select(t => t.Text).ToList();
+
+        Assert.Contains(cause, text);
     }
 
     /// <summary>The one action still waits for an operation already running.</summary>

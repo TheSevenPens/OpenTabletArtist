@@ -148,6 +148,10 @@ public interface ISettingsCoordinator
     Settings? CurrentSettings { get; }
     Task<SettingsApplyOutcome> ApplySettingsAsync(Settings settings);
     Task<SettingsRestoreOutcome> RestoreDefaultAsync();
+
+    /// <summary>Whether applying <paramref name="settings"/> would change what is live. True when that
+    /// cannot be told, so a caller that skips work on false never skips it wrongly.</summary>
+    bool WouldChange(Settings settings);
 }
 
 /// <summary>Tablet/device data produced by the session's data load (#41 PR 2).</summary>
@@ -316,6 +320,16 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
 
     [ObservableProperty] private SettingsSaveState _saveState;
     [ObservableProperty] private bool _settingsBusy;
+
+    /// <summary>
+    /// What put editing on pause, for the panel that announces it. A pause the artist's own change brought
+    /// on is said to be theirs: the driver handed back something other than what it was sent, so OTA
+    /// stopped. The other pauses are a driver that changed its own settings, which attaching a tablet it
+    /// has not seen does, or another settings app (#919).
+    /// </summary>
+    public string SettingsPauseCauseText => SaveState == SettingsSaveState.ApplyFailed
+        ? "The change you just made did not take. The OTD daemon answered with different settings than OTA sent it, so OTA stopped rather than guess which of them are live."
+        : "Something changed the OTD daemon's settings while you were working. Attaching a new tablet can cause this, as can another settings app.";
     public bool HasUnsavedChanges => _workspace?.HasUnsavedChanges == true;
     public bool SettingsPaused => _workspace?.IsPaused == true
         || DeveloperSettings.Instance.ForcePaused;
@@ -515,6 +529,7 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
         OnPropertyChanged(nameof(CanEditSettings));
         OnPropertyChanged(nameof(SaveFailed));
         OnPropertyChanged(nameof(SaveStatusText));
+        OnPropertyChanged(nameof(SettingsPauseCauseText));
     }
 
     private void UpdateSettingsState()
@@ -1273,6 +1288,8 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
 
     public Task<SettingsApplyOutcome> ApplySettingsAsync(Settings settings) =>
         ApplyThroughAsync(workspace => workspace.ApplyAsync(settings));
+
+    public bool WouldChange(Settings settings) => _workspace?.WouldChange(settings) ?? true;
 
     public Task<SettingsApplyOutcome> ApplyProfileAsync(OpenTabletDriver.Desktop.Profiles.Profile profile) =>
         ApplyThroughAsync(workspace => workspace.ApplyProfileAsync(profile));
