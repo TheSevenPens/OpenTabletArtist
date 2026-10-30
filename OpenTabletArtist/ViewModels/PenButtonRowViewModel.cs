@@ -66,6 +66,13 @@ public partial class PenButtonRowViewModel : ObservableObject
     [ObservableProperty] private string? _warning;
     [ObservableProperty] private string? _sharedBarrelHint;
 
+    /// <summary>Which other buttons do the same thing, in two or three words: "same as 2", "same as 1 and 3".
+    /// Null when this button shares its action with none (#1045). The card shows it as a tag, and the number on
+    /// the card and on the pen takes one colour for every button in the group.</summary>
+    [ObservableProperty] private string? _sameAsLabel;
+
+    public bool IsSharedBarrel => SameAsLabel != null;
+
     // Whether the one-click fix applies to what is saved; CanSwitchToBarrel adds whether the host can write.
     private bool _switchPossible;
     public bool CanSwitchToBarrel => _switchPossible && CanEdit;
@@ -76,6 +83,13 @@ public partial class PenButtonRowViewModel : ObservableObject
     public bool IsShortcut => Action == PenButtonAction.Shortcut;
     public bool IsDisabled => Action == PenButtonAction.Disabled;
     public bool IsOther => Action == PenButtonAction.Other;
+
+    /// <summary>Whether the card leads with the action's name in large type (#1046). The segment that is lit
+    /// already says "Default action" or "Disabled", and under Windows Ink the Default action is always the
+    /// Barrel Switch, so a title there only repeats it. It stays where it says something the segments do not:
+    /// a binding set elsewhere ("Currently: ..."), and the Default action outside Windows Ink, where it is a
+    /// particular mouse click.</summary>
+    public bool ShowTitle => Action == PenButtonAction.Other || (Action == PenButtonAction.Default && !_outputIsWindowsInk);
 
     public bool HasWarning => Warning != null;
     public bool HasSharedBarrelHint => SharedBarrelHint != null;
@@ -119,10 +133,12 @@ public partial class PenButtonRowViewModel : ObservableObject
         OnPropertyChanged(nameof(IsShortcut));
         OnPropertyChanged(nameof(IsDisabled));
         OnPropertyChanged(nameof(IsOther));
+        OnPropertyChanged(nameof(ShowTitle));
     }
 
     partial void OnWarningChanged(string? value) => OnPropertyChanged(nameof(HasWarning));
     partial void OnSharedBarrelHintChanged(string? value) => OnPropertyChanged(nameof(HasSharedBarrelHint));
+    partial void OnSameAsLabelChanged(string? value) => OnPropertyChanged(nameof(IsSharedBarrel));
 
     partial void OnCanEditChanged(bool value)
     {

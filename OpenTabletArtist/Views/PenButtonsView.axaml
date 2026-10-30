@@ -17,7 +17,9 @@
                                 ButtonCount="{Binding PenButtonRows.Count}"
                                 FillBrush="{DynamicResource PenDiagramFillBrush}"
                                 StrokeBrush="{DynamicResource PenDiagramStrokeBrush}"
-                                AccentBrush="{DynamicResource AccentBrush}" />
+                                AccentBrush="{DynamicResource AccentBrush}"
+                                SharedButtons="{Binding PenSharedButtons}"
+                                SharedBrush="{DynamicResource PenSharedBrush}" />
 
         <ItemsControl x:Name="Cards" ItemsSource="{Binding PenButtonRows}">
             <ItemsControl.ItemsPanel>

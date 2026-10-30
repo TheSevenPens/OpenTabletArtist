@@ -385,6 +385,9 @@ public class PenButtonRowViewModelTests
         Assert.Contains("button 1", rows[1].SharedBarrelHint);
         Assert.Contains("keyboard shortcut", rows[0].SharedBarrelHint);
         Assert.True(rows[0].HasSharedBarrelHint);
+        Assert.Equal("same as 2", rows[0].SameAsLabel);
+        Assert.Equal("same as 1", rows[1].SameAsLabel);
+        Assert.True(rows[0].IsSharedBarrel);
     }
 
     [Fact]
@@ -394,6 +397,9 @@ public class PenButtonRowViewModelTests
 
         Assert.Contains("buttons 2, 3", rows[0].SharedBarrelHint);
         Assert.Contains("buttons 1, 3", rows[1].SharedBarrelHint);
+        Assert.Equal("same as 2 and 3", rows[0].SameAsLabel);
+        Assert.Equal("same as 1 and 3", rows[1].SameAsLabel);
+        Assert.Equal("same as 1 and 2", rows[2].SameAsLabel);
     }
 
     [Fact]
@@ -401,6 +407,7 @@ public class PenButtonRowViewModelTests
     {
         Assert.All(Buttons(Ink, true, false), r => Assert.Null(r.SharedBarrelHint));
         Assert.All(Buttons(Ink, false, false), r => Assert.Null(r.SharedBarrelHint));
+        Assert.All(Buttons(Ink, true, false), r => Assert.False(r.IsSharedBarrel));
     }
 
     [Fact]
@@ -408,6 +415,7 @@ public class PenButtonRowViewModelTests
     {
         // Button 1 is a right click and button 2 a middle click there; they are not the same action.
         Assert.All(Buttons(MouseOutput, true, true), r => Assert.Null(r.SharedBarrelHint));
+        Assert.All(Buttons(MouseOutput, true, true), r => Assert.Null(r.SameAsLabel));
     }
 
     [Fact]
@@ -425,5 +433,7 @@ public class PenButtonRowViewModelTests
 
         Assert.Null(after[0].SharedBarrelHint);
         Assert.False(after[0].HasSharedBarrelHint);
+        Assert.Null(after[0].SameAsLabel);
+        Assert.False(after[0].IsSharedBarrel);
     }
 }

@@ -1,8 +1,10 @@
 using System.Linq;
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.Shapes;
 using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
+using Avalonia.Media;
 using Avalonia.Input;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
@@ -50,6 +52,9 @@ public class PenButtonCardTests
     private static bool Shown(Control root, string text) =>
         Texts(root).Any(t => t.Text == text && t.IsEffectivelyVisible);
 
+    private static bool ShownContaining(Control root, string text) =>
+        Texts(root).Any(t => t.Text?.Contains(text) == true && t.IsEffectivelyVisible);
+
     /// <summary>The segments of the choice bar, left to right, by their label.</summary>
     internal static Dictionary<string, RadioButton> Segments(Control root) =>
         root.GetVisualDescendants().OfType<RadioButton>().Where(r => r.Classes.Contains("segment"))
@@ -88,7 +93,8 @@ public class PenButtonCardTests
     {
         var (window, card, _, _) = Show(PenButtonBinding.MakeDefault(1));
 
-        Assert.True(Shown(card, "Barrel Switch"));
+        Assert.False(Shown(card, "Barrel Switch"), "the lit segment already says it (#1046)");
+        Assert.True(ShownContaining(card, "drawing software"));
         Assert.Equal(new[] { "Default action" }, Lit(card));
         window.Close();
     }
@@ -103,11 +109,12 @@ public class PenButtonCardTests
     }
 
     [AvaloniaFact]
-    public void NoBinding_SaysDoesNothing_AndLightsDisabled()
+    public void NoBinding_HasNoTitle_SaysItIsIgnored_AndLightsDisabled()
     {
         var (window, card, _, _) = Show(null);
 
-        Assert.True(Shown(card, "Does nothing"));
+        Assert.False(Shown(card, "Does nothing"), "the lit segment already says Disabled (#1046)");
+        Assert.True(Shown(card, "The button is ignored."));
         Assert.Equal(new[] { "Disabled" }, Lit(card));
         window.Close();
     }
@@ -132,7 +139,7 @@ public class PenButtonCardTests
     {
         var (window, card, _, _) = Show(PenButtonBinding.MakeDefault(1));
 
-        Assert.False(Shown(card, "Does nothing"));
+        Assert.False(Shown(card, "The button is ignored."));
         Assert.False(Shown(card, "Held while you hold the button."));
         Assert.True(ButtonNamed(card, "Change…") is not { IsEffectivelyVisible: true });
         window.Close();
@@ -206,7 +213,8 @@ public class PenButtonCardTests
 
         Assert.Equal(1, spy.Applied);
         Assert.Equal(PenButtonAction.Default, PenButtonBinding.Classify(spy.Last, 1, outputIsWindowsInk: true));
-        Assert.True(Shown(card, "Barrel Switch"));
+        Assert.False(Shown(card, "Barrel Switch"), "the lit segment already says it (#1046)");
+        Assert.True(ShownContaining(card, "drawing software"));
         Assert.Equal(new[] { "Default action" }, Lit(card));
         Assert.False(row.HasWarning);
         window.Close();
@@ -223,7 +231,8 @@ public class PenButtonCardTests
 
         Assert.Equal(1, spy.Applied);
         Assert.Null(spy.Last);
-        Assert.True(Shown(card, "Does nothing"));
+        Assert.False(Shown(card, "Does nothing"), "the lit segment already says Disabled (#1046)");
+        Assert.True(Shown(card, "The button is ignored."));
         Assert.Equal(new[] { "Disabled" }, Lit(card));
         window.Close();
     }
@@ -251,7 +260,8 @@ public class PenButtonCardTests
 
         Assert.Equal(1, spy.EditorOpened);
         Assert.Equal(0, spy.Applied);
-        Assert.True(Shown(card, "Barrel Switch"));
+        Assert.False(Shown(card, "Barrel Switch"), "the lit segment already says it (#1046)");
+        Assert.True(ShownContaining(card, "drawing software"));
         // The segment drew itself lit when clicked; backing out must not leave it that way.
         Assert.Equal(new[] { "Default action" }, Lit(card));
         window.Close();
@@ -311,4 +321,51 @@ public class PenButtonCardTests
         Assert.Contains(Texts(card), t => t.Text?.Contains("same thing") == true && t.IsEffectivelyVisible);
         window.Close();
     }
+
+    // ── Titles (#1046) ─────────────────────────────────────────────
+
+    /// <summary>The title stays where it says something the lit segment does not: a button set somewhere else
+    /// has none lit, and the Default action outside Windows Ink is a particular mouse click.</summary>
+    [AvaloniaFact]
+    public void ABindingSetElsewhere_StillSaysWhatItDoesNow()
+    {
+        var (window, card, _, _) = Show(AuxKeyBinding.MakeMouseBinding("Right"));
+
+        Assert.True(Shown(card, "Currently: Right click"));
+        window.Close();
+    }
+
+    [AvaloniaFact]
+    public void TheDefaultActionOutsideWindowsInk_KeepsItsTitle()
+    {
+        var (window, card, _, _) = Show(PenButtonBinding.MakeDefault(1), ink: false);
+
+        Assert.True(Shown(card, "Right click"));
+        window.Close();
+    }
+
+    // ── Buttons that do the same thing (#1045) ─────────────────────
+
+    /// <summary>The number takes the shared colour and a tag says which buttons it matches, so the likeness is
+    /// not something to work out from a sentence. Without it the number is the accent and there is no tag.</summary>
+    [AvaloniaFact]
+    public void AButtonThatSharesItsAction_WearsTheSharedColour_AndSaysWhoItMatches()
+    {
+        var (window, card, row, _) = Show(PenButtonBinding.MakeDefault(1));
+        var shared = Color.Parse("#0F766E");
+
+        Assert.False(Shown(card, "same as 2"));
+        var before = NumberColor(card);
+        Assert.NotEqual(shared, before);
+
+        row.SameAsLabel = "same as 2";
+        Dispatcher.UIThread.RunJobs();
+
+        Assert.True(Shown(card, "same as 2"));
+        Assert.Equal(shared, NumberColor(card));
+        window.Close();
+    }
+
+    private static Color NumberColor(Control card) =>
+        ((ISolidColorBrush)card.GetVisualDescendants().OfType<Ellipse>().Single(e => e.IsEffectivelyVisible).Fill!).Color;
 }

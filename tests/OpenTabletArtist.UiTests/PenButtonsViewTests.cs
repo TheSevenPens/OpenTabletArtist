@@ -67,6 +67,26 @@ public class PenButtonsViewTests
 
     private static PenButtonsDiagram Diagram(PenButtonsView view) => view.FindControl<PenButtonsDiagram>("Diagram")!;
 
+    // ── Buttons that do the same thing (#1045) ─────────────────────
+
+    /// <summary>The pen picture is told which buttons match, so it can draw them in the shared colour as the cards
+    /// do.</summary>
+    [AvaloniaFact]
+    public void TheButtonsThatShareAnAction_AreHandedToThePenPicture()
+    {
+        var (window, view) = Show(ThreeDefaults(), 1280);
+        Assert.Equal(new[] { 1, 2, 3 }, Diagram(view).SharedButtons);
+        window.Close();
+
+        (window, view) = Show(Vm(PenButtonBinding.MakeDefault(1), null, PenButtonBinding.MakeDefault(3)), 1280);
+        Assert.Equal(new[] { 1, 3 }, Diagram(view).SharedButtons);
+        window.Close();
+
+        (window, view) = Show(Vm(PenButtonBinding.MakeDefault(1), null, null), 1280);
+        Assert.Empty(Diagram(view).SharedButtons!);
+        window.Close();
+    }
+
     // ── Side by side, or stacked ───────────────────────────────────
 
     [AvaloniaFact]

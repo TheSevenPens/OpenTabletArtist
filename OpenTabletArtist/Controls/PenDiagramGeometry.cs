@@ -14,25 +14,30 @@ public static class PenDiagramGeometry
     public sealed record Connector(int Number, IReadOnlyList<Point2> Points);
 
     /// <summary>Width of the pen as drawn at its natural size (nib to the end of the eraser cap).</summary>
-    public const double NaturalWidth = 808;
+    public const double NaturalWidth = 606;
 
     /// <summary>Height of the picture when it carries connectors; without them only the pen is drawn.</summary>
-    public const double HeightWithConnectors = 158;
-    public const double HeightPenOnly = 80;
+    public const double HeightWithConnectors = 134;
+    public const double HeightPenOnly = 62;
 
     /// <summary>Where the pen is drawn: the tip's end, its length to the eraser's end, and the centre line it lies on.
-    /// The outline itself is <see cref="PenArtwork"/>; at this length it is about 73 thick at the nib's swell.</summary>
-    public const double PenLeft = 2, PenLength = 806, PenCenterY = 40;
+    /// The outline itself is <see cref="PenArtwork"/>; at this length it is about 55 thick at the nib's swell.</summary>
+    /// <remarks>
+    /// Three quarters of what it was (#1047): at 806 long and 73 thick the pen was the largest thing on the tab, and
+    /// larger than the cards it labels. Only the pen shrank. The buttons keep their size, because they are what is
+    /// pointed at and read (a number inside each), and everything that places them follows the pen's new proportions.
+    /// </remarks>
+    public const double PenLeft = 2, PenLength = 604, PenCenterY = 30;
 
     /// <summary>Where the buttons sit on the pen: the first is nearest the tip, each next one further along.</summary>
-    public const double FirstButtonX = 252, ButtonPitch = 70, ButtonWidth = 44, ButtonHeight = 20;
-    public const double ButtonTopY = 30, ButtonBottomY = 50;
+    public const double FirstButtonX = 190, ButtonPitch = 66, ButtonWidth = 44, ButtonHeight = 20;
+    public const double ButtonTopY = 20, ButtonBottomY = 40;
 
     /// <summary>Where the lines end, just above the cards.</summary>
-    public const double ConnectorEndY = 152;
-    // The first level sits below the pen's body (it reaches about y = 72 under the buttons), so a run across never
+    public const double ConnectorEndY = 128;
+    // The first level sits below the pen's body (it reaches about y = 58 under the buttons), so a run across never
     // goes through the pen.
-    private const double LevelTop = 88, LevelStep = 14, SameColumn = 0.5;
+    private const double LevelTop = 74, LevelStep = 14, SameColumn = 0.5;
 
     /// <summary>The narrowest a card can be before its three choices no longer fit on one line.</summary>
     public const double MinCardWidth = 340;
