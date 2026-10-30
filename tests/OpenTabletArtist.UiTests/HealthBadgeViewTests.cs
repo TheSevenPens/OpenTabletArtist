@@ -179,6 +179,26 @@ public class HealthBadgeViewTests
         window.Close();
     }
 
+    /// <summary>A check that fails after one that came back empty is still a failure on the page (#1060).</summary>
+    [AvaloniaFact]
+    public void TheHealthPage_SaysItCouldNotCheck_WhenARefreshFailsAfterASuccess()
+    {
+        var calls = 0;
+        var (view, health, _, window) = HealthPage(_ => ++calls == 1
+            ? Task.FromResult(new OtdHealth.Collector.HealthAnalysisReport(new OtdHealth.HealthSnapshot(), [], []))
+            : Task.FromException<OtdHealth.Collector.HealthAnalysisReport>(new InvalidOperationException("boom")));
+        Assert.Contains("Nothing needs attention.",
+            view.GetVisualDescendants().OfType<TextBlock>().Where(t => t.IsEffectivelyVisible).Select(t => t.Text));
+
+        health.Refresh();
+        Dispatcher.UIThread.RunJobs();
+
+        var texts = view.GetVisualDescendants().OfType<TextBlock>().Where(t => t.IsEffectivelyVisible).Select(t => t.Text).ToList();
+        Assert.Contains("Couldn't check.", texts);
+        Assert.DoesNotContain("Nothing needs attention.", texts);
+        window.Close();
+    }
+
     /// <summary>With no daemon the page must not say nothing needs attention above a card saying nothing is
     /// connected.</summary>
     [AvaloniaFact]

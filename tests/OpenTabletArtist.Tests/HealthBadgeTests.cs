@@ -265,6 +265,47 @@ public class HealthBadgeTests
         Assert.Equal("Health: could not check.", badge.Summary);
     }
 
+    /// <summary>
+    /// A check that fails after one that succeeded is still a failure. The service keeps the last report, and
+    /// that report said everything was fine; it says nothing about now. Success, then failure, then recovery
+    /// (#1060).
+    /// </summary>
+    [Fact]
+    public async Task AFailureAfterASuccess_IsNotHiddenByTheOlderReport_AndRecovers()
+    {
+        var calls = 0;
+        var (badge, health, _) = MakeWith(_ => ++calls == 2
+            ? Task.FromException<OtdHealth.Collector.HealthAnalysisReport>(new InvalidOperationException("second fails"))
+            : Task.FromResult(new OtdHealth.Collector.HealthAnalysisReport(new OtdHealth.HealthSnapshot(), [], [])));
+        Assert.True(badge.IsAllClear, "the first check came back empty");
+
+        health.Refresh();
+        await health.LatestAnalysisAsync();
+
+        Assert.True(health.CollectionFailed);
+        Assert.NotNull(health.Analysis);   // the old report is kept
+        Assert.True(badge.CouldNotCheck);
+        Assert.False(badge.IsAllClear, "an old all-clear is not a current one");
+        Assert.Equal("Couldn't check your setup", badge.CardHeadline);
+        Assert.Equal("Health: could not check.", badge.Summary);
+
+        health.Refresh();
+        await health.LatestAnalysisAsync();
+
+        Assert.False(badge.CouldNotCheck);
+        Assert.True(badge.IsAllClear);
+        Assert.Equal("Everything's working fine", badge.CardHeadline);
+    }
+
+    /// <summary>Only the empty case changes: findings stand, and a check that has not failed is not "could not check".</summary>
+    [Theory]
+    [InlineData(0, true, true)]
+    [InlineData(1, true, false)]
+    [InlineData(3, true, false)]
+    [InlineData(0, false, false)]
+    public void CouldNotCheck_IsAboutAnEmptyCatalogAndAFailedCheck(int count, bool failed, bool expected) =>
+        Assert.Equal(expected, HealthBadgeViewModel.IsUnchecked(count, failed));
+
     /// <summary>The next check that works clears it: it is a statement about the last attempt, not a verdict.</summary>
     [Fact]
     public async Task ASuccessfulCheck_AfterAFailedOne_ClearsIt()

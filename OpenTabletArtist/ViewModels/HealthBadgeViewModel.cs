@@ -94,7 +94,7 @@ public sealed partial class HealthBadgeViewModel : ObservableObject, IDisposable
         var badge = Summarize(_health.Issues.Select(i => i.Severity), DaemonDown(_daemon));
         var hasReport = _health.Analysis is not null;
         IsChecking = IsStillChecking(badge.Count, hasReport, _health.CollectionFailed);
-        CouldNotCheck = IsUnchecked(badge.Count, hasReport, _health.CollectionFailed);
+        CouldNotCheck = IsUnchecked(badge.Count, _health.CollectionFailed);
         IsAllClear = badge.Count == 0 && !IsChecking && !CouldNotCheck;
         Tier = badge.Tier;
         Count = badge.Count;
@@ -113,8 +113,11 @@ public sealed partial class HealthBadgeViewModel : ObservableObject, IDisposable
     internal static bool IsStillChecking(int count, bool hasReport, bool failed = false) =>
         count == 0 && !hasReport && !failed;
 
-    /// <summary>Nothing is known, and the check that was run failed to produce a report.</summary>
-    internal static bool IsUnchecked(int count, bool hasReport, bool failed) => count == 0 && !hasReport && failed;
+    /// <summary>No finding, and the latest check failed to produce a report. An older report does not change
+    /// that: the service keeps the last one, and "everything's working fine" from before the failure is not a
+    /// statement about now. With findings they are shown as they are, since they stand until a check replaces
+    /// them (#1060).</summary>
+    internal static bool IsUnchecked(int count, bool failed) => count == 0 && failed;
 
     internal static readonly (string Eyebrow, string Headline, string Line, string Button, bool Severe, AlertSeverity Severity)
         CouldNotCheckCard = ("COULD NOT CHECK", "Couldn't check your setup",
