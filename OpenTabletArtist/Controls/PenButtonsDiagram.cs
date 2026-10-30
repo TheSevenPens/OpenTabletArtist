@@ -26,6 +26,10 @@ public sealed class PenButtonsDiagram : Control
         AvaloniaProperty.Register<PenButtonsDiagram, IBrush?>(nameof(StrokeBrush));
     public static readonly StyledProperty<IBrush?> AccentBrushProperty =
         AvaloniaProperty.Register<PenButtonsDiagram, IBrush?>(nameof(AccentBrush));
+    public static readonly StyledProperty<IReadOnlyList<int>?> SharedButtonsProperty =
+        AvaloniaProperty.Register<PenButtonsDiagram, IReadOnlyList<int>?>(nameof(SharedButtons));
+    public static readonly StyledProperty<IBrush?> SharedBrushProperty =
+        AvaloniaProperty.Register<PenButtonsDiagram, IBrush?>(nameof(SharedBrush));
 
     /// <summary>How many barrel buttons the pen has (1 to 3).</summary>
     public int ButtonCount { get => GetValue(ButtonCountProperty); set => SetValue(ButtonCountProperty, value); }
@@ -36,11 +40,15 @@ public sealed class PenButtonsDiagram : Control
     public IBrush? FillBrush { get => GetValue(FillBrushProperty); set => SetValue(FillBrushProperty, value); }
     public IBrush? StrokeBrush { get => GetValue(StrokeBrushProperty); set => SetValue(StrokeBrushProperty, value); }
     public IBrush? AccentBrush { get => GetValue(AccentBrushProperty); set => SetValue(AccentBrushProperty, value); }
+    /// <summary>The buttons that do the same thing as one another (#1045), drawn in <see cref="SharedBrush"/> in
+    /// place of the accent. The card for each takes the same colour.</summary>
+    public IReadOnlyList<int>? SharedButtons { get => GetValue(SharedButtonsProperty); set => SetValue(SharedButtonsProperty, value); }
+    public IBrush? SharedBrush { get => GetValue(SharedBrushProperty); set => SetValue(SharedBrushProperty, value); }
 
     static PenButtonsDiagram()
     {
         AffectsRender<PenButtonsDiagram>(ButtonCountProperty, ShowConnectorsProperty, CardGapProperty,
-            FillBrushProperty, StrokeBrushProperty, AccentBrushProperty);
+            FillBrushProperty, StrokeBrushProperty, AccentBrushProperty, SharedButtonsProperty, SharedBrushProperty);
         AffectsMeasure<PenButtonsDiagram>(ShowConnectorsProperty);
     }
 
@@ -86,7 +94,7 @@ public sealed class PenButtonsDiagram : Control
         for (int n = 1; n <= count; n++)
         {
             double cx = PenDiagramGeometry.ButtonCenterX(n);
-            ctx.DrawRectangle(AccentBrush, null,
+            ctx.DrawRectangle(SharedButtons?.Contains(n) == true ? SharedBrush ?? AccentBrush : AccentBrush, null,
                 new Rect(cx - PenDiagramGeometry.ButtonWidth / 2, PenDiagramGeometry.ButtonTopY,
                     PenDiagramGeometry.ButtonWidth, PenDiagramGeometry.ButtonHeight), 6, 6);
             DrawCentered(ctx, n.ToString(CultureInfo.InvariantCulture), cx, PenDiagramGeometry.ButtonTopY + PenDiagramGeometry.ButtonHeight / 2,

@@ -70,12 +70,23 @@ public class PenArtworkTests
     [Fact]
     public void TheTip_IsAtTheLeft_AndTheEraserEnd_ALengthFurtherOn()
     {
-        var r = Outline(length: 806, left: 2);
+        var r = Outline(length: PenLength, left: PenLeft);
 
-        Assert.Equal(2, r.Points.Min(p => p.X), 6);
-        Assert.Equal(808, r.Points.Max(p => p.X), 6);
+        Assert.Equal(PenLeft, r.Points.Min(p => p.X), 6);
+        Assert.Equal(PenLeft + PenLength, r.Points.Max(p => p.X), 6);
         // Tip end: the leftmost point is on the centre line (the nib's end is rounded, a fraction of a pixel across).
         Assert.InRange(r.Points.OrderBy(p => p.X).First().Y, PenCenterY - 0.5, PenCenterY + 0.5);
+    }
+
+    /// <summary>The pen is three quarters of what it was (#1047): about 606 across the picture and 55 thick. The
+    /// buttons did not shrink with it, so they are bigger against the pen than before.</summary>
+    [Fact]
+    public void ThePen_IsThreeQuartersOfItsFormerSize_ButTheButtonsAreNot()
+    {
+        Assert.InRange(NaturalWidth, 600, 612);
+        Assert.InRange(2 * PenArtwork.MaxHalfWidthPerLength * PenLength, 53, 57);
+        Assert.Equal(44, ButtonWidth);
+        Assert.Equal(20, ButtonHeight);
     }
 
     [Fact]
@@ -84,7 +95,7 @@ public class PenArtworkTests
         var r = Outline(centerY: 123);
 
         Assert.Equal(123, (r.Points.Min(p => p.Y) + r.Points.Max(p => p.Y)) / 2, 3);
-        foreach (var x in new[] { 30.0, 100, 250, 400, 600, 770 })
+        foreach (var x in new[] { 22.0, 75, 190, 300, 450, 580 })
         {
             var ys = r.Points.Where(p => Math.Abs(p.X - x) < 0.5).Select(p => p.Y - 123).ToList();
             if (ys.Count > 1) Assert.True(Math.Abs(ys.Max() + ys.Min()) < 1.5, $"not symmetric at x={x}");
@@ -94,9 +105,9 @@ public class PenArtworkTests
     [Fact]
     public void TheLargestHalfThickness_MatchesTheRatioCallersLeaveRoomFor()
     {
-        var r = Outline(length: 806, centerY: 0);
+        var r = Outline(length: PenLength, centerY: 0);
 
-        Assert.Equal(PenArtwork.MaxHalfWidthPerLength * 806, r.Points.Max(p => p.Y), 2);
+        Assert.Equal(PenArtwork.MaxHalfWidthPerLength * PenLength, r.Points.Max(p => p.Y), 2);
     }
 
     [Fact]
@@ -114,9 +125,9 @@ public class PenArtworkTests
     {
         var r = Outline();
 
-        Assert.True(r.HalfWidthAt(300, PenCenterY) > r.HalfWidthAt(790, PenCenterY) + 8);
+        Assert.True(r.HalfWidthAt(225, PenCenterY) > r.HalfWidthAt(593, PenCenterY) + 6);
         Assert.True(r.HalfWidthAt(4, PenCenterY) < 4);
-        Assert.True(r.HalfWidthAt(4, PenCenterY) < r.HalfWidthAt(60, PenCenterY));
+        Assert.True(r.HalfWidthAt(4, PenCenterY) < r.HalfWidthAt(45, PenCenterY));
     }
 
     // ── The seams ──────────────────────────────────────────────────

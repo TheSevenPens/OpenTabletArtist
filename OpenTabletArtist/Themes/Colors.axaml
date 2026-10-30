@@ -27,6 +27,12 @@
     <Color x:Key="Neutral">#6B7280</Color>
     <Color x:Key="TextInverse">#FFFFFF</Color>
 
+    <!-- The colour of buttons that do the same thing (#1045): a number badge on the buttons tab and on the pen
+         picture takes it, in place of the accent, for every button in the group. Deliberately not a status colour,
+         since nothing is wrong. Dark enough that the white number on it clears AA on every theme. -->
+    <Color x:Key="PenShared">#0F766E</Color>
+    <SolidColorBrush x:Key="PenSharedBrush" Color="{StaticResource PenShared}" />
+
     <SolidColorBrush x:Key="SuccessBrush" Color="{StaticResource Success}" />
     <SolidColorBrush x:Key="SuccessMutedBrush" Color="{StaticResource SuccessMuted}" />
     <SolidColorBrush x:Key="WarningBrush" Color="{StaticResource Warning}" />

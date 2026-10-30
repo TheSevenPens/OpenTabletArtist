@@ -1372,6 +1372,7 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
                 ApplyPenButtonAsync, _editBinding, bindings.PenButtons.Count));
         NoteSharedBarrel(buttons, outputIsWindowsInk);
         PenButtonRows = buttons;
+        PenSharedButtons = buttons.Where(b => b.IsSharedBarrel).Select(b => b.Number).ToList();
 
         // Expose each switch by slot so the visual pen diagram can bind tip/eraser/buttons (#pen-switch-diagram).
         PenTipRow = tip;
@@ -1387,13 +1388,17 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
     {
         var barrel = outputIsWindowsInk ? buttons.Where(b => b.IsDefaultAction).ToList() : [];
         foreach (var b in buttons)
+        {
             b.SharedBarrelHint = null;
+            b.SameAsLabel = null;
+        }
         if (barrel.Count < 2) return;
 
         foreach (var b in barrel)
         {
             var others = barrel.Where(o => o != b).Select(o => o.SectionLabel["BUTTON ".Length..]).ToList();
             var names = others.Count == 1 ? $"button {others[0]}" : $"buttons {string.Join(", ", others)}";
+            b.SameAsLabel = "same as " + string.Join(" and ", others);
             b.SharedBarrelHint = $"Does the same thing as {names} in Windows Ink mode. " +
                                  "Give one a keyboard shortcut if you want a different action.";
         }
@@ -1843,6 +1848,10 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
     /// <summary>The pen's barrel buttons in order, button 1 first (nearest the tip). The buttons tab lays out one
     /// card per entry, so it works for a pen with one, two or three buttons alike.</summary>
     [ObservableProperty] private IReadOnlyList<PenButtonRowViewModel> _penButtonRows = [];
+
+    /// <summary>The numbers of the buttons that share one action (the Barrel Switch under Windows Ink), for the pen
+    /// picture to draw them in a matching colour (#1045). Empty when no two buttons do the same thing.</summary>
+    [ObservableProperty] private IReadOnlyList<int> _penSharedButtons = [];
 
     /// <summary>True when the pen has at least one barrel button — gates the PEN BUTTONS tab (#494), so
     /// pens with none don't show an empty tab.</summary>

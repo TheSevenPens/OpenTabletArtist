@@ -37,9 +37,11 @@
         <StackPanel Spacing="14">
 
             <!-- Which button: the number on the pen diagram, its name, and where it sits on the pen. -->
-            <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
+            <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10">
                 <Panel Width="26" Height="26" VerticalAlignment="Center">
-                    <Ellipse Fill="{DynamicResource AccentBrush}" />
+                    <!-- The accent, or the shared colour when other buttons do the same thing (#1045). -->
+                    <Ellipse Fill="{DynamicResource AccentBrush}" IsVisible="{Binding !IsSharedBarrel}" />
+                    <Ellipse Fill="{DynamicResource PenSharedBrush}" IsVisible="{Binding IsSharedBarrel}" />
                     <TextBlock Text="{Binding Number}" FontSize="13" FontWeight="Bold"
                                Foreground="{DynamicResource TextInverseBrush}"
                                HorizontalAlignment="Center" VerticalAlignment="Center" />
@@ -50,6 +52,14 @@
                                Foreground="{DynamicResource TextMutedBrush}"
                                IsVisible="{Binding PositionHint, Converter={x:Static conv:ObjectConverters.IsNotNull}}" />
                 </StackPanel>
+                <!-- Which other buttons this one matches, in words as well as colour (#1045). -->
+                <Border Grid.Column="2" VerticalAlignment="Center" Padding="8,2" BorderThickness="1.5"
+                        BorderBrush="{DynamicResource PenSharedBrush}"
+                        IsVisible="{Binding IsSharedBarrel}"
+                        ToolTip.Tip="These buttons do the same thing in Windows Ink mode">
+                    <TextBlock Text="{Binding SameAsLabel}" FontSize="12" FontWeight="SemiBold"
+                               Foreground="{DynamicResource TextPrimaryBrush}" />
+                </Border>
             </Grid>
 
             <!-- The three choices, always in view. No GroupName on purpose: the segments of one card share a
@@ -68,11 +78,14 @@
                              Command="{Binding DisableCommand}" />
             </StackPanel>
 
-            <!-- What the chosen one means. The area keeps a minimum height so cards in a row line up. -->
-            <StackPanel Spacing="8" MinHeight="84">
+            <!-- What the chosen one means. The area keeps a minimum height so cards in a row line up. Large
+                 titles are only for what the lit segment does not already say (#1046): the Barrel Switch and
+                 "Does nothing" were repeating "Default action" and "Disabled" just above them. -->
+            <StackPanel Spacing="8" MinHeight="56">
                 <StackPanel Spacing="3" IsVisible="{Binding IsDefaultAction}">
                     <TextBlock Text="{Binding StateText}" FontSize="17" FontWeight="SemiBold"
-                               Foreground="{DynamicResource TextPrimaryBrush}" TextWrapping="Wrap" />
+                               Foreground="{DynamicResource TextPrimaryBrush}" TextWrapping="Wrap"
+                               IsVisible="{Binding ShowTitle}" />
                     <TextBlock Text="{Binding DefaultDetail}" TextWrapping="Wrap"
                                Foreground="{DynamicResource TextSecondaryBrush}"
                                IsVisible="{Binding DefaultDetail, Converter={x:Static conv:ObjectConverters.IsNotNull}}" />
@@ -106,9 +119,8 @@
                 </StackPanel>
 
                 <StackPanel Spacing="3" IsVisible="{Binding IsDisabled}">
-                    <TextBlock Text="Does nothing" FontSize="17" FontWeight="SemiBold"
+                    <TextBlock Text="The button is ignored." TextWrapping="Wrap"
                                Foreground="{DynamicResource TextSecondaryBrush}" />
-                    <TextBlock Text="The button is ignored." Foreground="{DynamicResource TextSecondaryBrush}" />
                 </StackPanel>
 
                 <!-- Set somewhere else: none of the three is lit; say what it does now. -->
