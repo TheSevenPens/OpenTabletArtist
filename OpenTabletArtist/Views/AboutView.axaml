@@ -3,13 +3,13 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:c="using:OpenTabletArtist.Controls">
 
-    <!-- DataContext is the AboutViewModel (typed-nav DataTemplate, #15). Folded into Home's left column,
-         above YOUR TABLETS, so it stretches to fill whatever column hosts it. -->
+    <!-- DataContext is the AboutViewModel (typed-nav DataTemplate, #15). Folded into Home, first in its
+         right-hand column, so it stretches to fill whatever column hosts it. -->
     <c:Section>
         <StackPanel>
-            <!-- Same treatment as "your tablets" below it: the display layer, lower-case. Home has no
-                 tab menu, so its section headings ARE that layer. -->
-            <TextBlock Text="about" Classes="Display" Margin="0,0,0,12" />
+            <!-- A section heading in Home's right-hand column (#1050): the display layer, lower-case, but at
+                 the section size, since four of them stack there under the page-size "your tablets". -->
+            <TextBlock Text="about" Classes="Display section" Margin="0,0,0,8" />
 
             <!-- The blurb across the full width, with the links as one wrapping row beneath it. This was
                  two columns — prose on the left, a vertical list of links on the right — and the column

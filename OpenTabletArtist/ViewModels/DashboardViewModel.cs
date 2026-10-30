@@ -1,236 +1,65 @@
-using System.ComponentModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using OpenTabletArtist.Domain;
-using OpenTabletArtist.Domain.Health;
 using OpenTabletArtist.Services;
 
 namespace OpenTabletArtist.ViewModels;
 
 /// <summary>
-/// View model for the Dashboard — the application's home/status page. Surfaces the health checklist
-/// ("Needs attention"), the tablets overview, and the startup toggle. The daemon appears here only when
-/// there's a problem, via the shared <see cref="DaemonStatusViewModel"/>; the full daemon status +
-/// controls live on the Daemon page (Advanced → OpenTabletDriver).
+/// View model for the Dashboard -- the application's home page. Your tablets on the left; on the right, in
+/// that order, About, a one-card health summary, the presets you can switch between, and the daemon.
 /// </summary>
+/// <remarks>
+/// Health's detail is not here (#1050): it moved to the Health page, and Home says only how strongly to act, in
+/// one card that is the same size in every state and never lists a finding. Home used to give up its whole
+/// right-hand column to them.
+/// </remarks>
 public partial class DashboardViewModel : ObservableObject, IDisposable
 {
-    private readonly AppSession _session;
-    private readonly IDialogService _dialogs;
-    // Navigate the shell to a tablet's in-app settings page for a health-issue "Fix", optionally
-    // deep-linking to the tab that carries the fix.
-    private readonly Action<string, TabletDetailTab?> _navigateToTablet;
-    // Pen settings split out to their own page (#pen-split); the pen-behaviour "Fix" deep-links there.
-    private readonly Action<string, TabletDetailTab?>? _navigateToPen;
-    private readonly Action? _openDriverCleanup;
-    private readonly Action? _openWindowsInk;
-    private readonly Action? _openVMulti;
-    private readonly Action? _openConfigs;
+    private readonly Action _openHealth;
 
-    public DashboardViewModel(AppSession session, DaemonStatusViewModel daemon, IDialogService dialogs,
-        Action<string, TabletDetailTab?> navigateToTablet, HealthService health, TabletsOverviewViewModel tablets,
-        Action? openDriverCleanup = null, Action? openWindowsInk = null, Action? openVMulti = null,
-        Action? openConfigs = null, Action<string, TabletDetailTab?>? navigateToPen = null)
+    public DashboardViewModel(IDialogService dialogs, TabletsOverviewViewModel tablets, PresetsViewModel presets,
+        HealthBadgeViewModel health, DaemonStatusViewModel daemon, Action openHealth)
     {
-        _session = session;
-        Daemon = daemon;
-        _dialogs = dialogs;
-        _navigateToTablet = navigateToTablet;
-        _navigateToPen = navigateToPen;
-        _openDriverCleanup = openDriverCleanup;
-        _openWindowsInk = openWindowsInk;
-        _openVMulti = openVMulti;
-        _openConfigs = openConfigs;
-        Health = health;
         TabletsOverview = tablets;
+        Presets = presets;
+        Health = health;
+        Daemon = daemon;
+        _openHealth = openHealth;
         // The RESOURCES "Supported tablets" link opens the same in-app catalog the old Home card did,
         // highlighting whichever tablet is currently detected (#155).
         About = new AboutViewModel(dialogs,
             () => TabletsOverview.Tablets.FirstOrDefault(t => t.IsDetected)?.Name);
-
-        _session.PropertyChanged += OnSessionPropertyChanged;
-
-        // The all-clear line answers for this whole column, so it has to watch everything the column can
-        // show — the health catalog AND the daemon card, which is deliberately not a health issue.
-        Health.PropertyChanged += OnAttentionSourceChanged;
-        Daemon.PropertyChanged += OnAttentionSourceChanged;
     }
-
-    /// <summary>Shared daemon status/control surface. The Home problem card binds to it and shows only
-    /// when <see cref="DaemonStatusViewModel.ShowDaemonProblem"/>; the full card lives on the Daemon page.</summary>
-    public DaemonStatusViewModel Daemon { get; }
-
-    /// <summary>The health-check catalog (#317); the Home "Needs attention" list binds to
-    /// <c>Health.Issues</c>, and <see cref="RemediateCommand"/> dispatches each card's Fix button.</summary>
-    public HealthService Health { get; }
 
     /// <summary>The tablets overview (list + supported-tablets link), merged into Home.</summary>
     public TabletsOverviewViewModel TabletsOverview { get; }
 
-    /// <summary>The About content (what-is / help / resources / version), shown in Home's right column —
+    /// <summary>The saved presets, with the one loaded last marked (#1041). Home lists them so changing
+    /// preset is one click from the first page, the same list and the same load the Presets page and the
+    /// tray use.</summary>
+    public PresetsViewModel Presets { get; }
+
+    /// <summary>What Home's health card says: the worst tier and how many findings, in a sentence. The findings
+    /// themselves are on the Health page.</summary>
+    public HealthBadgeViewModel Health { get; }
+
+    /// <summary>The daemon in one line, for the daemon card. The full status and controls are on the Daemon page.</summary>
+    public DaemonStatusViewModel Daemon { get; }
+
+    /// <summary>Go to the Health page: the health card's one button.</summary>
+    [RelayCommand]
+    private void OpenHealth() => _openHealth();
+
+    /// <summary>The About content (what-is / help / resources / version), first in Home's right column --
     /// the standalone About page was folded into Home. Home owns its own instance (constructed with the
     /// dialog service so its RESOURCES "Supported tablets" link can open the in-app catalog).</summary>
     public AboutViewModel About { get; }
 
-    /// <summary>Perform an issue's primary fix: run the relevant command in place or navigate to where the
-    /// setting lives.</summary>
+    /// <summary>Load a preset by name: the Presets page's own command, so the question about unsaved edits and
+    /// the "last loaded" mark behave exactly as they do from there, the tray and the hotkeys. Named here
+    /// because the view binds it through this page's data context (and a test checks that such names exist).</summary>
     [RelayCommand]
-    private void Remediate(HealthIssue? issue)
-    {
-        if (issue?.Remediation is { } r) Dispatch(r, issue);
-    }
+    private Task LoadPreset(string name) => Presets.LoadPresetCommand.ExecuteAsync(name);
 
-    /// <summary>Perform an issue's secondary action (#629) — the extra button beside Fix, e.g. an
-    /// off-screen mapping's "Review", which opens the Display Mapping tab while Fix does the re-map.</summary>
-    [RelayCommand]
-    private void RemediateSecondary(HealthIssue? issue)
-    {
-        if (issue?.Secondary is { } r) Dispatch(r, issue);
-    }
-
-    private void Dispatch(Remediation r, HealthIssue issue)
-    {
-        switch (r.Area)
-        {
-            case RemediationArea.WindowsInk:
-                _openWindowsInk?.Invoke();
-                break;
-            case RemediationArea.VMulti:
-                _openVMulti?.Invoke();
-                break;
-            case RemediationArea.DriverCleanup:
-                _openDriverCleanup?.Invoke();
-                break;
-            case RemediationArea.InputMonitoring:
-                // A deep link into System Settings. There is no API to grant this on the user's behalf —
-                // the most an app may do is open the pane where they can.
-                OpenInputMonitoringSettings();
-                break;
-            case RemediationArea.Daemon:
-                // Show the connection, don't act on it. This card reports which OpenTabletDriver is in
-                // use, and adopting the user's own install is supported — restarting it (the old
-                // behaviour) both undid their choice and put a confirmation dialog in front of a button
-                // labelled "Review". See docs/design/official-otd-release.md.
-                Daemon.OpenDaemonPageCommand.Execute(null);
-                break;
-            case RemediationArea.TabletPenBehavior:
-                // Deep-link to the PEN page, on the Movement pivot that carries the fix (pen settings split
-                // out of the tablet page, #pen-split). Falls back to the tablet page if pen nav isn't wired.
-                if (!string.IsNullOrEmpty(r.TabletName))
-                    (_navigateToPen ?? _navigateToTablet)(r.TabletName, TabletDetailTab.PenBehavior);
-                break;
-            case RemediationArea.TabletDisplayMapping:
-                // Deep-link to the tablet's page, on the Display Mapping tab that carries the fix.
-                if (!string.IsNullOrEmpty(r.TabletName)) _navigateToTablet(r.TabletName, TabletDetailTab.DisplayMapping);
-                break;
-            case RemediationArea.TabletMapToPrimary:
-                // Re-map the tablet's active area cleanly to the primary display in place, and persist.
-                if (!string.IsNullOrEmpty(r.TabletName)) _ = _session.MapTabletToPrimaryDisplayAsync(r.TabletName);
-                break;
-            case RemediationArea.TabletResetRotation:
-                // Snap the tablet's non-cardinal active-area rotation to the nearest standard angle, and persist.
-                if (!string.IsNullOrEmpty(r.TabletName)) _ = _session.ResetTabletRotationToCardinalAsync(r.TabletName);
-                break;
-            case RemediationArea.TabletPenDynamics:
-                // Re-enable the always-on Pen Dynamics filter across profiles and persist.
-                _ = _session.EnsureDynamicsAsync();
-                break;
-            case RemediationArea.RestorePenBehavior:
-                // Artist-pen-behavior bundle: re-enable Windows Ink + tip + pressure + tilt in one apply.
-                _ = _session.RestoreRecommendedPenBehaviorAsync(r.TabletName);
-                break;
-            case RemediationArea.Configs:
-                // Open the CONFIGS page so the user can review/remove the override.
-                _openConfigs?.Invoke();
-                break;
-            case RemediationArea.AcknowledgeLegacyDaemonPath:
-                // Records that the explanation was read, and nothing else: no daemon is selected and none
-                // is started, which is why the button says "Got it" rather than naming a copy. The old
-                // location stays in settings.json untouched, so a downgrade still finds it.
-                Services.AppSettings.Set(Services.HealthService.LegacyPathNoticeAcknowledgedKey, "true");
-                Health.Refresh();
-                break;
-            case RemediationArea.DeveloperInducedWarning:
-                // Synthetic warning from the Developer tab — "fixing" it just clears the induced flag.
-                Services.DeveloperSettings.Instance.ClearInduced(issue.Severity);
-                break;
-        }
-    }
-
-    /// <summary>Privacy &amp; Security › Input Monitoring. macOS-only; a no-op elsewhere.</summary>
-    [RelayCommand]
-    private static void OpenInputMonitoringSettings()
-        => Services.PlatformShell.OpenInputMonitoringSettings();
-
-    /// <summary>Follow one of a multi-part issue's review links (#artist-pen-health) — each offending
-    /// setting lives on a different Pen-page pivot, so navigate to the one that owns it.</summary>
-    /// <remarks>
-    /// The attribute is not decoration. Without it no <c>FollowLinkCommand</c> is generated, and
-    /// <c>DashboardView.axaml</c> binds one — which is how every link on a health card became a button
-    /// that did nothing, silently, for twelve days (#889).
-    /// </remarks>
-    [RelayCommand]
-    private void FollowLink(HealthLink? link)
-    {
-        if (link is null) return;
-
-        // Not every multi-part card is about a tablet: the OpenTabletDriver card's rows all lead to the
-        // Daemon page, and routing those through the tablet deep-link would open a tablet named "".
-        if (link.Area == RemediationArea.Daemon) { Daemon.OpenDaemonPageCommand.Execute(null); return; }
-
-        (_navigateToPen ?? _navigateToTablet)(link.TabletName, PenTabFor(link.Area));
-    }
-
-    /// <summary>The Pen-page tab that owns the setting a review link is about: the tip and tilt switches are on
-    /// basics, the pressure switch on the pressure tab.</summary>
-    internal static TabletDetailTab PenTabFor(RemediationArea area) => area switch
-    {
-        RemediationArea.TabletPenInputs => TabletDetailTab.PenInputs,                                   // basics
-        RemediationArea.TabletPenTilt => TabletDetailTab.PenTilt,                                       // tilt
-        RemediationArea.TabletPenPressure => TabletDetailTab.PenDynamics,                                // pressure
-        _ => TabletDetailTab.PenBehavior, // TabletPenBehavior → Movement
-    };
-
-    /// <summary>Hidden developer affordance: right-clicking a synthetic ("developer-induced") card on Home
-    /// clears whichever Developer-tab flag produced it. Ignored for real warnings, so they can't be
-    /// dismissed this way.</summary>
-    [RelayCommand]
-    private void DismissDeveloperIssue(HealthIssue? issue)
-    {
-        if (issue is { IsDeveloperInduced: true })
-            Services.DeveloperSettings.Instance.Dismiss(issue);
-    }
-
-    public bool HasTablet => _session.HasTablet;
-
-    [ObservableProperty] private string _tabletStatusText = "No tablet detected";
-
-    /// <summary>True when this column really has nothing to say. The daemon problem card lives outside the
-    /// health catalog by design (#317), so "no health issues" was never the same as "nothing is wrong" —
-    /// and with no driver at all, Home said "Nothing needs attention" directly above a warning card
-    /// explaining that nothing was connected.</summary>
-    public bool ShowAllClear => !Health.HasIssues && !Daemon.ShowDaemonProblem;
-
-    private void OnAttentionSourceChanged(object? sender, PropertyChangedEventArgs e)
-    {
-        if (e.PropertyName is nameof(HealthService.HasIssues)
-            or nameof(DaemonStatusViewModel.ShowDaemonProblem))
-            OnPropertyChanged(nameof(ShowAllClear));
-    }
-
-    private void OnSessionPropertyChanged(object? sender, PropertyChangedEventArgs e)
-    {
-        if (e.PropertyName is nameof(IDeviceData.HasTablet) or nameof(IDeviceData.TabletName))
-        {
-            OnPropertyChanged(nameof(HasTablet));
-            TabletStatusText = _session.HasTablet ? $"{_session.TabletName} detected" : "No tablet detected";
-        }
-    }
-
-    public void Dispose()
-    {
-        _session.PropertyChanged -= OnSessionPropertyChanged;
-        Health.PropertyChanged -= OnAttentionSourceChanged;
-        Daemon.PropertyChanged -= OnAttentionSourceChanged;
-    }
+    public void Dispose() { }
 }

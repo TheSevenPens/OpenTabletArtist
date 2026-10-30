@@ -5,6 +5,7 @@ using Avalonia.Headless.XUnit;
 using Avalonia.Layout;
 using Avalonia.Styling;
 using Avalonia.Threading;
+using OpenTabletArtist.Controls;
 using OpenTabletArtist.Views;
 using Xunit;
 
@@ -75,7 +76,7 @@ public class NavRowStaysPutTests
             VerticalAlignment = VerticalAlignment.Bottom,
         };
         foreach (var label in new[] { "home", "tablet", "pen", "settings", "advanced" })
-            wordmarks.Children.Add(new RadioButton
+            wordmarks.Children.Add(new NavTab
             {
                 Content = label,
                 GroupName = "Wordmarks",

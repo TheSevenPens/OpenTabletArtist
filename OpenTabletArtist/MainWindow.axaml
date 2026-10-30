@@ -82,7 +82,14 @@
                     </ItemsControl.ItemsPanel>
                     <ItemsControl.ItemTemplate>
                         <DataTemplate>
-                            <RadioButton Theme="{StaticResource WordmarkNav}" GroupName="Wordmarks"
+                            <!-- The HEALTH tab carries a badge (#1050): how many findings there are, tinted by the
+                                 worst, drawn only while there are some. Every other tab has no Badge, so it binds
+                                 to nothing and draws a plain word. The badge is on the tab, so health is clear
+                                 from every page and one click goes to the Health page. -->
+                            <controls:NavTab Theme="{StaticResource WordmarkNav}" GroupName="Wordmarks"
+                                         BadgeTier="{Binding Badge.Tier}" BadgeCount="{Binding Badge.Count}"
+                                         ToolTip.Tip="{Binding Badge.Summary}"
+                                         AutomationProperties.Name="{Binding Badge.Summary}"
                                          Content="{Binding Label, Converter={x:Static conv:LowerCaseConverter.Instance}}"
                                          IsVisible="{Binding IsVisible}"
                                          IsChecked="{Binding IsSelected, Mode=OneWay}"

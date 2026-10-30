@@ -1,0 +1,138 @@
+<UserControl x:Class="OpenTabletArtist.Views.HealthView"
+             xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:c="using:OpenTabletArtist.Controls"
+             xmlns:conv="using:OpenTabletArtist.Converters">
+
+    <!-- DataContext is the HealthPageViewModel, supplied by the typed-nav DataTemplate (#15). The page
+         the top-bar health chip opens (#1050): everything that used to fill Home's "needs attention"
+         column, with room to grow. No page heading: the highlighted "health" wordmark in the top bar names
+         the section, as it does on Home. -->
+    <StackPanel MaxWidth="900" HorizontalAlignment="Left">
+
+        <!-- How many findings there are, and the order. This line is also the all-clear: a muted sentence
+             rather than a green tick, because a loud "all good" would be as loud as the warnings it sits
+             among, and this page's whole job is that something loud here means something is wrong. -->
+        <TextBlock Text="{Binding Subtitle}" TextWrapping="Wrap" Margin="0,18,0,18"
+                   Foreground="{DynamicResource TextMutedBrush}" IsVisible="{Binding HasSubtitle}" />
+
+        <!-- Daemon problem card: the daemon is surfaced here only when there's a connection problem or an
+             op is in flight. It morphs to a "Connecting to daemon..." spinner while Fix runs, then clears on
+             success (or reverts to the error). The full status + controls + version live on the Daemon page
+             (Advanced > OpenTabletDriver). It leads the page when it shows, being the worst thing there is:
+             nothing else matters while nothing is connected. A daemon the app REFUSED has a card of its own
+             in the findings below (#1042), so this one steps aside for it rather than say the same thing
+             twice. Red, because the chip counts it as broken and the two must agree. -->
+        <StackPanel Margin="0,0,0,12" IsVisible="{Binding ShowDaemonCard}">
+            <!-- Connecting... (morph) -->
+            <c:Alert Severity="Warning" Background="{DynamicResource GlassBgBrush}"
+                     IsVisible="{Binding Daemon.ShowDaemonActivity}">
+                <StackPanel>
+                    <TextBlock Text="{Binding Daemon.DaemonActivityText}" Classes="CardTitle" />
+                    <ProgressBar IsIndeterminate="True" Height="3" Margin="0,10,0,0"
+                                 Foreground="{DynamicResource AccentBrush}" />
+                </StackPanel>
+            </c:Alert>
+            <!-- Problem (not connecting): message + Fix + Open daemon page. -->
+            <c:Alert Severity="Error" Padding="14,11" IsVisible="{Binding !Daemon.ShowDaemonActivity}">
+                <Grid ColumnDefinitions="Auto,*,Auto,Auto" ColumnSpacing="14">
+                    <PathIcon Grid.Column="0" Data="{StaticResource IconAlertCircle}" Width="22" Height="22"
+                              Foreground="{DynamicResource TextPrimaryBrush}" VerticalAlignment="Top" Margin="0,1,0,0" />
+                    <StackPanel Grid.Column="1" MinWidth="0" VerticalAlignment="Center">
+                        <TextBlock Text="BROKEN" Classes="SectionLabel" />
+                        <TextBlock Text="{Binding Daemon.HomeProblemText}" Classes="CardTitle" TextWrapping="Wrap" Margin="0,2,0,0" />
+                        <TextBlock Text="{Binding Daemon.DaemonOperationError}" Margin="0,4,0,0" TextWrapping="Wrap"
+                                   IsVisible="{Binding Daemon.HasDaemonOperationError}"
+                                   Foreground="{DynamicResource TextPrimaryBrush}" />
+                        <TextBlock Text="Open the daemon page to start it or see details." Margin="0,4,0,0" TextWrapping="Wrap"
+                                   IsVisible="{Binding Daemon.IsDaemonExeMissing}"
+                                   Foreground="{DynamicResource TextSecondaryBrush}" />
+                    </StackPanel>
+                    <Button Grid.Column="2" Content="Fix" Command="{Binding Daemon.FixCommand}"
+                            IsVisible="{Binding Daemon.CanStartDaemon}" IsEnabled="{Binding !Daemon.IsDaemonBusy}"
+                            Theme="{StaticResource AccentButton}" Padding="12,6" VerticalAlignment="Center" />
+                    <Button Grid.Column="3" Content="Open daemon page" Command="{Binding Daemon.OpenDaemonPageCommand}"
+                            Theme="{StaticResource GhostButton}" Padding="12,6" VerticalAlignment="Center" />
+                </Grid>
+            </c:Alert>
+        </StackPanel>
+
+        <!-- The findings: the health-check catalog, worst severity first. Each card's Fix button runs the
+             relevant action in place or jumps to where the setting lives. -->
+        <StackPanel IsVisible="{Binding Health.HasIssues}" Margin="0,0,0,4">
+            <ItemsControl ItemsSource="{Binding Health.Issues}">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <!-- Health cards get a tinted per-tier background + border (#509/#574) so they
+                             read distinctly from normal cards, a per-tier icon (#552), and the tier in
+                             words above the title (#1050), so a suggestion and a misconfiguration differ
+                             in more than colour. The Alert role owns the tint/border via its Severity. -->
+                        <c:Alert Margin="0,0,0,8" Padding="14,11"
+                                 Severity="{Binding Severity, Converter={x:Static conv:HealthSeverityToAlertSeverityConverter.Instance}}">
+                            <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="14">
+                                <!-- Per-tier icon, no colored box (#health-icon): dark so it reads on the
+                                     card's tint, and top-aligned to sit with the title. -->
+                                <Panel Grid.Column="0" VerticalAlignment="Top" Margin="0,1,0,0">
+                                    <PathIcon Data="{StaticResource IconAlertCircle}" Width="22" Height="22" Foreground="{DynamicResource TextPrimaryBrush}"
+                                              IsVisible="{Binding Severity, Converter={StaticResource EnumEquals}, ConverterParameter=Broken}" />
+                                    <PathIcon Data="{StaticResource IconAlert}" Width="22" Height="22" Foreground="{DynamicResource TextPrimaryBrush}"
+                                              IsVisible="{Binding Severity, Converter={StaticResource EnumEquals}, ConverterParameter=Misconfigured}" />
+                                    <PathIcon Data="{StaticResource IconLightbulbOn}" Width="22" Height="22" Foreground="{DynamicResource TextPrimaryBrush}"
+                                              IsVisible="{Binding Severity, Converter={StaticResource EnumEquals}, ConverterParameter=Recommendation}" />
+                                    <PathIcon Data="{StaticResource IconInformationOutline}" Width="22" Height="22" Foreground="{DynamicResource TextPrimaryBrush}"
+                                              IsVisible="{Binding Severity, Converter={StaticResource EnumEquals}, ConverterParameter=Information}" />
+                                </Panel>
+                                <StackPanel Grid.Column="1" MinWidth="0" VerticalAlignment="Top">
+                                    <TextBlock Text="{Binding TierLabel}" Classes="SectionLabel" />
+                                    <TextBlock Text="{Binding Title}" Classes="CardTitle" TextWrapping="Wrap" Margin="0,2,0,0" />
+                                    <TextBlock Text="{Binding Detail}" Margin="0,2,0,0" TextWrapping="Wrap"
+                                               Foreground="{DynamicResource TextSecondaryBrush}" />
+                                    <!-- Multi-part issues (#artist-pen-health): a review link per offending
+                                         setting, each deep-linking to the Pen pivot that owns it. Only the
+                                         artist-pen-behavior card sets Links; other issues leave it null. -->
+                                    <ItemsControl ItemsSource="{Binding Links}" Margin="0,6,0,0"
+                                                  IsVisible="{Binding Links, Converter={StaticResource NotNull}}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <!-- A simple bullet list; each item is a clickable link that
+                                                     reads "location > setting" and jumps to that pivot. -->
+                                                <Button Command="{Binding $parent[ItemsControl].DataContext.FollowLinkCommand}"
+                                                        CommandParameter="{Binding}"
+                                                        Theme="{StaticResource LinkButton}" Padding="0,2" Margin="0"
+                                                        HorizontalAlignment="Left"
+                                                        ToolTip.Tip="Go to this setting">
+                                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                                        <TextBlock Text="•" VerticalAlignment="Top"
+                                                                   Foreground="{DynamicResource TextMutedBrush}" />
+                                                        <TextBlock Text="{Binding Label}" TextWrapping="Wrap"
+                                                                   Foreground="{DynamicResource AccentBrush}" />
+                                                    </StackPanel>
+                                                </Button>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </StackPanel>
+                                <!-- Actions: an optional secondary button (e.g. "Review" > open the
+                                     setting) beside the primary Fix. Only two-button issues set Secondary
+                                     (#629); most cards show just Fix. -->
+                                <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8"
+                                            VerticalAlignment="Center">
+                                    <Button Content="{Binding Secondary.ActionLabel}"
+                                            IsVisible="{Binding Secondary, Converter={StaticResource NotNull}}"
+                                            Command="{Binding $parent[ItemsControl].DataContext.RemediateSecondaryCommand}"
+                                            CommandParameter="{Binding}"
+                                            Theme="{StaticResource GhostButton}" Padding="12,6" />
+                                    <Button Content="{Binding Remediation.ActionLabel}"
+                                            IsVisible="{Binding Remediation, Converter={StaticResource NotNull}}"
+                                            Command="{Binding $parent[ItemsControl].DataContext.RemediateCommand}"
+                                            CommandParameter="{Binding}"
+                                            Theme="{StaticResource AccentButton}" Padding="12,6" />
+                                </StackPanel>
+                            </Grid>
+                        </c:Alert>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </StackPanel>
+    </StackPanel>
+</UserControl>
