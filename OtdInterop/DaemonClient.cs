@@ -1,6 +1,4 @@
 using System.IO.Pipes;
-using System.Runtime.InteropServices;
-using Microsoft.Win32.SafeHandles;
 using Newtonsoft.Json.Linq;
 using OpenTabletDriver.Desktop;
 using OpenTabletDriver.Desktop.Reflection.Metadata;
@@ -367,8 +365,8 @@ internal sealed class DaemonClient : IDaemonTransport, IDaemonSettingsChannel
         if (pipe == null || !pipe.IsConnected) return null;
         try
         {
-            if (GetNamedPipeServerProcessId(pipe.SafePipeHandle, out uint pid))
-                return (int)pid;
+            if (PipePeer.TryGetServerProcessId(pipe.SafePipeHandle, out int pid))
+                return pid;
         }
         catch (Exception ex)
         {
@@ -377,10 +375,6 @@ internal sealed class DaemonClient : IDaemonTransport, IDaemonSettingsChannel
         }
         return null;
     }
-
-    [DllImport("kernel32.dll", SetLastError = true)]
-    [return: MarshalAs(UnmanagedType.Bool)]
-    private static extern bool GetNamedPipeServerProcessId(SafePipeHandle Pipe, out uint ServerProcessId);
 
     public async Task SetTabletDebugAsync(bool enabled)
     {

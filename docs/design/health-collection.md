@@ -60,7 +60,7 @@ latest-result gate prevents superseded collections from publishing, but is not a
 | Probe | Evidence / limitation |
 | --- | --- |
 | Daemon | Existing named pipe for the current user; never launches or discovers installations. |
-| DaemonVersion | Windows pipe-server PID, executable resource, managed DLL fallback. OTD has no version RPC; live headless Linux/macOS report `Unsupported` rather than guessing a process. OTA can supply its observed version. |
+| DaemonVersion | Pipe-server PID (Windows `GetNamedPipeServerProcessId`, macOS `LOCAL_PEERPID`), executable resource, managed DLL fallback. OTD has no version RPC; live headless Linux reports `Unsupported` rather than guessing a process. OTA can supply its observed version. |
 | Profiles | Existing settings and detected tablets; strict read failures stay failures. No settings normalization, repair or writeback. The reads are sequential, not an atomic daemon transaction; a detected tablet without a settings profile yields an incomplete report. |
 | Displays | Mapping against captured bounds; CLI enumerates physical pixels on Windows with temporary thread DPI awareness. Live headless Linux/macOS enumeration is `Unsupported` when needed. Consumers can supply their own bounds. No detected tablets makes this probe inapplicable. |
 | ConfigurationOverrides | Recursive JSON read in the daemon's reported directory, compared with the embedded pinned OTD configuration catalog. Unknown path or malformed/unreadable data cannot certify no overrides. |

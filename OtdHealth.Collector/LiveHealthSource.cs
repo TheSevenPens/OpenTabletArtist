@@ -11,7 +11,8 @@ public static class LiveHealthSource
         Connect = async ct => { await connection.ConnectAsync(ct).ConfigureAwait(false); return true; },
         Version = _ =>
         {
-            if (!OperatingSystem.IsWindows()) throw new ProbeUnavailableException("OTD does not expose a version RPC and this platform cannot identify the pipe's server executable.", true);
+            // Windows and macOS can name the pipe's server (OtdInterop.PipePeer); Linux cannot yet.
+            if (!OperatingSystem.IsWindows() && !OperatingSystem.IsMacOS()) throw new ProbeUnavailableException("OTD does not expose a version RPC and this platform cannot identify the pipe's server executable.", true);
             return Task.FromResult(FileProbes.DaemonVersion(connection.ServerExecutablePath() ?? ""));
         },
         Profiles = async ct =>

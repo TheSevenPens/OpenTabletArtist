@@ -1510,8 +1510,8 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
     /// Otherwise: kill the ONE process we are connected to, found by the pipe→pid lookup. This used to
     /// kill every process named OpenTabletDriver.Daemon, which stops a second OTD instance the user
     /// started themselves — a foreign daemon this app never owned. StopAll remains the fallback for when
-    /// the pid isn't known: off-Windows the lookup is unavailable, and the daemon is effectively a
-    /// singleton there, so by-name is both the only option and a safe one.
+    /// the pid isn't known: Windows and macOS have the lookup but Linux does not, and the daemon is
+    /// effectively a singleton there, so by-name is both the only option and a safe one.
     /// </para>
     /// </summary>
     /// <summary>

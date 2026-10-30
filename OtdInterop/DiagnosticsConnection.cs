@@ -55,20 +55,26 @@ public sealed class DiagnosticsConnection : IDisposable
     /// <summary>Reads existing daemon log messages; does not trigger detection.</summary>
     public Task<List<LogMessage>> GetCurrentLogAsync(CancellationToken ct) => ReadAsync<List<LogMessage>>("GetCurrentLog", ct);
 
-    /// <summary>The executable serving this pipe on Windows. Other platforms cannot establish the
-    /// server identity through this API and return null rather than guessing from process names.</summary>
-    public string? ServerExecutablePath()
+    /// <summary>The executable serving this pipe, on Windows and macOS. Other platforms cannot establish
+    /// the server identity through this API and return null rather than guessing from process names.</summary>
+    public string? ServerExecutablePath() =>
+        ServerProcessId() is { } pid ? ExecutableOf(pid) : null;
+
+    /// <summary>The process serving this pipe, or null where the OS can't name it (see
+    /// <see cref="PipePeer"/>). Throws when the OS can name it but the lookup fails.</summary>
+    internal int? ServerProcessId()
     {
-        if (!OperatingSystem.IsWindows()) return null;
-        if (!GetNamedPipeServerProcessId(_pipe.SafePipeHandle, out var pid))
-            throw new System.ComponentModel.Win32Exception(Marshal.GetLastWin32Error());
-        using var process = Process.GetProcessById(checked((int)pid));
-        return process.MainModule?.FileName;
+        if (!PipePeer.IsSupported) return null;
+        if (!PipePeer.TryGetServerProcessId(_pipe.SafePipeHandle, out var pid))
+            throw new System.ComponentModel.Win32Exception(Marshal.GetLastPInvokeError());
+        return pid;
     }
 
-    [DllImport("kernel32.dll", SetLastError = true)]
-    [return: MarshalAs(UnmanagedType.Bool)]
-    private static extern bool GetNamedPipeServerProcessId(Microsoft.Win32.SafeHandles.SafePipeHandle pipe, out uint pid);
+    private static string? ExecutableOf(int pid)
+    {
+        using var process = Process.GetProcessById(pid);
+        return process.MainModule?.FileName;
+    }
 
     /// <summary>Closes this diagnostic client, leaving the daemon untouched.</summary>
     public void Dispose() { _rpc?.Dispose(); _pipe.Dispose(); }

@@ -60,7 +60,7 @@ public interface IDaemonLifecycleService : IDaemonProcessLocator
     bool Stop(int processId);
 
     /// <summary>Kills all running OTD daemon processes (best effort). The fallback for when the connected
-    /// daemon's pid isn't known — off-Windows, where the pipe→pid lookup is unavailable and the daemon is
+    /// daemon's pid isn't known — on Linux, where the pipe→pid lookup is unavailable and the daemon is
     /// effectively a singleton anyway.</summary>
     void StopAll();
 

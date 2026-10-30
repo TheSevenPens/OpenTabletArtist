@@ -54,6 +54,41 @@ public class DiagnosticsTests
         Assert.Equal("Timeout", Assert.Single(report.Probes).Failure!.Code);
     }
 
+    /// <summary>
+    /// The live version probe asks the pipe who serves it on Windows and macOS, and stays
+    /// <c>Unsupported</c> only where that lookup does not exist (Linux).
+    /// </summary>
+    /// <remarks>
+    /// The server here is this test host, not a daemon, so on macOS the probe gets as far as the host's
+    /// executable and then finds no OTD version beside it: <c>Unavailable</c> for that reason, not
+    /// <c>Unsupported</c>, is what shows the executable was identified.
+    /// </remarks>
+    [Fact]
+    public async Task LiveVersionProbeIdentifiesTheServer_WhereThePlatformCan()
+    {
+        using var limit = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
+        limit.CancelAfter(TimeSpan.FromSeconds(10));
+        string pipe = TestPipeName.Create();
+        using var server = new NamedPipeServerStream(pipe, PipeDirection.InOut, 1, PipeTransmissionMode.Byte, PipeOptions.Asynchronous);
+        var accept = server.WaitForConnectionAsync(limit.Token);
+        using var client = new DiagnosticsConnection(pipe);
+        var reportTask = HealthCollector.CollectAsync(LiveHealthSource.Create(client), options: new()
+        {
+            Coverage = [ProbeId.Daemon, ProbeId.DaemonVersion],
+        }, cancellationToken: limit.Token);
+        await accept;
+        var report = await reportTask;
+
+        var version = Assert.Single(report.Probes, p => p.Id == ProbeId.DaemonVersion);
+        bool canIdentify = OperatingSystem.IsWindows() || OperatingSystem.IsMacOS();
+        Assert.Equal(!canIdentify, version.Outcome == ProbeOutcome.Unsupported);
+        if (OperatingSystem.IsMacOS())
+        {
+            Assert.Equal(ProbeOutcome.Unavailable, version.Outcome);
+            Assert.Equal("No daemon version resource is available.", version.Failure!.Message);
+        }
+    }
+
     [Theory]
     [InlineData(false, 0)]
     [InlineData(true, 1)]
