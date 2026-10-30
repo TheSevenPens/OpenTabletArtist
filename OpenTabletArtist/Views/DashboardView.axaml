@@ -175,10 +175,13 @@
                             <Panel VerticalAlignment="Center">
                                 <PathIcon Data="{StaticResource IconCheckCircle}" Width="26" Height="26"
                                           Foreground="{DynamicResource SuccessBrush}"
-                                          IsVisible="{Binding !Health.IsChecking}" />
+                                          IsVisible="{Binding Health.IsAllClear}" />
                                 <PathIcon Data="{StaticResource IconDotsHorizontal}" Width="26" Height="26"
                                           Foreground="{DynamicResource TextSecondaryBrush}"
                                           IsVisible="{Binding Health.IsChecking}" />
+                                <PathIcon Data="{StaticResource IconInformationOutline}" Width="26" Height="26"
+                                          Foreground="{DynamicResource TextSecondaryBrush}"
+                                          IsVisible="{Binding Health.CouldNotCheck}" />
                             </Panel>
                             <StackPanel Grid.Column="1" MinWidth="0" VerticalAlignment="Center">
                                 <TextBlock Text="{Binding Health.CardEyebrow}" Classes="SectionLabel" />

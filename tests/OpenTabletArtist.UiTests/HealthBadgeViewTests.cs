@@ -166,6 +166,19 @@ public class HealthBadgeViewTests
         window.Close();
     }
 
+    [AvaloniaFact]
+    public void TheHealthPage_SaysItCouldNotCheck_WhenTheHealthCheckFails()
+    {
+        var (view, _, _, window) = HealthPage(_ => Task.FromException<OtdHealth.Collector.HealthAnalysisReport>(new InvalidOperationException("boom")));
+
+        var texts = view.GetVisualDescendants().OfType<TextBlock>().Where(t => t.IsEffectivelyVisible).Select(t => t.Text).ToList();
+
+        Assert.Contains("Couldn't check.", texts);
+        Assert.DoesNotContain("Nothing needs attention.", texts);
+        Assert.DoesNotContain("Checking\u2026", texts);
+        window.Close();
+    }
+
     /// <summary>With no daemon the page must not say nothing needs attention above a card saying nothing is
     /// connected.</summary>
     [AvaloniaFact]
@@ -292,13 +305,16 @@ public class HealthBadgeViewTests
     }
 
     private static (HealthView View, HealthService Health, FakeConnectionState Connection, Window Window) HealthPage(
-        bool reported = true)
+        bool reported = true) =>
+        HealthPage(reported
+            ? _ => Task.FromResult(new OtdHealth.Collector.HealthAnalysisReport(new OtdHealth.HealthSnapshot(), [], []))
+            : _ => new TaskCompletionSource<OtdHealth.Collector.HealthAnalysisReport>().Task);
+
+    private static (HealthView View, HealthService Health, FakeConnectionState Connection, Window Window) HealthPage(
+        Func<System.Threading.CancellationToken, Task<OtdHealth.Collector.HealthAnalysisReport>> collect)
     {
         var connection = new FakeConnectionState { IsConnected = true };
-        var health = new HealthService(connection, new FakeDeviceData(), new DriverConflictMonitor(),
-            reported
-                ? _ => Task.FromResult(new OtdHealth.Collector.HealthAnalysisReport(new OtdHealth.HealthSnapshot(), [], []))
-                : _ => new TaskCompletionSource<OtdHealth.Collector.HealthAnalysisReport>().Task);
+        var health = new HealthService(connection, new FakeDeviceData(), new DriverConflictMonitor(), collect);
         health.Issues.Clear();
         var session = new AppSession(FakeSession.Over(new FakeDaemonTransport(), new MemorySettingsFileStore()), new FakeLifecycle());
         var page = new HealthPageViewModel(session, new DaemonStatusViewModel(connection), health,

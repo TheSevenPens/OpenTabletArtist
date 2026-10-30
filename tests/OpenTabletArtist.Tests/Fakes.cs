@@ -70,7 +70,14 @@ internal sealed class FakeDialogService : IDialogService
         return Task.CompletedTask;
     }
 
-    public Task<bool> ShowConfirmAsync(string title, string message) => Task.FromResult(ConfirmResult);
+    /// <summary>Runs while a confirmation is open, so a test can do what the artist might do meanwhile.</summary>
+    public Action? DuringConfirm { get; set; }
+
+    public Task<bool> ShowConfirmAsync(string title, string message)
+    {
+        DuringConfirm?.Invoke();
+        return Task.FromResult(ConfirmResult);
+    }
 
     public Task<string?> ShowInputAsync(string title, string prompt, string defaultValue = "")
         => Task.FromResult(InputResult);

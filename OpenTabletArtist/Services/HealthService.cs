@@ -65,6 +65,11 @@ public sealed partial class HealthService : ObservableObject, IDisposable
 
     [ObservableProperty] private bool _hasIssues;
 
+    /// <summary>The health check was started and did not produce a report (it threw). Cleared when the next one
+    /// starts. Without it a check that failed outright looked like one that had not answered yet, and the card
+    /// said "checking" for good (#1060).</summary>
+    [ObservableProperty] private bool _collectionFailed;
+
     public HealthService(IConnectionState connection, IDeviceData device, DriverConflictMonitor conflicts)
         : this(connection, device, conflicts, null) { }
 
@@ -164,6 +169,7 @@ public sealed partial class HealthService : ObservableObject, IDisposable
         PublishIssues();
         _collectionCancellation?.Cancel();
         _collectionCancellation = new CancellationTokenSource();
+        CollectionFailed = false;
         CurrentCollection = CollectAsync(_collectionCancellation);
     }
 
@@ -186,7 +192,13 @@ public sealed partial class HealthService : ObservableObject, IDisposable
                 OnPropertyChanged(nameof(Analysis));
                 PublishIssues();
             }
-            catch (Exception ex) { AppLog.Warn("Health collection failed.", ex); }
+            catch (Exception ex)
+            {
+                AppLog.Warn("Health collection failed.", ex);
+                // A collection that was replaced by a newer one, or whose service is gone, did not fail: its
+                // successor is the one that will say.
+                if (!_disposed && !cancellation.IsCancellationRequested) CollectionFailed = true;
+            }
             finally
             {
                 if (ReferenceEquals(_collectionCancellation, cancellation)) _collectionCancellation = null;

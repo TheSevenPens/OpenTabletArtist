@@ -168,14 +168,18 @@ public partial class PresetsViewModel : ObservableObject, IDisposable
     [RelayCommand]
     private async Task UpdatePreset(string name)
     {
-        var settings = _settings.CurrentSettings;
-        if (settings == null) return;
+        if (_settings.CurrentSettings == null) return;
 
         // It overwrites the preset as surely as Delete removes it, and Delete asks.
         var confirmed = await _dialogs.ShowConfirmAsync(
             "Update Preset",
             $"Replace the profile \"{name}\" with your current settings?\n\nWhat it holds now will be lost.");
         if (!confirmed) return;
+
+        // Read after the answer, not before the question: the dialog says "your current settings", and an edit
+        // applied while it was open is part of them (#1060).
+        var settings = _settings.CurrentSettings;
+        if (settings == null) return;
 
         var path = Path.Combine(PresetDirectory, $"{name}.json");
         _store.Save(settings, path);
