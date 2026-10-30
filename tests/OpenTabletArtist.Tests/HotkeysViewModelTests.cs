@@ -106,4 +106,15 @@ public class HotkeysViewModelTests
         Assert.Null(monitor.Chord);
         Assert.False(vm.HasMonitorHotkey);
     }
+
+    [Fact]
+    public void TheMonitorRow_NamesTheBackwardsShortcut()
+    {
+        Assert.Equal("Moves the active tablet's area to the next monitor, wrapping around. Ctrl+Alt+Shift+M goes back.",
+            HotkeysViewModel.MonitorRowDetail(new HotkeyChord(KeyModifiers.Control | KeyModifiers.Alt, Key.M)));
+        // No chord yet, or one that already holds Shift: there is no backwards shortcut to name.
+        Assert.DoesNotContain("goes back", HotkeysViewModel.MonitorRowDetail(null));
+        Assert.DoesNotContain("goes back",
+            HotkeysViewModel.MonitorRowDetail(new HotkeyChord(KeyModifiers.Control | KeyModifiers.Shift, Key.M)));
+    }
 }

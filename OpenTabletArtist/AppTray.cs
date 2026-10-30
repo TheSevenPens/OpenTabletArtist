@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Linq;
@@ -18,8 +19,8 @@ namespace OpenTabletArtist;
 /// and offers Show / daemon control / Quit. Closing the window hides it to the tray (see
 /// <see cref="MainWindow"/>); the app keeps running until Quit is chosen here.
 ///
-/// The tray also surfaces a few tablet actions so they're reachable with the window closed:
-/// an "Active Tablet" picker (#190) and a "Switch display" submenu for the active tablet (#187).
+/// The tray also surfaces a few actions so they're reachable with the window closed: a "Load Preset"
+/// submenu, an "Active Tablet" picker (#190) and a "Switch display" submenu for the active tablet (#187).
 /// </summary>
 public sealed class AppTray : IDisposable
 {
@@ -31,11 +32,15 @@ public sealed class AppTray : IDisposable
     private readonly Func<Task<bool>>? _onQuitAsync; // resolve unsaved settings before exit
     private readonly Func<TimeSpan, Task<bool>>? _onCloseAsync; // settle settings work before exit (#828)
     private readonly Func<Task<Func<Task>?>>? _onPrepareStopAsync; // capture the stop target (#828)
+    private readonly ViewModels.PresetsViewModel? _presets;
+    private readonly ProfileSwitchService? _profileSwitch;
 
     private readonly TrayIcon _tray;
     private readonly NativeMenuItem _activeTabletItem;
 
     private readonly NativeMenu _activeTabletMenu;
+    private readonly NativeMenuItem _loadPresetItem;
+    private readonly NativeMenu _presetMenu;
     private readonly NativeMenuItem _switchDisplayItem;
     private readonly NativeMenu _displayMenu;
     private readonly NativeMenuItemSeparator _tabletSeparator;
@@ -49,11 +54,13 @@ public sealed class AppTray : IDisposable
     // picker (connected tablets + which is active).
     private string _displaySignature = "";
     private string _activeTabletSignature = "";
+    private string _presetSignature = "";
 
     public AppTray(IClassicDesktopStyleApplicationLifetime desktop, MainWindow window,
         IConnectionState conn, IDeviceData deviceData, ISettingsCoordinator settingsCoord,
         Func<Task<bool>>? onQuitAsync = null, Func<TimeSpan, Task<bool>>? onCloseAsync = null,
-        Func<Task<Func<Task>?>>? onPrepareStopAsync = null)
+        Func<Task<Func<Task>?>>? onPrepareStopAsync = null,
+        ViewModels.PresetsViewModel? presets = null, ProfileSwitchService? profileSwitch = null)
     {
         _desktop = desktop;
         _window = window;
@@ -63,6 +70,8 @@ public sealed class AppTray : IDisposable
         _onQuitAsync = onQuitAsync;
         _onCloseAsync = onCloseAsync;
         _onPrepareStopAsync = onPrepareStopAsync;
+        _presets = presets;
+        _profileSwitch = profileSwitch;
 
         _tray = new TrayIcon { ToolTipText = "OpenTabletArtist", IsVisible = true };
         try
@@ -74,6 +83,12 @@ public sealed class AppTray : IDisposable
 
         var showItem = new NativeMenuItem("Show OpenTabletArtist");
         showItem.Click += (_, _) => ShowWindow();
+
+        // Saved presets, so switching between them needs neither the window nor a hotkey per preset. The
+        // switch goes through ProfileSwitchService like the page's Load button: the same unsaved-settings
+        // question first, and the same toast after.
+        _presetMenu = new NativeMenu();
+        _loadPresetItem = new NativeMenuItem("Load Preset") { Menu = _presetMenu };
 
         // Active-tablet picker (#190 phase 3): only shown when more than one tablet is connected; the
         // tablet actions below all target the active tablet.
@@ -99,6 +114,7 @@ public sealed class AppTray : IDisposable
         var menu = new NativeMenu();
         menu.Items.Add(showItem);
         menu.Items.Add(new NativeMenuItemSeparator());
+        menu.Items.Add(_loadPresetItem);
         menu.Items.Add(_activeTabletItem);
         menu.Items.Add(_switchDisplayItem);
         menu.Items.Add(_tabletSeparator);
@@ -114,6 +130,9 @@ public sealed class AppTray : IDisposable
 
         _conn.PropertyChanged += OnConnectionChanged;
         _deviceData.DataLoaded += OnDataLoaded;
+        // The preset list is rescanned asynchronously after a data load, and again after a save or rename,
+        // so the tray follows the list itself rather than the load that started it.
+        if (_presets != null) _presets.PropertyChanged += OnPresetsChanged;
         UpdateMenu();
 
         TrayIcon.SetIcons(Application.Current!, new TrayIcons { _tray });
@@ -128,6 +147,11 @@ public sealed class AppTray : IDisposable
     // The data load already raises this on the UI thread, but Post keeps it uniform with the
     // connection callback above and harmless if a future caller isn't on the dispatcher.
     private void OnDataLoaded() => Dispatcher.UIThread.Post(UpdateMenu);
+
+    private void OnPresetsChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(ViewModels.PresetsViewModel.Presets)) Dispatcher.UIThread.Post(UpdateMenu);
+    }
 
     private void UpdateMenu()
     {
@@ -192,7 +216,38 @@ public sealed class AppTray : IDisposable
         else
             _activeTabletSignature = "";
 
-        _tabletSeparator.IsVisible = mappable || multipleTablets;
+        // Loading a preset applies it to the daemon, so it is offered only while one is connected.
+        var presetNames = connected && _presets != null && _profileSwitch != null
+            ? PresetMenuNames(_presets.Presets)
+            : [];
+        _loadPresetItem.IsVisible = presetNames.Count > 0;
+        if (presetNames.Count > 0)
+            RebuildPresetMenu(presetNames);
+        else
+            _presetSignature = "";
+
+        _tabletSeparator.IsVisible = mappable || multipleTablets || presetNames.Count > 0;
+    }
+
+    /// <summary>The presets in the order the tray lists them: by name, so an entry stays where it was when
+    /// another preset is updated (the page lists newest first, which moves things on every save).</summary>
+    internal static IReadOnlyList<string> PresetMenuNames(IEnumerable<ViewModels.PresetInfo> presets) =>
+        presets.Select(p => p.Name).Order(StringComparer.CurrentCultureIgnoreCase).ToList();
+
+    private void RebuildPresetMenu(IReadOnlyList<string> names)
+    {
+        var signature = string.Join("\n", names);
+        if (signature == _presetSignature) return;
+        _presetSignature = signature;
+
+        _presetMenu.Items.Clear();
+        foreach (var name in names)
+        {
+            var item = new NativeMenuItem(name);
+            var target = name; // capture per-iteration
+            item.Click += (_, _) => _ = _profileSwitch!.SwitchToAsync(target);
+            _presetMenu.Items.Add(item);
+        }
     }
 
     /// <summary>The detected profile for the active tablet, falling back to any detected one.</summary>
@@ -306,6 +361,7 @@ public sealed class AppTray : IDisposable
     {
         _conn.PropertyChanged -= OnConnectionChanged;
         _deviceData.DataLoaded -= OnDataLoaded;
+        if (_presets != null) _presets.PropertyChanged -= OnPresetsChanged;
         _tray.IsVisible = false;
         if (Application.Current is { } app)
             TrayIcon.SetIcons(app, new TrayIcons());

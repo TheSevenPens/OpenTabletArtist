@@ -36,7 +36,8 @@ public partial class App : Application
 
             if (window.DataContext is ViewModels.MainViewModel vm)
                 _tray = new AppTray(desktop, window, vm.Connection, vm.DeviceData, vm.SettingsCoordinator,
-                    vm.ResolveUnsavedSettingsAsync, vm.CloseSessionAsync, vm.PrepareDaemonStopAsync);
+                    vm.ResolveUnsavedSettingsAsync, vm.CloseSessionAsync, vm.PrepareDaemonStopAsync,
+                    vm.Presets, vm.ProfileSwitch);
 
             // Remove the tray icon as part of a clean exit, so it doesn't ghost in the notification
             // area after Quit (Windows only clears an orphaned icon on hover otherwise). (#58)

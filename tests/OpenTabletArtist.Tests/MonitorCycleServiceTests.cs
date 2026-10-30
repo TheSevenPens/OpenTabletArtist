@@ -97,4 +97,41 @@ public class MonitorCycleServiceTests
         Assert.Null(coord.Applied);
         Assert.Contains("active tablet", message);
     }
+
+    private static readonly IReadOnlyList<DisplayInfo> ThreeDisplays = new[]
+    {
+        Display(1, 0, 0, 1920, 1080),
+        Display(2, 1920, 0, 1920, 1080),
+        Display(3, 3840, 0, 1920, 1080),
+    };
+
+    [Theory]
+    [InlineData(2, 1)]
+    [InlineData(1, 3)]   // wraps from the first to the last
+    [InlineData(3, 2)]
+    public async Task CycleBackwards_MovesToThePreviousDisplay(int from, int to)
+    {
+        var settings = SettingsMappedTo(TwoDisplays[0]);
+        DisplayMappingApplier.ApplyToProfile(settings.Profiles[0], (100f, 100f), ThreeDisplays[from - 1], ThreeDisplays);
+        var coord = new FakeSettingsCoordinator { CurrentSettings = settings };
+        var svc = NewService(coord, new FakeDeviceData { ActiveTabletName = "Test Tablet" }, ThreeDisplays);
+
+        await svc.CycleAsync(backwards: true);
+
+        Assert.Equal(to, DisplayMappingApplier.CurrentlyMapped(coord.CurrentSettings!.Profiles[0], ThreeDisplays)!.Number);
+    }
+
+    [Fact]
+    public async Task CycleForwards_AndThenBackwards_ComesBackToTheStart()
+    {
+        var settings = SettingsMappedTo(TwoDisplays[0]);
+        DisplayMappingApplier.ApplyToProfile(settings.Profiles[0], (100f, 100f), ThreeDisplays[1], ThreeDisplays);
+        var coord = new FakeSettingsCoordinator { CurrentSettings = settings };
+        var svc = NewService(coord, new FakeDeviceData { ActiveTabletName = "Test Tablet" }, ThreeDisplays);
+
+        await svc.CycleAsync();
+        await svc.CycleAsync(backwards: true);
+
+        Assert.Equal(2, DisplayMappingApplier.CurrentlyMapped(coord.CurrentSettings!.Profiles[0], ThreeDisplays)!.Number);
+    }
 }

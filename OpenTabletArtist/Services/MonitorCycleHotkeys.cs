@@ -1,4 +1,5 @@
 using System;
+using Avalonia.Input;
 
 namespace OpenTabletArtist.Services;
 
@@ -30,6 +31,12 @@ public sealed class MonitorCycleHotkeys : IMonitorCycleHotkey, IDisposable
     private readonly GlobalHotkeyService _hotkeys;
     private readonly MonitorCycleService _cycle;
     private int _id;
+    private int _backId; // the same chord with Shift added: the previous display instead of the next
+
+    /// <summary>The chord that cycles the other way: <paramref name="chord"/> with Shift added. Null when it
+    /// already holds Shift, since there is then no modifier left to tell the two directions apart.</summary>
+    public static HotkeyChord? BackChord(HotkeyChord chord) =>
+        chord.Modifiers.HasFlag(KeyModifiers.Shift) ? null : chord with { Modifiers = chord.Modifiers | KeyModifiers.Shift };
 
     public MonitorCycleHotkeys(GlobalHotkeyService hotkeys, MonitorCycleService cycle)
     {
@@ -51,6 +58,7 @@ public sealed class MonitorCycleHotkeys : IMonitorCycleHotkey, IDisposable
         int id = _hotkeys.TryRegister(chord);
         if (id == 0) return HotkeySetResult.Conflict;
         _id = id;
+        RegisterBack(chord);
         AppSettings.Set(MapKey, chord.Serialize());
         return HotkeySetResult.Ok;
     }
@@ -67,18 +75,37 @@ public sealed class MonitorCycleHotkeys : IMonitorCycleHotkey, IDisposable
         if (chord is { IsRegisterable: true })
         {
             int id = _hotkeys.TryRegister(chord);
-            if (id != 0) _id = id;
+            if (id != 0) { _id = id; RegisterBack(chord); }
         }
+    }
+
+    // Best-effort: if another app owns the Shift chord, the forward hotkey still works on its own. A chord
+    // the user gave a preset is left to the preset: the backwards hotkey is a bonus nobody asked for by
+    // name, and registering it first would quietly take a shortcut they did ask for.
+    private void RegisterBack(HotkeyChord chord)
+    {
+        if (BackChord(chord) is { } back && !IsAssignedElsewhere(back)) _backId = _hotkeys.TryRegister(back);
+    }
+
+    private static bool IsAssignedElsewhere(HotkeyChord chord)
+    {
+        foreach (var key in AppSettings.Keys(ProfileHotkeyManager.MappingKeyPrefix))
+            if (key != MapKey && HotkeyChord.TryParse(AppSettings.Get(key), out var other) && other == chord)
+                return true;
+        return false;
     }
 
     private void Unregister()
     {
         if (_id != 0) { _hotkeys.Unregister(_id); _id = 0; }
+        if (_backId != 0) { _hotkeys.Unregister(_backId); _backId = 0; }
     }
 
     private void OnHotkeyPressed(int id)
     {
-        if (id != 0 && id == _id) _ = _cycle.CycleAsync();
+        if (id == 0) return;
+        if (id == _id) _ = _cycle.CycleAsync();
+        else if (id == _backId) _ = _cycle.CycleAsync(backwards: true);
     }
 
     public void Dispose()

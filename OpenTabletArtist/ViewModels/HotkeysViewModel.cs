@@ -65,13 +65,14 @@ public partial class HotkeysViewModel : ObservableObject, IDisposable
     public async Task LoadAsync()
     {
         PresetDirectory = _device.PresetDirectory;
-        MonitorHotkeyDisplay = _monitor.GetChord()?.Display ?? "";
+        var monitorChord = _monitor.GetChord();
+        MonitorHotkeyDisplay = monitorChord?.Display ?? "";
 
         Actions =
         [
             new HotkeyRowViewModel(
                 "Move to next display",
-                "Moves the active tablet's area to the next monitor, wrapping around.",
+                MonitorRowDetail(monitorChord),
                 MonitorHotkeyDisplay,
                 () => AssignMonitorHotkeyCommand.ExecuteAsync(null),
                 () => ClearMonitorHotkeyCommand.ExecuteAsync(null)),
@@ -94,6 +95,16 @@ public partial class HotkeysViewModel : ObservableObject, IDisposable
         // mappings for snapshots that no longer exist). This is the one owner of that reconcile now.
         _profiles.Sync(names);
         await Task.CompletedTask;
+    }
+
+    /// <summary>The monitor row's explanation, naming the backwards shortcut when there is one, so the Shift
+    /// variant is found by reading rather than by accident.</summary>
+    internal static string MonitorRowDetail(HotkeyChord? chord)
+    {
+        const string forwards = "Moves the active tablet's area to the next monitor, wrapping around.";
+        return chord is not null && MonitorCycleHotkeys.BackChord(chord) is { } back
+            ? $"{forwards} {back.Display} goes back."
+            : forwards;
     }
 
     /// <summary>The presets on disk, newest first, each with the time it was saved (shown as the row's
