@@ -74,10 +74,12 @@ public sealed partial class DaemonViewModel : ObservableObject, IDisposable
             if (e.PropertyName is nameof(DaemonStatusViewModel.IsConnected)
                 or nameof(DaemonStatusViewModel.IsDaemonRefused)
                 or nameof(DaemonStatusViewModel.IsAppOwnedDaemon)
-                or nameof(DaemonStatusViewModel.IsForeignDaemon))
+                or nameof(DaemonStatusViewModel.IsForeignDaemon)
+                or nameof(DaemonStatusViewModel.DaemonSourcePath))
             {
                 OnPropertyChanged(nameof(OwnerText));
                 OnPropertyChanged(nameof(HasOwnerText));
+                OnPropertyChanged(nameof(IsDevBuild));
             }
         };
         Process.PropertyChanged += (_, e) =>
@@ -99,11 +101,17 @@ public sealed partial class DaemonViewModel : ObservableObject, IDisposable
     /// described too: it is the one the reader is being told about.</summary>
     public string OwnerText =>
         !(Status.IsConnected || Status.IsDaemonRefused) ? ""
-        : Status.IsAppOwnedDaemon ? "Bundled with OpenTabletArtist"
+        : Status.IsAppOwnedDaemon ? (IsDevBuild ? "Development build, from the OpenTabletDriver submodule. Not bundled." : "Bundled with OpenTabletArtist")
         : Status.IsForeignDaemon ? "Another OpenTabletDriver, not the one OpenTabletArtist starts"
         : "Couldn't be identified";
 
     public bool HasOwnerText => OwnerText.Length > 0;
+
+    /// <summary>The daemon is the one built from this repository's submodule, not the copy a release bundles.
+    /// Both are OTA's own and both read as one daemon, which is the trouble: only the path told them apart, and
+    /// it is long. The page leads with a banner when this is true so that it cannot be mistaken for a release.</summary>
+    public bool IsDevBuild => (Status.IsConnected || Status.IsDaemonRefused)
+        && DaemonExePaths.IsDevBuild(_baseDirectory, Status.DaemonSourcePath);
 
     /// <summary>Shared daemon status + controls (the same instance the Home problem card uses).</summary>
     public DaemonStatusViewModel Status { get; }

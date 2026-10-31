@@ -1,4 +1,7 @@
+using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
+using OpenTabletArtist.Domain;
 using OpenTabletArtist.ViewModels;
 using Xunit;
 
@@ -102,6 +105,57 @@ public class DriverCardVisibilityTests
     }
 
     public enum DaemonOwnershipKind { Owned, External, Unknown }
+
+    /// <summary>A development build is named as one, and the release copy as bundled. Both are OTA's own and
+    /// report the same version, so the path is the only thing that tells them apart and the page has to say it.</summary>
+    [Fact]
+    public void ADevelopmentBuildIsNamedAsOne_AndTheBundledCopyIsNot()
+    {
+        var baseDir = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "repo", "OpenTabletArtist", "bin", "Debug", "net10.0");
+        var connection = new FakeConnectionState
+        {
+            IsConnected = true,
+            Ownership = OpenTabletArtist.Domain.DaemonOwnership.Owned,
+            DaemonSourcePath = DaemonExePaths.DevTreeCandidates(baseDir).First(),
+        };
+        using var page = new DaemonViewModel(new DaemonStatusViewModel(connection), baseDirectory: baseDir);
+
+        Assert.True(page.IsDevBuild);
+        Assert.Equal("Development build, from the OpenTabletDriver submodule. Not bundled.", page.OwnerText);
+
+        connection.DaemonSourcePath = DaemonExePaths.BundledPath(baseDir);
+
+        Assert.False(page.IsDevBuild);
+        Assert.Equal("Bundled with OpenTabletArtist", page.OwnerText);
+    }
+
+    /// <summary>The page is told when the path changes, not only when the daemon connects: a restart can swap one
+    /// kind of daemon for the other with the connection never dropping out from under the page.</summary>
+    [Fact]
+    public void TheDevBuildFlagFollowsThePath()
+    {
+        var baseDir = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "repo", "OpenTabletArtist", "bin", "Debug", "net10.0");
+        var connection = new FakeConnectionState { IsConnected = true, Ownership = OpenTabletArtist.Domain.DaemonOwnership.Owned };
+        using var page = new DaemonViewModel(new DaemonStatusViewModel(connection), baseDirectory: baseDir);
+        var raised = new List<string?>();
+        page.PropertyChanged += (_, e) => raised.Add(e.PropertyName);
+
+        connection.DaemonSourcePath = DaemonExePaths.DevTreeCandidates(baseDir).First();
+
+        Assert.Contains(nameof(DaemonViewModel.IsDevBuild), raised);
+        Assert.Contains(nameof(DaemonViewModel.OwnerText), raised);
+    }
+
+    [Fact]
+    public void NoDaemonIsNoDevBuild()
+    {
+        var baseDir = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "repo", "OpenTabletArtist", "bin", "Debug", "net10.0");
+        using var page = new DaemonViewModel(
+            new DaemonStatusViewModel(new FakeConnectionState { DaemonSourcePath = DaemonExePaths.DevTreeCandidates(baseDir).First() }),
+            baseDirectory: baseDir);
+
+        Assert.False(page.IsDevBuild);
+    }
 
     /// <summary>The one way the button can fail: nothing to open. It says so in a dialog, naming where it
     /// looked, and opens nothing.</summary>

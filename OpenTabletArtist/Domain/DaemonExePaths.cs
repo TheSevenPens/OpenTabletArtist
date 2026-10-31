@@ -149,13 +149,31 @@ public static class DaemonExePaths
         // Bundled next to the app — published release layout: <app>/Daemon/<exe>
         yield return BundledPath(baseDir);
 
-        // Dev build tree: <app>/bin/<cfg>/net10.0 → up to repo root → submodule daemon output.
+        foreach (var devTree in DevTreeCandidates(baseDir)) yield return devTree;
+    }
+
+    /// <summary>
+    /// The stand-in a developer build uses for the bundled copy: the submodule's own build output, found from
+    /// <c>&lt;app&gt;/bin/&lt;cfg&gt;/net10.0</c> by going up to the repo root. Present only in a checkout, so a
+    /// daemon at one of these paths is the one built from this repository's source, and not the one a
+    /// release ships.
+    /// </summary>
+    public static IEnumerable<string> DevTreeCandidates(string baseDir)
+    {
         foreach (var config in new[] { "Debug", "Release" })
             yield return Path.GetFullPath(Path.Combine(
                 baseDir, "..", "..", "..", "..",
                 "external", "OpenTabletDriver", "OpenTabletDriver.Daemon",
                 "bin", config, "net10.0", DaemonExeName));
     }
+
+    /// <summary>
+    /// True when <paramref name="path"/> is the daemon built from the submodule rather than the copy bundled
+    /// beside the app. Both count as OTA's own (<see cref="IsAppManaged"/>); this is the question of which
+    /// of the two it is, so that a developer is never left to guess from a long path.
+    /// </summary>
+    public static bool IsDevBuild(string baseDir, string? path) =>
+        !string.IsNullOrEmpty(path) && DevTreeCandidates(baseDir).Any(c => ExecutablePath.SameFile(path, c));
 
     /// <summary>
     /// True when <paramref name="path"/> is a daemon <b>OTA manages</b> — the copy bundled beside the app,

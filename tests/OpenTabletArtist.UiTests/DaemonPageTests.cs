@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Linq;
 using Avalonia;
 using Avalonia.Controls;
@@ -103,6 +104,40 @@ public class DaemonPageTests
         var sectionRight = section.TranslatePoint(new Point(section.Bounds.Width, 0), view)!.Value.X;
         Assert.True(right <= sectionRight + 0.5, $"the path ends at {right}, past its section's edge at {sectionRight}");
         Assert.True(text.Bounds.Height > text.FontSize * 2, "a path this long has to wrap onto more than one line");
+    }
+
+    /// <summary>A development build leads the page with a banner that says so, and a bundled daemon does not.
+    /// The two read the same everywhere else on the page (same version, both "ours"), so this is what stops a
+    /// developer taking one for the other.</summary>
+    [AvaloniaFact]
+    public void ADevelopmentBuildLeadsWithABanner_AndABundledDaemonDoesNot()
+    {
+        var baseDir = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "repo", "OpenTabletArtist", "bin", "Debug", "net10.0");
+        var connection = new FakeConnectionState
+        {
+            IsConnected = true,
+            Ownership = OpenTabletArtist.Domain.DaemonOwnership.Owned,
+            DaemonSourcePath = OpenTabletArtist.Domain.DaemonExePaths.DevTreeCandidates(baseDir).First(),
+        };
+        var page = new DaemonViewModel(new DaemonStatusViewModel(connection), baseDirectory: baseDir);
+        var view = new DaemonView { DataContext = page };
+        var window = new Window { Content = view, Width = Width, Height = Height };
+        window.Show();
+        Settle(window);
+
+        IEnumerable<string?> Visible() => view.GetVisualDescendants().OfType<TextBlock>().Where(t => t.IsEffectivelyVisible).Select(t => t.Text);
+        Assert.Contains("Development build", Visible());
+        Assert.Contains(Visible(), t => t?.Contains("not the one a release bundles") == true);
+        var banner = view.GetVisualDescendants().OfType<Alert>().Single(a => a.IsEffectivelyVisible);
+        var status = ButtonNamed(view, "Open OpenTabletDriver")!;
+        Assert.True(banner.TranslatePoint(default, view)!.Value.Y < status.TranslatePoint(default, view)!.Value.Y, "the banner leads the page");
+
+        connection.DaemonSourcePath = OpenTabletArtist.Domain.DaemonExePaths.BundledPath(baseDir);
+        Settle(window);
+
+        Assert.DoesNotContain("Development build", Visible());
+        Assert.DoesNotContain(view.GetVisualDescendants().OfType<Alert>(), a => a.IsEffectivelyVisible);
+        window.Close();
     }
 
     private static Alert? Banner(DaemonView view) => view.GetVisualDescendants().OfType<Alert>().FirstOrDefault();
