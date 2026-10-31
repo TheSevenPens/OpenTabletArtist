@@ -3,6 +3,29 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:c="using:OpenTabletArtist.Controls">
 
+    <!-- Every section on the right leads to its own page the same way: a quiet link at the right end of its
+         heading ("Details ›", the same words each time; the page it opens is in its tooltip and accessible
+         name), in the same place whatever the section holds. The health card's own button is the exception on purpose: it says what to DO about a finding,
+         where this says where to GO. -->
+    <UserControl.Styles>
+        <Style Selector="Button.sectionLink">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="VerticalAlignment" Value="Bottom" />
+            <Setter Property="Margin" Value="12,0,0,6" />
+            <Setter Property="Foreground" Value="{DynamicResource AccentBrush}" />
+        </Style>
+        <Style Selector="Button.sectionLink:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Foreground" Value="{DynamicResource AccentBrush}" />
+        </Style>
+        <Style Selector="Button.sectionLink:pointerover TextBlock">
+            <Setter Property="TextDecorations" Value="Underline" />
+        </Style>
+    </UserControl.Styles>
+
     <UserControl.Resources>
         <!-- One tablet as a card. The connected tablets and the remembered ones are listed with the same
              card, so a remembered tablet keeps its "open settings" and "forget" actions when opened. -->
@@ -136,7 +159,17 @@
                  finding's tier, and only the two that ask for action get the loud button. With none it is
                  a plain card that says so. -->
             <StackPanel>
-                <TextBlock Text="health" Classes="Display section" Margin="0,0,0,10" />
+                <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,10">
+                <TextBlock Text="health" Classes="Display section" />
+                <Button Grid.Column="1" Classes="sectionLink" Command="{Binding OpenHealthCommand}"
+                        AutomationProperties.Name="Open health page" ToolTip.Tip="Open the Health page">
+                    <StackPanel Orientation="Horizontal" Spacing="2">
+                        <TextBlock Text="Details" VerticalAlignment="Center" />
+                        <PathIcon Data="{StaticResource IconChevronRight}" Width="12" Height="12" VerticalAlignment="Center"
+                                  Foreground="{Binding $parent[Button].Foreground}" />
+                    </StackPanel>
+                </Button>
+            </Grid>
                 <Panel>
                     <c:Alert Severity="{Binding Health.CardSeverity}" MinHeight="112" Padding="16,0"
                              IsVisible="{Binding Health.HasFindings}">
@@ -204,7 +237,17 @@
                  than "active", since the settings may have been changed since (#1041). Loading is the same
                  call the Presets page, the tray and the hotkeys make, including the question about unsaved
                  edits, so nothing here can replace settings those routes would have asked about. -->
-            <TextBlock Text="presets" Classes="Display section" Margin="0,0,0,10" />
+            <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,10">
+                <TextBlock Text="presets" Classes="Display section" />
+                <Button Grid.Column="1" Classes="sectionLink" Command="{Binding OpenPresetsCommand}"
+                        AutomationProperties.Name="Open presets page" ToolTip.Tip="Open the Presets page">
+                    <StackPanel Orientation="Horizontal" Spacing="2">
+                        <TextBlock Text="Details" VerticalAlignment="Center" />
+                        <PathIcon Data="{StaticResource IconChevronRight}" Width="12" Height="12" VerticalAlignment="Center"
+                                  Foreground="{Binding $parent[Button].Foreground}" />
+                    </StackPanel>
+                </Button>
+            </Grid>
             <ItemsControl ItemsSource="{Binding Presets.Presets}" IsVisible="{Binding Presets.HasPresets}">
                 <ItemsControl.ItemsPanel>
                     <ItemsPanelTemplate>
@@ -243,13 +286,23 @@
                        IsVisible="{Binding !Presets.HasPresets}" />
             </StackPanel>
 
-            <!-- DAEMON (#1050): the state in a word and a line, with the way to the Daemon page, which has
-                 the full status and the controls. -->
+            <!-- DAEMON (#1050): the state in a word and a line. The Daemon page, which has the full status and
+                 the controls, is the link in the heading. -->
             <StackPanel>
-                <TextBlock Text="daemon" Classes="Display section" Margin="0,0,0,10" />
+                <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,10">
+                <TextBlock Text="daemon" Classes="Display section" />
+                <Button Grid.Column="1" Classes="sectionLink" Command="{Binding Daemon.OpenDaemonPageCommand}"
+                        AutomationProperties.Name="Open daemon page" ToolTip.Tip="Open the Daemon page">
+                    <StackPanel Orientation="Horizontal" Spacing="2">
+                        <TextBlock Text="Details" VerticalAlignment="Center" />
+                        <PathIcon Data="{StaticResource IconChevronRight}" Width="12" Height="12" VerticalAlignment="Center"
+                                  Foreground="{Binding $parent[Button].Foreground}" />
+                    </StackPanel>
+                </Button>
+            </Grid>
                 <Border Padding="16,12" Background="{DynamicResource GlassBgBrush}"
                         BorderBrush="{DynamicResource DividerBrush}" BorderThickness="1">
-                    <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
+                    <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12">
                         <Panel Width="10" Height="10" VerticalAlignment="Center">
                             <Ellipse Fill="{DynamicResource SuccessBrush}" IsVisible="{Binding Daemon.SummaryIsOk}" />
                             <Ellipse Fill="{DynamicResource ErrorBrush}" IsVisible="{Binding Daemon.SummaryIsBad}" />
@@ -258,15 +311,8 @@
                         <StackPanel Grid.Column="1" MinWidth="0" VerticalAlignment="Center">
                             <TextBlock Text="{Binding Daemon.SummaryHeadline}" Classes="CardTitle" TextWrapping="Wrap" />
                             <TextBlock Text="{Binding Daemon.SummaryDetail}" Margin="0,2,0,0" Classes="Detail"
-                                       TextWrapping="Wrap" />
+                                       IsVisible="{Binding Daemon.HasSummaryDetail}" TextWrapping="Wrap" />
                         </StackPanel>
-                        <Button Grid.Column="2" Command="{Binding Daemon.OpenDaemonPageCommand}"
-                                Background="Transparent" BorderThickness="0" Padding="0" Cursor="Hand"
-                                VerticalAlignment="Center" AutomationProperties.Name="Open daemon page"
-                                ToolTip.Tip="Open the Daemon page">
-                            <TextBlock Text="Open daemon page" Foreground="{DynamicResource AccentBrush}"
-                                       TextDecorations="Underline" />
-                        </Button>
                     </Grid>
                 </Border>
             </StackPanel>

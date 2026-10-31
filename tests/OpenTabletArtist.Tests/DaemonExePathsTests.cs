@@ -57,6 +57,20 @@ public class DaemonExePathsTests
             DaemonExePaths.Candidates(baseDir));
     }
 
+    /// <summary>Which of OTA's two kinds of own copy a path is. Both are managed; only the submodule's output is a
+    /// development build.</summary>
+    [Fact]
+    public void TheSubmodulesOutputIsADevBuild_AndTheBundledCopyIsNot()
+    {
+        var baseDir = Path.Combine("C:", "repo", "OpenTabletArtist", "bin", "Debug", "net10.0");
+
+        Assert.All(DaemonExePaths.DevTreeCandidates(baseDir), c => Assert.True(DaemonExePaths.IsDevBuild(baseDir, c)));
+        Assert.False(DaemonExePaths.IsDevBuild(baseDir, DaemonExePaths.BundledPath(baseDir)));
+        Assert.False(DaemonExePaths.IsDevBuild(baseDir, Path.Combine("/", "Applications", "OpenTabletDriver.app", "Contents", "MacOS", "OpenTabletDriver.Daemon")));
+        Assert.False(DaemonExePaths.IsDevBuild(baseDir, null));
+        Assert.False(DaemonExePaths.IsDevBuild(baseDir, ""));
+    }
+
     [Fact]
     public void OwnBuildRecognizesTheBundledCopy()
     {

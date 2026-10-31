@@ -127,7 +127,7 @@ public static class StrokeTakeWriter
                 stream.Write(new UTF8Encoding(false).GetBytes(json));
             }
 
-            File.Move(staging, path, overwrite: true);
+            MoveOverClaim(staging, path);
             committed = true;
 
             return path;
@@ -136,6 +136,28 @@ public static class StrokeTakeWriter
         {
             if (File.Exists(staging)) File.Delete(staging);
             if (!committed && File.Exists(path)) File.Delete(path);
+        }
+    }
+
+    /// <summary>
+    /// Moves the finished file over the claim. The claim is ours, but another save looking for a free name opens
+    /// it for an instant, and Windows will not replace a file while any handle is open on it: the move fails
+    /// with "access denied" though nothing is wrong. That passes in microseconds, so the move is asked again a
+    /// few times before it is allowed to fail.
+    /// </summary>
+    private static void MoveOverClaim(string staging, string claim)
+    {
+        for (var attempt = 1; ; attempt++)
+        {
+            try
+            {
+                File.Move(staging, claim, overwrite: true);
+                return;
+            }
+            catch (Exception e) when (attempt < 10 && (e is UnauthorizedAccessException or IOException))
+            {
+                System.Threading.Thread.Sleep(attempt * 5);
+            }
         }
     }
 

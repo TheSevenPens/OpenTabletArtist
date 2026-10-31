@@ -96,6 +96,23 @@
             </Grid>
         </c:Alert>
 
+        <!-- A DEVELOPMENT BUILD. The daemon is the submodule's own output, not the copy a release bundles.
+             The two look identical (same version, both "ours") and differ only in a long path, so this says it
+             at the top of the page instead of leaving it to be worked out from the Location line. -->
+        <c:Alert Severity="Neutral" Margin="0,0,0,18" Padding="16,13" MaxWidth="900" HorizontalAlignment="Left"
+                 IsVisible="{Binding IsDevBuild}">
+            <Grid ColumnDefinitions="Auto,*" ColumnSpacing="14">
+                <PathIcon Grid.Column="0" Data="{StaticResource IconInformationOutline}" Width="22" Height="22"
+                          VerticalAlignment="Top" Margin="0,1,0,0"
+                          Foreground="{DynamicResource TextPrimaryBrush}" />
+                <StackPanel Grid.Column="1" MinWidth="0" VerticalAlignment="Top">
+                    <TextBlock Text="Development build" Classes="CardTitle" TextWrapping="Wrap" />
+                    <TextBlock Margin="0,2,0,0" TextWrapping="Wrap" Foreground="{DynamicResource TextSecondaryBrush}"
+                               Text="This is the OpenTabletDriver built from the submodule in this repository, not the one a release bundles. A release carries OpenTabletDriver's own download in its Daemon folder." />
+                </StackPanel>
+            </Grid>
+        </c:Alert>
+
         <Grid ColumnDefinitions="Auto,*" ColumnSpacing="28">
             <StackPanel Grid.Column="0" VerticalAlignment="Top">
             <c:Section Width="420" VerticalAlignment="Top">
@@ -140,7 +157,7 @@
                                               Foreground="{DynamicResource ErrorBrush}" />
                                     <!-- A development tree can run OpenTabletDriver's window from source. -->
                                     <Separator IsVisible="{Binding Status.CanLaunchOtdUx}" />
-                                    <MenuItem Header="Run OpenTabletDriver's interface from source"
+                                    <MenuItem Header="Open OpenTabletDriver (dev build)"
                                               Command="{Binding Status.LaunchOtdUxCommand}"
                                               IsVisible="{Binding Status.CanLaunchOtdUx}" />
                                 </MenuFlyout>
@@ -191,13 +208,13 @@
                                 CommandParameter="{Binding Status.DaemonSourcePath}"
                                 ToolTip.Tip="{Binding Status.DaemonSourcePath}"
                                 AutomationProperties.Name="Open the folder holding this daemon">
-                            <StackPanel Orientation="Horizontal" Spacing="6">
+                            <Grid ColumnDefinitions="Auto,*" ColumnSpacing="6">
                                 <PathIcon Data="{StaticResource IconFolderOutline}" Width="13" Height="13"
                                           VerticalAlignment="Top" Margin="0,3,0,0"
                                           Foreground="{DynamicResource TextMutedBrush}" />
-                                <TextBlock Classes="pathText" TextWrapping="Wrap"
+                                <TextBlock Grid.Column="1" Classes="pathText" TextWrapping="Wrap"
                                            Text="{Binding Status.DaemonSourceDisplayPath}" />
-                            </StackPanel>
+                            </Grid>
                         </Button>
                     </Grid>
 

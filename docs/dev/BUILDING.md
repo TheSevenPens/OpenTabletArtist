@@ -11,7 +11,36 @@ for building and running from source.
   macOS/Linux too, with the Windows-only surface hidden; see the [macOS notes](../design/macos/HANDOFF.md) and
   [Linux notes](../design/linux/dev-environment.md).
 
-No separate OpenTabletDriver install is needed — it's built from the submodule and the app auto-starts it.
+No separate OpenTabletDriver install is needed — the app auto-starts a daemon it finds or that you build
+from the submodule. Which daemon that is, and how it differs from the one a release ships, is the next section.
+
+## Where the OpenTabletDriver daemon comes from
+
+**No daemon binary is checked into this repository, zipped or loose.** The `external/OpenTabletDriver`
+submodule is OpenTabletDriver's *source code* at a release tag. A daemon exists only after something
+downloads it or compiles it, and that is different for a release and for a dev build:
+
+| | Release (the published zip) | Dev build (your checkout) |
+|---|---|---|
+| Where the daemon comes from | OpenTabletDriver's own release archive, `OpenTabletDriver-<version>_win-x64.zip`, downloaded from [OpenTabletDriver's releases](https://github.com/OpenTabletDriver/OpenTabletDriver/releases) by the release workflow | Compiled from the submodule's source by `./scripts/build.ps1`, or by hand |
+| Is it OpenTabletDriver's own binary? | Yes. The maintainers cannot support a binary they did not produce (#786) | No. It is our compile of the same source |
+| How it is pinned | The tag is the submodule's tag. The archive is checked against `OTD_SHA256` in `.github/workflows/release.yml`, and a mismatch fails the release. Bumping the submodule means re-pinning the digest | The submodule commit |
+| Where it ends up | `<app>\Daemon\OpenTabletDriver.Daemon.exe` | `external\OpenTabletDriver\OpenTabletDriver.Daemon\bin\<Debug or Release>\net10.0\OpenTabletDriver.Daemon.exe` |
+| What the Daemon page says | "Bundled with OpenTabletArtist" | "Development build, from the OpenTabletDriver submodule. Not bundled.", and a banner at the top of the page |
+
+**How the app chooses.** When no daemon is running, it launches the first one that exists in
+`DaemonExePaths.Candidates`: `<app>\Daemon\` first, then the submodule's Debug and Release outputs. A
+daemon that is already running owns the pipe, and the app connects to it whatever it is.
+
+**What the submodule is also for.** The app compiles against its libraries (`OpenTabletDriver.Desktop`,
+the core project, `.Plugin` and `.Configurations`). They are built into the app. The daemon is a separate
+process and is not.
+
+**A dev build downloads nothing.** Neither `dotnet build` nor `./scripts/build.ps1` fetches the official
+binary, so a dev build does not exercise the bundled path or the release layout. To see that path in a dev
+tree, see [Putting a bundled daemon in place](#putting-a-bundled-daemon-in-place). Whether dev builds should
+use the official daemon by default is an open question, explored in
+[#1065](https://github.com/TheSevenPens/OpenTabletArtist/issues/1065).
 
 ## Clone
 

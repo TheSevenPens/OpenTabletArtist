@@ -52,6 +52,7 @@ public sealed partial class DaemonStatusViewModel : ObservableObject, IDisposabl
         {
             OnPropertyChanged(nameof(SummaryHeadline));
             OnPropertyChanged(nameof(SummaryDetail));
+            OnPropertyChanged(nameof(HasSummaryDetail));
             OnPropertyChanged(nameof(SummaryIsOk));
             OnPropertyChanged(nameof(SummaryIsBad));
             OnPropertyChanged(nameof(SummaryIsBusy));
@@ -137,7 +138,8 @@ public sealed partial class DaemonStatusViewModel : ObservableObject, IDisposabl
         : ShowDaemonActivity ? DaemonActivityText
         : "Not connected";
 
-    /// <summary>One line under it: which OpenTabletDriver, whose it is, or why there is none.</summary>
+    /// <summary>One line under it: why there is no daemon, or which one this is when it is not the one the app
+    /// starts. Nothing when all is as expected: a connected, bundled daemon is "Connected" and no more.</summary>
     public string SummaryDetail
     {
         get
@@ -147,11 +149,14 @@ public sealed partial class DaemonStatusViewModel : ObservableObject, IDisposabl
             if (!IsConnected) return "OpenTabletArtist can't reach OpenTabletDriver.";
 
             var which = HasDaemonVersion ? $"OpenTabletDriver {DaemonVersion}" : "OpenTabletDriver";
-            return IsAppOwnedDaemon ? which + ", bundled with OpenTabletArtist"
+            return IsAppOwnedDaemon ? ""
                 : IsForeignDaemon ? which + ", not the one OpenTabletArtist starts"
                 : which;
         }
     }
+
+    /// <summary>Whether the card has a second line at all, so an empty one does not leave a gap under the headline.</summary>
+    public bool HasSummaryDetail => SummaryDetail.Length > 0;
 
     /// <summary>The dot beside the headline: green when connected, red when it is not and nothing is trying,
     /// neutral while a connect is in flight. A refused daemon is red.</summary>

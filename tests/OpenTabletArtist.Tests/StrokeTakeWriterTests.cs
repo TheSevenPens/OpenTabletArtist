@@ -387,31 +387,36 @@ public class StrokeTakeWriterTests
     [Fact]
     public async System.Threading.Tasks.Task SavesThatChooseTheSameNameAtTheSameTimeEndUpWithTheirOwnFiles()
     {
-        var folder = Path.Combine(Path.GetTempPath(), $"ota-take-{Guid.NewGuid():N}");
-        try
+        // The race is a matter of a few microseconds, so one round only sometimes meets it (about one run in twenty
+        // before the retry in the move was added). Many rounds make it a certainty rather than a flake.
+        for (var round = 0; round < 30; round++)
         {
-            const int writers = 8;
-            var ready = new System.Threading.Barrier(writers);
-
-            var paths = await System.Threading.Tasks.Task.WhenAll(Enumerable.Range(0, writers).Select(_ =>
-                System.Threading.Tasks.Task.Run(() =>
-                {
-                    ready.SignalAndWait();
-                    return StrokeTakeWriter.Write(TwoStrokes(), Described, folder, "same-name");
-                }, TestContext.Current.CancellationToken)));
-
-            Assert.Equal(writers, paths.Distinct().Count());
-            Assert.Equal(writers, Directory.GetFiles(folder).Length);   // and no staging or placeholder files besides
-            Assert.Empty(Directory.GetFiles(folder, "*.writing"));
-
-            foreach (var path in paths)
+            var folder = Path.Combine(Path.GetTempPath(), $"ota-take-{Guid.NewGuid():N}");
+            try
             {
-                // Each file is whole, valid, and says it is the file it is.
-                AssertValid(File.ReadAllText(path));
-                Assert.Equal(Path.GetFileNameWithoutExtension(path), Parse(File.ReadAllText(path))["id"]!.GetValue<string>());
+                const int writers = 8;
+                var ready = new System.Threading.Barrier(writers);
+
+                var paths = await System.Threading.Tasks.Task.WhenAll(Enumerable.Range(0, writers).Select(_ =>
+                    System.Threading.Tasks.Task.Run(() =>
+                    {
+                        ready.SignalAndWait();
+                        return StrokeTakeWriter.Write(TwoStrokes(), Described, folder, "same-name");
+                    }, TestContext.Current.CancellationToken)));
+
+                Assert.Equal(writers, paths.Distinct().Count());
+                Assert.Equal(writers, Directory.GetFiles(folder).Length);   // and no staging or placeholder files besides
+                Assert.Empty(Directory.GetFiles(folder, "*.writing"));
+
+                foreach (var path in paths)
+                {
+                    // Each file is whole, valid, and says it is the file it is.
+                    AssertValid(File.ReadAllText(path));
+                    Assert.Equal(Path.GetFileNameWithoutExtension(path), Parse(File.ReadAllText(path))["id"]!.GetValue<string>());
+                }
             }
+            finally { if (Directory.Exists(folder)) Directory.Delete(folder, true); }
         }
-        finally { if (Directory.Exists(folder)) Directory.Delete(folder, true); }
     }
 
     [Fact]
