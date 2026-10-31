@@ -254,7 +254,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
         // bar, so health is clear from every page.
         HealthBadge = new HealthBadgeViewModel(_health, _daemonStatus);
         Dashboard = new DashboardViewModel(dialogs, TabletsOverview, Presets, HealthBadge, _daemonStatus,
-            () => Navigate(HealthPage));
+            () => Navigate(HealthPage), () => OpenSettingsTab(SettingsTab.Presets));
         Test = new TestViewModel(_session.Daemon, _session, () => _session.DaemonVersion,
             showRecordingReview: dialogs.ShowRecordingReviewAsync,
             showRecordingProblem: message => dialogs.ShowMessageAsync("Can't record", message),

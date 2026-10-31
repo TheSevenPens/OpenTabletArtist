@@ -16,15 +16,17 @@ namespace OpenTabletArtist.ViewModels;
 public partial class DashboardViewModel : ObservableObject, IDisposable
 {
     private readonly Action _openHealth;
+    private readonly Action _openPresets;
 
     public DashboardViewModel(IDialogService dialogs, TabletsOverviewViewModel tablets, PresetsViewModel presets,
-        HealthBadgeViewModel health, DaemonStatusViewModel daemon, Action openHealth)
+        HealthBadgeViewModel health, DaemonStatusViewModel daemon, Action openHealth, Action openPresets)
     {
         TabletsOverview = tablets;
         Presets = presets;
         Health = health;
         Daemon = daemon;
         _openHealth = openHealth;
+        _openPresets = openPresets;
         // The RESOURCES "Supported tablets" link opens the same in-app catalog the old Home card did,
         // highlighting whichever tablet is currently detected (#155).
         About = new AboutViewModel(dialogs,
@@ -46,9 +48,14 @@ public partial class DashboardViewModel : ObservableObject, IDisposable
     /// <summary>The daemon in one line, for the daemon card. The full status and controls are on the Daemon page.</summary>
     public DaemonStatusViewModel Daemon { get; }
 
-    /// <summary>Go to the Health page: the health card's one button.</summary>
+    /// <summary>Go to the Health page: the health card's button, and the link in the section's heading.</summary>
     [RelayCommand]
     private void OpenHealth() => _openHealth();
+
+    /// <summary>Go to the Presets page: the link in the presets heading. Presets has no card of its own to
+    /// carry a button, and the row it shows loads a preset rather than opening anything.</summary>
+    [RelayCommand]
+    private void OpenPresets() => _openPresets();
 
     /// <summary>The About content (what-is / help / resources / version), first in Home's right column --
     /// the standalone About page was folded into Home. Home owns its own instance (constructed with the

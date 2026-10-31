@@ -79,12 +79,13 @@ public class HomeTabletsAndDaemonTests
     // --- The daemon in one line -------------------------------------------------------------------------
 
     [Fact]
-    public void ConnectedToTheBundledDaemon_SaysWhichOne()
+    public void ConnectedToTheBundledDaemon_IsJustConnected()
     {
         var daemon = Daemon(new FakeConnectionState { IsConnected = true, DaemonVersion = "0.6.8.1" });
 
         Assert.Equal("Connected", daemon.SummaryHeadline);
-        Assert.Equal("OpenTabletDriver 0.6.8.1, bundled with OpenTabletArtist", daemon.SummaryDetail);
+        Assert.Equal("", daemon.SummaryDetail);
+        Assert.False(daemon.HasSummaryDetail);
         Assert.True(daemon.SummaryIsOk);
         Assert.False(daemon.SummaryIsBad);
     }
@@ -100,6 +101,7 @@ public class HomeTabletsAndDaemonTests
         });
 
         Assert.Equal("OpenTabletDriver 0.6.8.1, not the one OpenTabletArtist starts", daemon.SummaryDetail);
+        Assert.True(daemon.HasSummaryDetail);
     }
 
     [Fact]
@@ -159,6 +161,7 @@ public class HomeTabletsAndDaemonTests
 
         Assert.Contains(nameof(DaemonStatusViewModel.SummaryHeadline), changed);
         Assert.Contains(nameof(DaemonStatusViewModel.SummaryDetail), changed);
+        Assert.Contains(nameof(DaemonStatusViewModel.HasSummaryDetail), changed);
         Assert.Contains(nameof(DaemonStatusViewModel.SummaryIsBad), changed);
         Assert.Equal("Not connected", daemon.SummaryHeadline);
     }

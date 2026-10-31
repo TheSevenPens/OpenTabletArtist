@@ -281,7 +281,7 @@ public class HealthBadgeViewTests
                 _ => new TaskCompletionSource<OtdHealth.Collector.HealthAnalysisReport>().Task);
             var daemon = new DaemonStatusViewModel(connection);
             var home = new DashboardViewModel(new FakeDialogService(), new TabletsOverviewViewModel(), presets,
-                new HealthBadgeViewModel(health, daemon), daemon, () => { });
+                new HealthBadgeViewModel(health, daemon), daemon, () => { }, () => { });
             var view = new DashboardView { DataContext = home };
             var window = HarnessTests.Show(view);
 

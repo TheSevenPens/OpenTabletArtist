@@ -231,7 +231,7 @@ public class HomeLayoutTests
     {
         var page = Home(out _, out _, out var opened, out var connection);
         Assert.Contains("Connected", VisibleTexts(page.View));
-        Assert.Contains("OpenTabletDriver 0.6.8.1, bundled with OpenTabletArtist", VisibleTexts(page.View));
+        Assert.DoesNotContain(VisibleTexts(page.View), t => t?.Contains("bundled with") == true);
 
         connection.IsConnected = false;
         Dispatcher.UIThread.RunJobs();
@@ -246,9 +246,45 @@ public class HomeLayoutTests
         page.Close();
     }
 
+    // --- The way to each page ----------------------------------------------------------------------------
+
+    /// <summary>Health, presets and the daemon each lead to their page the same way: a link at the right end of
+    /// the section's heading, on that heading's own row, all three flush with the same edge. They used to be a
+    /// button in one card, a text link in another and nothing at all for presets.</summary>
+    [AvaloniaFact]
+    public void EachSectionLeadsToItsPageFromTheSameSpotInItsHeading()
+    {
+        var page = Home(out _, out _, out var opened);
+        var view = page.View;
+        var sections = new[] { ("health", "Open health page"), ("presets", "Open presets page"), ("daemon", "Open daemon page") };
+
+        var rights = new List<double>();
+        foreach (var (heading, linkName) in sections)
+        {
+            var title = view.GetVisualDescendants().OfType<TextBlock>().First(t => t.Text == heading && t.IsEffectivelyVisible);
+            var link = view.GetVisualDescendants().OfType<Button>()
+                .Single(b => b.IsEffectivelyVisible && AutomationProperties.GetName(b) == linkName);
+
+            var titleTop = title.TranslatePoint(default, view)!.Value;
+            var linkTop = link.TranslatePoint(default, view)!.Value;
+            Assert.True(linkTop.X > titleTop.X + title.Bounds.Width, $"{heading}: the link is beside the heading, not under or over it");
+            Assert.True(linkTop.Y >= titleTop.Y && linkTop.Y + link.Bounds.Height <= titleTop.Y + title.Bounds.Height + 1,
+                $"{heading}: the link is on the heading's row");
+            rights.Add(linkTop.X + link.Bounds.Width);
+        }
+        Assert.All(rights, r => Assert.Equal(rights[0], r, 0.5));
+
+        foreach (var (_, linkName) in sections)
+            PenButtonCardTests.Click(page.Window, view.GetVisualDescendants().OfType<Button>()
+                .Single(b => b.IsEffectivelyVisible && AutomationProperties.GetName(b) == linkName));
+
+        Assert.Equal((1, 1, 1), (opened.Health, opened.Presets, opened.Daemon));
+        page.Close();
+    }
+
     // --- Harness ------------------------------------------------------------------------------------------
 
-    internal sealed class Opened { public int Health; public int Daemon; }
+    internal sealed class Opened { public int Health; public int Daemon; public int Presets; }
 
     internal sealed record Shown(Window Window, DashboardView View, DashboardViewModel Model)
     {
@@ -286,7 +322,7 @@ public class HomeLayoutTests
             new FakeDeviceData(), new FakeDialogService(), new NoHotkeys(),
             new ProfileSwitchService(new FakeSettingsCoordinator(), new PresetStore(OtdInterop.Tests.NullOtdLog.Instance), () => ""));
         var badge = new HealthBadgeViewModel(health, daemon);
-        var model = new DashboardViewModel(new FakeDialogService(), tablets, presets, badge, daemon, () => counter.Health++);
+        var model = new DashboardViewModel(new FakeDialogService(), tablets, presets, badge, daemon, () => counter.Health++, () => counter.Presets++);
         var view = new DashboardView { DataContext = model };
         var window = new Window { Content = view, Width = width, Height = 900 };
         window.Show();
@@ -320,7 +356,8 @@ public class HomeLayoutTests
         view.GetVisualDescendants().OfType<Control>().Single(c => c.MinHeight == 112 && c.IsEffectivelyVisible).Bounds.Height;
 
     private static Button HealthButton(Control view, DashboardViewModel model) =>
-        view.GetVisualDescendants().OfType<Button>().Single(b => b.IsEffectivelyVisible && ReferenceEquals(b.Command, model.OpenHealthCommand));
+        view.GetVisualDescendants().OfType<Button>().Single(b => b.IsEffectivelyVisible && !b.Classes.Contains("sectionLink")
+            && ReferenceEquals(b.Command, model.OpenHealthCommand));
 
     private sealed class NoHotkeys : IProfileHotkeys
     {
