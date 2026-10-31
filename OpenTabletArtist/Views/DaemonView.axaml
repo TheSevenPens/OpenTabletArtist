@@ -140,7 +140,7 @@
                                               Foreground="{DynamicResource ErrorBrush}" />
                                     <!-- A development tree can run OpenTabletDriver's window from source. -->
                                     <Separator IsVisible="{Binding Status.CanLaunchOtdUx}" />
-                                    <MenuItem Header="Run OpenTabletDriver's interface from source"
+                                    <MenuItem Header="Open OpenTabletDriver (dev build)"
                                               Command="{Binding Status.LaunchOtdUxCommand}"
                                               IsVisible="{Binding Status.CanLaunchOtdUx}" />
                                 </MenuFlyout>
@@ -191,13 +191,13 @@
                                 CommandParameter="{Binding Status.DaemonSourcePath}"
                                 ToolTip.Tip="{Binding Status.DaemonSourcePath}"
                                 AutomationProperties.Name="Open the folder holding this daemon">
-                            <StackPanel Orientation="Horizontal" Spacing="6">
+                            <Grid ColumnDefinitions="Auto,*" ColumnSpacing="6">
                                 <PathIcon Data="{StaticResource IconFolderOutline}" Width="13" Height="13"
                                           VerticalAlignment="Top" Margin="0,3,0,0"
                                           Foreground="{DynamicResource TextMutedBrush}" />
-                                <TextBlock Classes="pathText" TextWrapping="Wrap"
+                                <TextBlock Grid.Column="1" Classes="pathText" TextWrapping="Wrap"
                                            Text="{Binding Status.DaemonSourceDisplayPath}" />
-                            </StackPanel>
+                            </Grid>
                         </Button>
                     </Grid>
 

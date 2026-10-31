@@ -83,6 +83,28 @@ public class DaemonPageTests
         Assert.True(banner.TranslatePoint(default, view)!.Value.Y < status.TranslatePoint(default, view)!.Value.Y);
     }
 
+    /// <summary>The daemon's location is a long path, and it has to stay inside the section it is listed in.
+    /// It used to run on in one line past the section's edge and was cut off there, with the room to its
+    /// right empty: a horizontal panel measures its children without a width limit, so the text never
+    /// wrapped. The whole path is there, wrapped; the tooltip and the button still carry it too.</summary>
+    [AvaloniaFact]
+    public void ALongDaemonLocationWrapsInsideItsSectionInsteadOfRunningOffTheEdge()
+    {
+        const string path = @"C:\Users\seven\Documents\GitHub\OpenTabletArtist\OpenTabletArtist\bin\Debug\net10.0\Daemon\OpenTabletDriver.Daemon.exe";
+        var connection = new FakeConnectionState { IsConnected = true, DaemonSourcePath = path };
+        using var shown = Show(connection);
+        var view = shown.View;
+
+        var section = view.GetVisualDescendants().OfType<Section>().First();
+        var text = view.GetVisualDescendants().OfType<TextBlock>().First(t => t.Classes.Contains("pathText"));
+
+        Assert.Equal(path, text.Text);
+        var right = text.TranslatePoint(new Point(text.Bounds.Width, 0), view)!.Value.X;
+        var sectionRight = section.TranslatePoint(new Point(section.Bounds.Width, 0), view)!.Value.X;
+        Assert.True(right <= sectionRight + 0.5, $"the path ends at {right}, past its section's edge at {sectionRight}");
+        Assert.True(text.Bounds.Height > text.FontSize * 2, "a path this long has to wrap onto more than one line");
+    }
+
     private static Alert? Banner(DaemonView view) => view.GetVisualDescendants().OfType<Alert>().FirstOrDefault();
 
     private static Button? ButtonNamed(DaemonView view, string content) =>

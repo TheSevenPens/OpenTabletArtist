@@ -217,7 +217,12 @@ internal sealed class FakeConnectionState : IConnectionState
     public string DaemonSourcePath
     {
         get => _daemonSourcePath;
-        set { _daemonSourcePath = value; PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(DaemonSourcePath))); }
+        set
+        {
+            _daemonSourcePath = value;
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(DaemonSourcePath)));
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(HasDaemonSourcePath)));
+        }
     }
     private string _daemonSourcePath = "";
     /// <summary>The version the pretend daemon reports. The one this build ships with by default, so a
@@ -363,7 +368,7 @@ internal sealed class FakeConnectionState : IConnectionState
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
     }
 
-    public bool HasDaemonSourcePath => false;
+    public bool HasDaemonSourcePath => !string.IsNullOrEmpty(_daemonSourcePath);
     public bool DaemonCannotOpenTablet => false;
     public bool ShowDaemonSourceUnknown => false;
     public bool CanStartDaemon => !_isConnected;
