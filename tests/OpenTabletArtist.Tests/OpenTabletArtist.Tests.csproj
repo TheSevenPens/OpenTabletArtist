@@ -41,7 +41,7 @@
 
     <!-- Test-only: validates what StrokeTakeWriter produces against the StrokeCorpus JSON Schema (a copy lives
          in Fixtures/), so this writer cannot drift from the format the corpus accepts. -->
-    <PackageReference Include="JsonSchema.Net" Version="9.4.0" />
+    <PackageReference Include="JsonSchema.Net" Version="9.6.0" />
   </ItemGroup>
 
   <ItemGroup>
