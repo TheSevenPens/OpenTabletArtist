@@ -8,7 +8,7 @@
   the assertion catches nothing until a release is already being cut.
 
   That is not hypothetical. OtdInterop landed in #807 with `GenerateDocumentationFile` set, deliberately:
-  its ownership and session-lifetime contracts live in doc comments. A self-contained single-file publish
+  its ownership and session-lifetime contracts live in doc comments. A single-file publish
   copies a referenced project's documentation file into the output root, so from that merge onwards the
   root held `OtdInterop.xml` beside the exe. Nothing noticed for weeks. It surfaced when v0.77.0 was
   tagged -- after the notes were written, the version bumped and the tag pushed -- and the release had to
@@ -73,10 +73,9 @@ try {
             'publish', (Join-Path $repo 'OpenTabletArtist/OpenTabletArtist.csproj'),
             '-c', 'Release',
             '-r', 'win-x64',
-            '--self-contained',
+            '--no-self-contained',
             '-p:PublishSingleFile=true',
             '-p:IncludeNativeLibrariesForSelfExtract=true',
-            '-p:EnableCompressionInSingleFile=true',
             '-o', $OutputPath
         )
         if ($BaseOutputPath) { $publishArgs += "-p:BaseOutputPath=$BaseOutputPath" }
@@ -109,8 +108,8 @@ try {
         Write-Failure ("The publish root should hold only OpenTabletArtist.exe, but also has: " +
                        ($loose.Name -join ', '))
         Write-Host ""
-        Write-Host "A referenced project's XML documentation is the usual cause: a self-contained"
-        Write-Host "single-file publish copies it to the root. Set"
+        Write-Host "A referenced project's XML documentation is the usual cause: a single-file"
+        Write-Host "publish copies it to the root. Set"
         Write-Host "PublishReferencesDocumentationFiles=false on the app, rather than turning the"
         Write-Host "documentation off in the library that wants it."
         exit 1

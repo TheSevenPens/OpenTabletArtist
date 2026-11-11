@@ -114,7 +114,7 @@ jobs:
       # from #807 until v0.77.0 failed on it weeks later (#962). This is the same check, here, on the
       # branch, where the cost of the fix is one line instead of an abandoned release and a re-pointed tag.
       #
-      # Windows only: it is a self-contained win-x64 single-file publish, which is what the release does.
+      # Windows only: it is a framework-dependent win-x64 single-file publish, which is what the release does.
       #
       # Deliberately NOT gated on which files changed. Gating would cut a minute off most runs and would
       # also have skipped the very change that caused this — #807 added a project without touching the

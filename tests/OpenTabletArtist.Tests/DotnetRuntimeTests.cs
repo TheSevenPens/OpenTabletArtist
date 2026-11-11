@@ -7,8 +7,8 @@ using Xunit;
 namespace OpenTabletArtist.Tests;
 
 /// <summary>
-/// The .NET runtime prerequisite (#786, D2). OTA is self-contained and needs no runtime; OpenTabletDriver's
-/// official Windows release is framework-dependent, so driving it makes one a prerequisite.
+/// The .NET runtime prerequisite (#786, D2). OTA's Windows release and OpenTabletDriver's official daemon are
+/// both framework-dependent, so a .NET 10 runtime is a prerequisite for the pair.
 ///
 /// Only the rules are covered here, not the machine. That is the point: the interesting cases are "no .NET
 /// at all" and "the wrong .NET", and this machine — like every CI runner — has the right one. Anything
