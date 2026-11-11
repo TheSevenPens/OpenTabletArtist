@@ -12,9 +12,8 @@
     if a named consumer ever needs that, and only with dependency/API checks and tests on each runtime.
     (https://learn.microsoft.com/dotnet/standard/net-standard)
 
-    It bundles no runtime. OtdInterop.dll runs on its host application's runtime, which for OTA is the
-    single .NET 10 that its self-contained publish already supplies. Nothing here changes the separate
-    OpenTabletDriver daemon's own runtime prerequisite, which is a property of that process.
+    It bundles no runtime. OtdInterop.dll runs on its host application's runtime, which for OTA's Windows
+    release is the .NET 10 the user installed, the same one the OpenTabletDriver daemon runs on.
   -->
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>

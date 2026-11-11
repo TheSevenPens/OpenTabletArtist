@@ -270,7 +270,12 @@ Port the proven model. The open question is whether Windows ships **bundled** of
 The gap Phase 7 was asked to state explicitly rather than close, because closing it needs a machine this
 project does not have.
 
-OTA's own package is self-contained: the published exe carries `Microsoft.NETCore.App 10.0.10` inside it,
+> **Superseded for the Windows package (2026-11).** OTA's Windows publish is now framework-dependent too,
+> so the app and the daemon need the same .NET 10 runtime and OTA does not start without it. The in-app
+> recovery described below is reached only if OTA runs and the daemon still cannot. The rest of this
+> section records the situation when OTA was self-contained.
+
+OTA's own package was self-contained: the published exe carries `Microsoft.NETCore.App 10.0.10` inside it,
 so the app itself needs no installed runtime. **The daemon it ships is not.** OTD's Windows release is
 framework-dependent (`SELF_CONTAINED` defaults to false — see the constraints table above), so the bundled
 `Daemon/OpenTabletDriver.Daemon.exe` requires a **.NET 8 runtime present on the user's machine**. On a

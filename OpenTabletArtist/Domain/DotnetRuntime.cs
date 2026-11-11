@@ -8,10 +8,11 @@ namespace OpenTabletArtist.Domain;
 /// <summary>
 /// Whether this machine has a .NET runtime that can run a framework-dependent daemon (#786, D2).
 ///
-/// OTA itself is self-contained and needs none. OpenTabletDriver's <b>official</b> Windows release is
-/// framework-dependent, so adopting it — or shipping it, as Phase D intends — makes a .NET runtime a
-/// prerequisite where there wasn't one. Someone with no .NET gets a daemon that exits before it prints
-/// anything, and without this all they see is "not connected".
+/// The Windows release of OTA is framework-dependent, like OpenTabletDriver's <b>official</b> daemon, so a
+/// .NET runtime is a prerequisite for both. With no .NET 10 at all OTA does not start (the host reports
+/// it and exits), so on Windows this is now a rarely reached safety net: it only fires when OTA runs and
+/// the daemon still cannot find a runtime. A daemon that exits before it prints anything otherwise shows
+/// the user nothing but "not connected". The macOS build is self-contained and can reach it normally.
 ///
 /// Pure helpers are separated from the filesystem probe so the rules are testable on any platform.
 /// </summary>

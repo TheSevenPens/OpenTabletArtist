@@ -260,8 +260,10 @@
                     </StackPanel>
 
                     <!-- Missing .NET runtime (#786, D2). OpenTabletDriver's official Windows build is
-                         framework-dependent where OTA is self-contained, so a machine with no .NET 10 gets a
-                         daemon that exits before printing anything. Offered here, beside the error that
+                         framework-dependent, and so is OTA, so a machine with no .NET 10 cannot normally reach
+                         this card: OTA itself will not start. It stays as a safety net for the case where OTA
+                         runs but the daemon still exits before printing anything, and for macOS, where OTA
+                         is self-contained. Offered here, beside the error that
                          explains it, rather than as a health card: this is a prerequisite for connecting,
                          which is what this page is about.
 

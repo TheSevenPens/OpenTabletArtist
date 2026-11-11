@@ -1,6 +1,7 @@
 name: release
 
-# Publishes a self-contained Windows binary (app + bundled OTD daemon) as a GitHub Release.
+# Publishes a framework-dependent Windows binary (app + bundled OTD daemon) as a GitHub Release.
+# Both halves need the .NET 10 runtime on the user's machine; see the publish step below for why.
 # Trigger by pushing a version tag (e.g. `git tag v0.1.0 && git push origin v0.1.0`),
 # or run manually from the Actions tab with a tag input.
 on:
@@ -85,26 +86,33 @@ jobs:
       - name: Health collector and analyzer tests
         run: dotnet test tests/OtdHealth.Collector.Tests/OtdHealth.Collector.Tests.csproj -c Debug
 
-      # Self-contained so end users need no .NET runtime installed. (Debug symbols are stripped from the
-      # whole bundle just before zipping — see the "Strip debug symbols" step below.)
+      # Framework-dependent: the app does NOT carry a .NET runtime, and the user installs the .NET 10
+      # runtime first. The daemon below is OpenTabletDriver's official binary, which is framework-
+      # dependent and needs the same Microsoft.NETCore.App 10.x, so the user needed that runtime anyway.
+      # Embedding a second copy in the app bought nothing once it was present and cost ~30 MB of download.
+      # OTA is an Avalonia WinExe, so it needs only Microsoft.NETCore.App, not the Desktop runtime.
+      #
+      # THE COST: a machine with no .NET 10 cannot start OTA at all. The .NET host prints/shows "You must
+      # install .NET to run this application" with a download link and exits 0x80008083 (131 on Unix),
+      # and OTA's own in-app runtime guidance (DotnetRuntime, the Daemon page card) is never reached.
+      # Nothing on a runner can demonstrate this: setup-dotnet means the runtime is always present.
+      # Run the exe with DOTNET_ROOT pointing at an empty folder to see it.
       #
       # Single-file (#586), because the zip root used to hold 252 files and users could not find the
       # executable among 251 runtime DLLs. With the natives bundled in, the root becomes exactly one exe
       # plus the Daemon/, BundledPlugins/ and Bundled/ folders.
       #
       # IncludeNativeLibrariesForSelfExtract pulls in Skia/HarfBuzz/ANGLE, which would otherwise stay
-      # loose; EnableCompressionInSingleFile takes the app from ~116 MB to ~51 MB on disk. Measured
-      # together with the daemon: 259 root files and 193 MB unpacked become 2 and 87 MB, and the download
-      # goes 86 MB → 77 MB. The download moves far less than the unpacked size because the loose-DLL
-      # layout already compressed well into the zip — the real wins here are the root clutter and the
-      # installed footprint, not the download.
+      # loose. EnableCompressionInSingleFile is deliberately absent: the SDK only allows it for
+      # self-contained apps. Measured on v0.83.0: the exe is ~40 MB on disk (it was ~54 MB) and ~15 MB
+      # zipped (it was ~46 MB), so the download falls from ~51 MB to roughly 20 MB.
       #
       # The cost is that the natives unpack to a temp folder on first launch. The "Smoke-test the
       # packaged app" step below runs the packaged exe and is what proves this layout still resolves its
       # bundled components: single-file keeps AppContext.BaseDirectory pointing at the exe's own folder
       # rather than the extraction directory, and every bundled path depends on that.
-      - name: Publish app (self-contained win-x64, single file)
-        run: dotnet publish OpenTabletArtist/OpenTabletArtist.csproj -c Release -r win-x64 --self-contained -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:EnableCompressionInSingleFile=true -p:Version=${{ steps.ver.outputs.version }} -o publish/OpenTabletArtist
+      - name: Publish app (framework-dependent win-x64, single file)
+        run: dotnet publish OpenTabletArtist/OpenTabletArtist.csproj -c Release -r win-x64 --no-self-contained -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:Version=${{ steps.ver.outputs.version }} -o publish/OpenTabletArtist
 
       # The daemon OTA ships is OpenTabletDriver's own released binary, downloaded here rather than
       # built from the submodule (#786). The OTD maintainers cannot support a binary they did not
