@@ -244,6 +244,16 @@ public static class StrokeTakeWriter
             json.WriteString("username", d.Username);
             json.WriteString("notes", d.Notes);
             json.WriteString("recordedAt", d.RecordedAt.ToString("O", CultureInfo.InvariantCulture));
+            var osName = OperatingSystem.IsWindows() ? "Windows"
+                : OperatingSystem.IsLinux() ? "Linux"
+                : OperatingSystem.IsMacOS() ? "macOS"
+                : null;
+            if (osName is not null)
+            {
+                json.WritePropertyName("hostOS");
+                // Keep the metadata on a single line so the corpus can verify later label corrections.
+                json.WriteRawValue(JsonSerializer.Serialize(new { name = osName, version = Environment.OSVersion.Version.ToString() }));
+            }
             json.WriteString("endedBy", take.EndedBy);
             json.WriteNumber("strokeCount", take.Strokes.Count);
             json.WriteBoolean("keptEveryAirborneReading", take.KeptAirborne);
