@@ -343,7 +343,13 @@ public class StrokeTakeWriterTests
             Assert.Equal("a-take-2.json", Path.GetFileName(second));
             Assert.Equal("a-take-2", Parse(File.ReadAllText(second))["id"]!.GetValue<string>());
             Assert.Empty(Directory.GetFiles(folder, "*.writing"));
-            AssertValid(File.ReadAllText(first));
+            var json = File.ReadAllText(first);
+            AssertValid(json);
+            var os = Parse(json)["hostOS"]!;
+            var expectedName = OperatingSystem.IsWindows() ? "Windows"
+                : OperatingSystem.IsMacOS() ? "macOS" : "Linux";
+            Assert.Equal(expectedName, os["name"]!.GetValue<string>());
+            Assert.Equal(Environment.OSVersion.Version.ToString(), os["version"]!.GetValue<string>());
             Assert.False(File.ReadAllBytes(first).Take(3).SequenceEqual(new byte[] { 0xEF, 0xBB, 0xBF }), "no byte order mark");
         }
         finally { if (Directory.Exists(folder)) Directory.Delete(folder, true); }
