@@ -73,6 +73,7 @@ pen-behavior bundle, its per-setting review links. Ids ending `:<name>` are per-
 | `driver.conflict` | Broken if blocking, else Misconfigured | A manufacturer tablet driver is detected *(Windows)* | **Fix** → Settings › System (Driver cleanup) | — |
 | `app.elevated` | Misconfigured | The app is running as Administrator | *(no button — relaunch unelevated yourself)* | — |
 | `tray.gnomeNoSni` | Information | GNOME session with no StatusNotifierItem tray host *(Linux)* | *(no button — install the AppIndicator extension)* | — |
+| `tablet.none` | Information | Connected to the daemon, which has reported no detected tablet for ~6 s running *(app notice, not in the shared library)* | *(no button — a plugged-in tablet is picked up on its own)* | — |
 | `daemon.foreign` | Recommendation | Connected to a daemon this app didn't launch | **Fix** → restart the daemon to the bundled build | — |
 | `dev.induced.<severity>` | the induced tier | A Developer-tab toggle forced a synthetic card (for reviewing / screenshotting the UI) | **Clear** → clears the Developer flag | — |
 
