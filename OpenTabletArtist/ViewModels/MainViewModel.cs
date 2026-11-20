@@ -146,6 +146,10 @@ public partial class MainViewModel : ObservableObject, IDisposable
             ? Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled
             : Avalonia.Controls.Primitives.ScrollBarVisibility.Auto;
 
+    /// <summary>Whether the current page is as tall as its content or takes the space the window leaves for it
+    /// (see <see cref="PageLayout"/>). Bound by the page host.</summary>
+    public Avalonia.Layout.VerticalAlignment ContentVerticalAlignment => PageLayout.VerticalAlignmentFor(CurrentPage);
+
     /// <summary>The whole page menu as one ordered, data-driven list (Zune Phase 0.2): HOME ·
     /// TABLET · PEN · SCRIBBLE · SETTINGS · ADVANCED. Each entry has a label, its target page, a selection
     /// flag the page menu highlights (synced in <see cref="OnCurrentPageChanged"/>), and a visibility flag.
@@ -667,6 +671,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
         foreach (var section in NavSections)
             section.IsSelected = ReferenceEquals(CurrentPage, section.Page);
         OnPropertyChanged(nameof(ContentScrollBarVisibility));
+        OnPropertyChanged(nameof(ContentVerticalAlignment));
         OnPropertyChanged(nameof(ShowTabletSwitcher));
         OnPropertyChanged(nameof(PageInputEnabled));
     }
