@@ -458,11 +458,34 @@ public partial class TestViewModel : ObservableObject, IDisposable
     /// <summary>Driver mode but no usable Absolute mapping → canvas disabled, show the note.</summary>
     public bool DriverCanvasDisabled => !_mapping.HasValue;
 
-    public string DriverDisabledNote =>
-        "Painting here needs an Absolute output mode (e.g. Windows Ink Absolute) on the active tablet, so " +
-        "the pen's position on the tablet can be mapped to the screen. The current mode doesn't map " +
-        "position, so the canvas is disabled — the readouts above still work. Set this tablet to an " +
-        "Absolute output mode to draw here.";
+    /// <summary>Why the canvas is off, in the words the UI itself uses. Three causes, and the note names the
+    /// one that is true: a tablet that is not connected (nothing to map), a movement choice of Mouse-like
+    /// (the PEN page's basics pivot), or neither, where the mapping could not be built for some other reason.
+    /// Saying "change the movement" to someone whose tablet is already on Normal would send them to fix a
+    /// setting that is fine.</summary>
+    public string DriverDisabledNote
+    {
+        get
+        {
+            var detected = DetectedProfile();
+            if (detected == null) return NoTabletNote;
+            if (!IsAbsoluteOutputPath(detected.Profile)) return MouseLikeNote;
+            return CannotMapNote;
+        }
+    }
+
+    public const string NoTabletNote = "Connect your tablet to draw here.";
+
+    public const string MouseLikeNote =
+        "You've chosen Mouse-like (Relative) movement. On the Pen page, under basics, change movement to " +
+        "Normal (Absolute) to draw here.";
+
+    public const string CannotMapNote = "Can't draw here yet. Try unplugging and reconnecting the tablet.";
+
+    /// <summary>Absolute output modes (OTD AbsoluteOutputMode + VoiD's WinInkAbsoluteMode) carry "Absolute" in
+    /// their type path; Relative modes don't map an absolute position.</summary>
+    private static bool IsAbsoluteOutputPath(Profile? profile) =>
+        profile?.OutputMode?.Path is { } path && path.Contains("Absolute", StringComparison.OrdinalIgnoreCase);
 
     // Where OTD's 0-based virtual-desktop space starts on screen — non-zero when a monitor sits left of /
     // above the primary. Without it a mapped point lands that far off the canvas and nothing draws.
@@ -480,16 +503,13 @@ public partial class TestViewModel : ObservableObject, IDisposable
         _desktopOrigin = DisplayMappingApplier.DesktopOrigin(DisplayEnumerator.Enumerate());
         OnPropertyChanged(nameof(DriverPositioned));
         OnPropertyChanged(nameof(DriverCanvasDisabled));
+        OnPropertyChanged(nameof(DriverDisabledNote));
     }
 
     private (TabletDigitizerSpec, MappingArea, MappingArea, bool, bool)? BuildMapping()
     {
         var profile = ActiveProfile();
-        // Absolute output modes (OTD AbsoluteOutputMode + VoiD's WinInkAbsoluteMode) carry "Absolute"
-        // in their type path; Relative modes don't map an absolute position.
-        if (profile?.OutputMode?.Path is not { } path ||
-            !path.Contains("Absolute", StringComparison.OrdinalIgnoreCase))
-            return null;
+        if (profile == null || !IsAbsoluteOutputPath(profile)) return null;
 
         var abs = profile.AbsoluteModeSettings;
         if (abs?.Tablet is not { } t || abs.Display is not { } disp) return null;

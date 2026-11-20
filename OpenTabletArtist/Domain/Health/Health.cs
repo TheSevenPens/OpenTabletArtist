@@ -212,6 +212,12 @@ public sealed record HealthInputs
     /// a HID device needs no permission; opening it does — so this is what a missing Input Monitoring grant
     /// looks like from outside the daemon.</summary>
     public bool DaemonCannotOpenTablet { get; init; }
+    /// <summary>Connected to the daemon, which has reported and then kept reporting no tablet for long enough
+    /// to be believed. The caller owns "long enough": a daemon that was only just started has not finished
+    /// detecting, so it says "none" for a moment before it says otherwise, and a card shown on that moment
+    /// would flash on every launch. False until it has settled, and whenever the daemon is not connected
+    /// (the connection card owns that case).</summary>
+    public bool NoTabletDetected { get; init; }
     /// <summary>The Windows Ink plugin is installed in the daemon's plugin directory.</summary>
     public bool? WinInkInstalled { get; init; } = false;
     /// <summary>The installed Windows Ink plugin doesn't declare support for the running driver version.</summary>
@@ -299,6 +305,23 @@ public static class HealthEvaluator
                 + "while another is up. A portable OpenTabletDriver keeps its settings and plugins beside "
                 + "itself, so those may look different until you do.",
                 new Remediation("Got it", RemediationArea.AcknowledgeLegacyDaemonPath)));
+        }
+
+        // --- No tablet is connected. Nothing is wrong, and the app works as it should; this only makes sure
+        //     the artist knows we cannot find one, since several pages (Scribble, the pen settings) have
+        //     nothing live to act on. Information, and no button: there is nothing to fix here, and a plugged-in
+        //     tablet is picked up on its own. Left out when the platform check already says why none is found
+        //     (macOS permission, Linux udev rules / HID access), so one cause is not announced twice. ---
+        if (i.DaemonConnected && i.NoTabletDetected
+            && !i.DaemonCannotOpenTablet
+            && !i.LinuxUdevRulesMissing
+            && i.LinuxHidAccess != LinuxHidAccess.Blocked)
+        {
+            issues.Add(new HealthIssue("tablet.none", HealthSeverity.Information,
+                "No tablet detected",
+                "OpenTabletArtist can't detect a tablet right now. Plug in a drawing tablet, and then you can " +
+                "configure how it works with OpenTabletArtist.",
+                Remediation: null));
         }
 
         // --- Tray host missing (Linux/GNOME with no StatusNotifierItem host): the tray icon is published

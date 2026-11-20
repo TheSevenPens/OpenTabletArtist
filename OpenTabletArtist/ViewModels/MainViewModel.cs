@@ -307,9 +307,10 @@ public partial class MainViewModel : ObservableObject, IDisposable
         NavSections.Add(new NavLeafViewModel("TABLET", TabletPage));
         NavSections.Add(new NavLeafViewModel("PEN", PenPage));
         NavSections.Add(new NavLeafViewModel("SCRIBBLE", Test));
-        NavSections.Add(new NavLeafViewModel("HEALTH", HealthPage, badge: HealthBadge));
         NavSections.Add(new NavLeafViewModel("SETTINGS", Settings));
         NavSections.Add(new NavLeafViewModel("ADVANCED", Advanced));
+        // HEALTH sits right-most: it is a status indicator (badge) rather than a place you configure.
+        NavSections.Add(new NavLeafViewModel("HEALTH", HealthPage, badge: HealthBadge));
 
         // Keep the TABLET + PEN switchers pointed at the app-wide active tablet, so all three tablet
         // switchers (incl. SCRIBBLE, which drives it directly) stay linked when it changes from anywhere

@@ -6,6 +6,7 @@ using System.ComponentModel;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Avalonia.Threading;
 using OtdHealth.Collector;
 using OtdInterop;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -54,6 +55,16 @@ public sealed partial class HealthService : ObservableObject, IDisposable
     private CancellationTokenSource? _collectionCancellation;
     private bool _disposed;
     private bool _dataLoaded;
+
+    /// <summary>How long the daemon has to keep reporting no tablet before the health page says so. A daemon
+    /// this app has just started reports none until it finishes detecting, a second or two on, so without the
+    /// wait the HEALTH badge would flash on every launch of an app whose tablet is plugged in.</summary>
+    internal static readonly TimeSpan NoTabletSettleDefault = TimeSpan.FromSeconds(6);
+
+    private readonly TimeSpan _noTabletSettle;
+    // Set once "no tablet" has held for the settle time; cleared the moment a tablet is seen or the daemon goes.
+    private bool _noTabletSettled;
+    private CancellationTokenSource? _noTabletTimer;
     private readonly Func<CancellationToken, Task<HealthAnalysisReport>>? _collectForTest;
     internal Task CurrentCollection { get; private set; } = Task.CompletedTask;
     /// <summary>The last real collection report, before developer overrides or presentation.</summary>
@@ -74,8 +85,10 @@ public sealed partial class HealthService : ObservableObject, IDisposable
         : this(connection, device, conflicts, null) { }
 
     internal HealthService(IConnectionState connection, IDeviceData device, DriverConflictMonitor conflicts,
-        Func<CancellationToken, Task<HealthAnalysisReport>>? collectForTest)
+        Func<CancellationToken, Task<HealthAnalysisReport>>? collectForTest,
+        TimeSpan? noTabletSettle = null)
     {
+        _noTabletSettle = noTabletSettle ?? NoTabletSettleDefault;
         _collectForTest = collectForTest;
         _connection = connection;
         _device = device;
@@ -163,6 +176,7 @@ public sealed partial class HealthService : ObservableObject, IDisposable
     {
         if (_disposed) return;
         if (!_connection.IsConnected) { _dataLoaded = false; Analysis = null; }
+        TrackNoTablet();
         // Ownership and app notices react immediately. Capture detaches profiles and reads display
         // bounds on the UI thread; the collector then runs its probe delegates on worker threads.
         // Discard obsolete results before publishing them back on the captured UI context.
@@ -171,6 +185,49 @@ public sealed partial class HealthService : ObservableObject, IDisposable
         _collectionCancellation = new CancellationTokenSource();
         CollectionFailed = false;
         CurrentCollection = CollectAsync(_collectionCancellation);
+    }
+
+    /// <summary>Starts, keeps or cancels the wait before "no tablet" is believed. It counts only while the daemon
+    /// is connected, has loaded, and shows no tablet; anything else ends it, so a tablet that appears within the
+    /// wait means the card never showed.</summary>
+    private void TrackNoTablet()
+    {
+        bool none = _connection.IsConnected && _dataLoaded && _device.DetectedTablets.Count == 0;
+        if (!none)
+        {
+            CancelNoTabletTimer();
+            _noTabletSettled = false;
+            return;
+        }
+        if (_noTabletSettled || _noTabletTimer != null) return; // already believed, or already waiting
+        if (_noTabletSettle <= TimeSpan.Zero) { _noTabletSettled = true; return; }
+
+        var timer = _noTabletTimer = new CancellationTokenSource();
+        _ = SettleNoTabletAsync(timer);
+    }
+
+    private async Task SettleNoTabletAsync(CancellationTokenSource timer)
+    {
+        try { await Task.Delay(_noTabletSettle, timer.Token).ConfigureAwait(false); }
+        catch (OperationCanceledException) { return; }
+
+        // Back on the UI thread, which owns this service and the collection it publishes to.
+        Dispatcher.UIThread.Post(() =>
+        {
+            if (_disposed || timer.IsCancellationRequested) return;
+            _noTabletTimer = null;
+            _noTabletSettled = true;
+            PublishIssues();
+        });
+    }
+
+    private void CancelNoTabletTimer()
+    {
+        var timer = _noTabletTimer;
+        _noTabletTimer = null;
+        if (timer == null) return;
+        timer.Cancel();
+        timer.Dispose();
     }
 
     private async Task CollectAsync(CancellationTokenSource cancellation)
@@ -251,6 +308,9 @@ public sealed partial class HealthService : ObservableObject, IDisposable
             DaemonSourceUnknown = _connection.ShowDaemonSourceUnknown,
             DaemonVersion = _connection.DaemonVersion,
             ExpectedOtdVersion = ExpectedOtdVersion,
+            // Re-read live as well as settled: a tablet that has just appeared must not wait for the timer's
+            // own cancellation to take the card down.
+            NoTabletDetected = _noTabletSettled && _connection.IsConnected && _device.DetectedTablets.Count == 0,
             IgnoredDaemonPath = LegacyDaemonPath(),
             LegacyPathNoticeAcknowledged = AppSettings.Get(LegacyPathNoticeAcknowledgedKey) == "true",
             ConnectedDaemonPath = _connection.DaemonSourcePath,
@@ -303,6 +363,7 @@ public sealed partial class HealthService : ObservableObject, IDisposable
     public void Dispose()
     {
         _disposed = true;
+        CancelNoTabletTimer();
         _collectionCancellation?.Cancel();
         _device.DataLoaded -= OnDataLoaded;
         _connection.PropertyChanged -= OnConnectionChanged;
